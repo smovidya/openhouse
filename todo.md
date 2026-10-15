@@ -2,19 +2,19 @@
 ## 20 Oct
 - landing
 - ลงทะเบียน
+  - หน้า login
   - form
   - pdpa
-  - หน้า login
-- my id
 - เลือก workshop
   - list workshop
   - รายละเอียด workshop + เลือกสล็อตเวลา 
-- 
+- myid: ต้องมีลิงก์ลงทะเบียน workshop
 
 ## 26 Oct
 - make a guide
 
 ## 28 Oct
+- myid (เสร็จ)
 - staff
 - registration: ใส่ invite code
 - qrcode page
