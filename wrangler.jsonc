@@ -17,7 +17,17 @@
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"upload_source_maps": true,
+	"vars": {
+		"GOOGLE_CLIENT_ID": "492442244723-srs10ae9048lgbab1qfp0hldiel8lvuv.apps.googleusercontent.com",
+	},
+	"env": {
+		"production": {
+			"vars": {
+				"GOOGLE_CLIENT_ID": "492442244723-srs10ae9048lgbab1qfp0hldiel8lvuv.apps.googleusercontent.com"
+			}
+		}
+	}
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
