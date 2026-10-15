@@ -1,1 +1,0 @@
-ALTER TABLE `competitors` ADD `deleted_at` integer;

@@ -1,44 +1,14 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "openhouse26",
-  "account_id": "e2069f9cc14d2fe64afc9d04ed6576bd",
-  "compatibility_date": "2026-03-17",
-  "compatibility_flags": [
-    "nodejs_compat",
-    "disable_nodejs_process_v2"
-  ],
-  "main": "./src/workers/index.ts",
-  "assets": {
-    "binding": "ASSETS",
-    "directory": "./dist",
-  },
-  "vars": {
-    "ENVIRONMENT": "production",
-  },
-  "observability": {
-    "enabled": true,
-  },
-  "browser": {
-    "binding": "BROWSER",
-  },
-  "routes": [
-    {
-      "pattern": "scichulaopenhouse.com",
-      "custom_domain": true,
-    },
-  ],
-  "kv_namespaces": [
-    {
-      "binding": "openhouse26_2_kv",
-      "id": "3e9895cd8af84b719d3372631c094e60",
-    },
-  ],
-  "d1_databases": [
-    {
-      "binding": "openhouse26_2_db",
-      "database_name": "openhouse26-2-db",
-      "database_id": "2079e48e-8986-4bdd-a610-954ff3649d31",
-      "migrations_dir": "drizzle",
-    },
-  ],
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"compatibility_date": "2026-10-12",
+	"compatibility_flags": ["global_fetch_strictly_public"],
+	"name": "openhouse26",
+	"main": "@astrojs/cloudflare/entrypoints/server",
+	"assets": {
+		"directory": "./dist",
+		"binding": "ASSETS"
+	},
+	"observability": {
+		"enabled": true
+	}
 }
