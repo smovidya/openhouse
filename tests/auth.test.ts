@@ -99,9 +99,9 @@ it("requires a matching Origin for auth commands, including during development",
 
 describe("session tokens and cookies", () => {
   it("expires exactly 24 hours after issue and rejects tampering", async () => {
-    const now = new Date("2026-10-16T00:00:00Z");
+    const now = new Date("2027-10-16T00:00:00Z");
     const issued = await issueSessionToken("user-1", settings, now);
-    assert.equal(issued.expiresAt, "2026-10-17T00:00:00.000Z");
+    assert.equal(issued.expiresAt, "2027-10-17T00:00:00.000Z");
     assert.equal(
       (await verifySessionToken(issued.token, settings, now))?.userId,
       "user-1",
@@ -110,7 +110,7 @@ describe("session tokens and cookies", () => {
       await verifySessionToken(
         issued.token,
         settings,
-        new Date("2026-10-16T23:59:59Z"),
+        new Date("2027-10-16T23:59:59Z"),
       ),
     );
     assert.equal(
@@ -305,7 +305,7 @@ describe("D1 identity and development fixtures", () => {
       configPath,
       JSON.stringify({
         name: "openhouse26-auth-test",
-        compatibility_date: "2026-10-06",
+        compatibility_date: "2027-10-06",
         d1_databases: [{ binding: "DB", database_name: "auth-test" }],
       }),
     );

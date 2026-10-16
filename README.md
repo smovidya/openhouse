@@ -1,9 +1,10 @@
-# Open House 2026
+# Open House 2027
 
 ## Backend organization
 
 Backend code is grouped by feature. Authentication, staff enrollment/permissions,
-and checkpoint scanning have backend APIs. No sign-in or enrollment UI is included.
+and checkpoint scanning have backend APIs. The home page includes a login demo;
+enrollment UI is not yet included.
 
 ```text
 src/lib/
@@ -100,6 +101,21 @@ checks, and identity/fixture operations against an isolated local D1 database.
 `checkJs` is disabled because Wrangler's generated binding declarations reference
 the compiled worker JavaScript; TypeScript source remains strictly checked.
 
+## Login demo
+
+After completing the local setup below, open `http://localhost:5173/`.
+Choose **Demo attendee** or **Demo staff** to exercise real local sessions without
+a Google account. Sign out before switching profiles. The page shows the current
+user, role, permissions, expiry, and an expandable session payload; reloading keeps
+the session. Development profile buttons are absent from production builds and
+`bun run preview`.
+
+For Google login, choose **Start Google sign-in**, then use Google's rendered
+button. The demo loads Google Identity Services, requests a signed nonce challenge,
+and submits the returned credential through `auth.client.ts`. Register the exact
+development origin in Google Cloud first. A blocked SDK or failed login displays
+an error and allows another attempt; an unused challenge expires and can be restarted.
+
 ## Authentication API
 
 For UI event handlers, import `beginGoogleSignIn`, `signInWithGoogle`,
@@ -130,7 +146,7 @@ record. Permissions are loaded from D1, never trusted from JWT claims or UI stat
 JWTs are only sent through HttpOnly cookies. Zod validates inputs directly without
 an adapter. Authentication commands require a matching `Origin`, including locally.
 
-The future Google client flow is:
+The Google client flow is:
 
 1. Call `beginGoogleSignIn()`.
 2. Initialize Google Identity Services with the returned `clientId` and `nonce`.
