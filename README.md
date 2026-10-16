@@ -2,11 +2,13 @@
 
 ## Backend organization
 
-Backend code is grouped by feature. Authentication is not implemented yet.
+Backend code is grouped by feature. Authentication is implemented as a backend API;
+the other feature modules remain scaffolds. No sign-in UI is included yet.
 
 ```text
 src/lib/
   features/
+    auth/
     attendees/
     workshops/
     checkpoints/
@@ -27,7 +29,7 @@ Each feature contains:
 | `<feature>.remote.ts` | Frontend-facing queries, forms, and commands |
 | `service.server.ts` | Business rules, permissions, and database operations |
 
-Remote and service files are scaffolds, with no callable operations yet. Attendees,
+Outside authentication, remote and service files are scaffolds. Attendees,
 workshops, checkpoints, and rewards include initial input schemas. Survey validation
 is intentionally left for when the questionnaire is defined. Review input constraints
 alongside each feature's requirements before implementing its operations.
@@ -42,21 +44,21 @@ alongside each feature's requirements before implementing its operations.
 3. Export a `query`, `form`, or `command` from the feature's remote module. Pass
    the Zod schema directly to it; Zod supports Standard Schema without an adapter.
    Obtain request context with `getRequestEvent()` inside the handler and construct
-   the database with `getDb(d1)` using the current request's D1 binding.
+   the database with `getDb(env.DB)` using `env` from `cloudflare:workers`.
 4. Translate service outcomes into frontend results or form errors in the remote
    module, and refresh affected queries after successful mutations.
 5. Import the operation directly from the feature remote module in a page or
-   component, for example `#lib/features/workshops/workshops.remote`.
+   component, for example `#lib/features/workshops/workshops.remote.ts`.
 
 Keep identity, roles, checker IDs, generated IDs, and timestamps out of ordinary
-user-editable input. Resolve them from trusted server context. Add authentication
-and authorization before exposing operations that access private data or make
-restricted changes.
+user-editable input. Resolve them from `locals.user`. Use `requireUser` or
+`requireStaff` from `auth/guards.server.ts`, plus any operation-specific permission
+checks, before exposing private data or restricted changes.
 
-The current Wrangler configuration does not declare a D1 binding. Configure one
-and run `bun run cf-typegen` before wiring database-backed remote handlers. Database
-construction stays inside request handling; do not store per-request identity or
-bindings in module-level variables.
+Wrangler declares a local D1 binding named `DB`. Production requires its own binding
+under `env.production`. Run `bun run cf-typegen` after changing bindings. Database
+construction stays inside request handling; never store per-request identity in
+module-level variables.
 
 ### Schema placement
 
@@ -67,7 +69,7 @@ bindings in module-level variables.
 - When an internal import or other boundary actually needs a database-derived Zod
   validator, add `db-schemas.server.ts` to its owning feature. Import
   `createInsertSchema`, `createUpdateSchema`, or `createSelectSchema` directly from
-  `drizzle-orm/zod`, and import the table from `#db/tables`.
+  `drizzle-orm/zod`, and import the table from `#db/tables.ts`.
 - Keep database-derived validators server-only. Select allowed fields explicitly
   before using one for an operation; a table's full insert shape is not a public API.
 - Let remote return types infer from explicitly selected response fields. Add a
@@ -85,9 +87,113 @@ References: [remote functions](https://svelte.dev/docs/kit/remote-functions),
 ### Verification
 
 ```sh
+bun test
 bun run check
 bun run build
 ```
+
+Tests exercise signed JWT verification, cookies, Google claim validation, origin
+checks, and identity/fixture operations against an isolated local D1 database.
+`checkJs` is disabled because Wrangler's generated binding declarations reference
+the compiled worker JavaScript; TypeScript source remains strictly checked.
+
+## Authentication API
+
+Import the public operations from `#lib/features/auth/auth.remote.ts`. SvelteKit
+generates their transport endpoints and input/output types; do not hardcode the
+generated endpoint hashes. The server hook registers the remote modules so they
+are available even before a UI imports them.
+
+| Operation | Input | Result |
+| --- | --- | --- |
+| `beginGoogleSignIn()` | None | `{ clientId, nonce }`; sets a signed, five-minute challenge cookie |
+| `signInWithGoogle(...)` | `{ googleIdToken: string }` | `AuthSession`; sets the session cookie |
+| `getSession()` | None | `AuthSession` or `null` |
+| `logout()` | None | `{ success: true }`; clears session and challenge cookies |
+| `createDevSession(...)` from `auth/dev.remote.ts` | `{ profile: "attendee" \| "staff" }` | `AuthSession`; development only |
+
+`AuthSession` contains `{ user: { id, email, name, image, role }, expiresAt }`.
+JWTs are only sent through HttpOnly cookies. Zod validates inputs directly without
+an adapter. Authentication commands require a matching `Origin`, including locally.
+
+The future Google client flow is:
+
+1. Call `beginGoogleSignIn()`.
+2. Initialize Google Identity Services with the returned `clientId` and `nonce`.
+3. Send its credential as `googleIdToken` to `signInWithGoogle()`.
+
+Google's signature, issuer, audience, expiry, verified email, authorized party
+(when present), and nonce are checked using cached public keys. No Google client
+secret is needed. Register the app's exact origins in Google Cloud, including
+`http://localhost:5173` for the default development server.
+
+Users are identified by Google's `sub`, enforced by a unique database index.
+New users receive the attendee role; later logins update their Google profile
+without changing their role. Matching email addresses do not link accounts.
+Google sign-in creates the user identity only; collecting attendee registration
+details remains a separate feature. Soft-deleted accounts cannot sign in.
+
+### Session behavior and module ownership
+
+- `schemas.ts`: public Zod inputs and session types.
+- `google.server.ts`: Google token verification.
+- `session.server.ts`: JWT signing/verification, cookies, and login challenges.
+- `service.server.ts`: user lookup and atomic identity creation/update.
+- `config.server.ts`: validated configuration and database access.
+- `guards.server.ts`: authentication, role, and origin checks.
+- `dev-fixtures.server.ts`: repeatable local attendee/staff fixtures.
+- `auth.remote.ts` and `dev.remote.ts`: frontend-facing commands and queries.
+
+Sessions have a fixed 24-hour lifetime, with no automatic renewal. Production uses
+a Secure, HttpOnly, SameSite=Lax, host-only `__Host-session` cookie. Development
+uses a separate local cookie and JWT audience. The hook verifies the JWT and reads
+the active user on every authenticated request, so role changes and soft deletion
+take effect immediately. It populates `locals.user` and `locals.session`;
+`+layout.server.ts` exposes the safe session to future pages. Login/logout refresh
+`getSession`; future client code should also invalidate layout data when needed.
+
+Logout clears this browser's cookie. It does not revoke a copied JWT, which remains
+valid until expiry unless the user is disabled or the signing key is rotated.
+
+### Local setup without a .env file
+
+```sh
+bun install
+export AUTH_JWT_SECRET="$(openssl rand -hex 32)"
+bun run db:migrate:local
+bun run dev
+```
+
+The public `GOOGLE_CLIENT_ID` is already in `wrangler.jsonc`. The app's separate
+JWT signing secret must be exactly 64 hexadecimal characters. Wrangler reads it
+from the shell environment; no environment file is added. Keep the same secret in
+your shell to retain sessions across restarts. A newly generated key invalidates
+existing sessions. Never commit the secret or expose it to client code.
+
+`createDevSession` creates or reuses fixed local users and matching attendee/staff
+records, then follows the normal JWT/cookie/session path. Existing fixtures are
+not reset, so local role changes and disabled-user scenarios remain testable.
+The staff fixture has a `development` permission marker; feature-specific
+permissions still need their own rules. Remote Cloudflare bindings are disabled
+in the development adapter. Mock login returns 404 in production builds,
+including `bun run preview`; it cannot be enabled by a request parameter.
+
+### Production setup
+
+1. Configure the real D1 binding under `env.production.d1_databases` with binding
+   `DB`, its database name/ID, `migrations_dir: "drizzle"`, and
+   `migrations_pattern: "drizzle/*/migration.sql"`; run `bun run cf-typegen`.
+2. Store a separate 64-character hex `AUTH_JWT_SECRET` using Cloudflare's secret
+   settings or `bunx wrangler secret put AUTH_JWT_SECRET --env production`.
+3. Apply migrations to that database with
+   `bunx wrangler d1 migrations apply DB --remote --env production`.
+4. Build and deploy to that environment with
+   `bun run build && bunx wrangler deploy --env production`.
+
+The Google identity migration adds a unique index. If an existing database has
+duplicate Google IDs, reconcile those accounts before applying it; the migration
+intentionally fails rather than deleting data. No production resources or secrets
+are created by the local setup.
 
 ## Project setup
 
