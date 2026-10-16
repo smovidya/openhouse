@@ -1,4 +1,6 @@
 import * as t from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import type { StaffPermission } from "#lib/features/staff/permissions.ts";
 
 const id = {
   id: t
@@ -40,7 +42,7 @@ export const attendees = t.sqliteTable(
   "attendees",
   {
     ...id,
-    qrCodeId: t.text().notNull(),
+    qrCodeId: t.text().notNull().unique(),
     userId: t
       .text("user_id")
       .notNull()
@@ -57,7 +59,7 @@ export const attendees = t.sqliteTable(
     }),
     ...timestamps,
   },
-  (table) => [t.index("idx_attendees_qr_code_id").on(table.qrCodeId)],
+  (table) => [t.uniqueIndex("idx_attendees_qr_code_id").on(table.qrCodeId)],
 );
 
 export const staffs = t.sqliteTable(
@@ -72,11 +74,24 @@ export const staffs = t.sqliteTable(
     name: t.text("name").notNull(),
     department: t.text("department"),
     phone: t.text("phone").notNull(),
-    permission: t.text("permission").notNull(),
+    permission: t
+      .text("permission", { mode: "json" })
+      .$type<StaffPermission[]>()
+      .notNull(),
     ...timestamps,
   },
-  (table) => [t.index("idx_staffs_user_id").on(table.userId)],
+  (table) => [t.uniqueIndex("staffs_user_id_unique").on(table.userId)],
 );
+
+export const inviteCodes = t.sqliteTable("invite_codes", {
+  ...id,
+  codeHash: t.text("code_hash").notNull().unique(),
+  permission: t
+    .text("permission", { mode: "json" })
+    .$type<StaffPermission[]>()
+    .notNull(),
+  ...timestamps,
+});
 
 export const workshops = t.sqliteTable("workshops", {
   ...id,
@@ -123,6 +138,8 @@ export const checkpoints = t.sqliteTable("checkpoints", {
   ...id,
   name: t.text("name"),
   note: t.text("note"),
+  // Required for booth checkpoints when granting department-scoped access.
+  department: t.text("department"),
   type: t
     .text("type", {
       enum: ["entry", "booth", "reward", "stage", "workshop"],
@@ -131,19 +148,28 @@ export const checkpoints = t.sqliteTable("checkpoints", {
   ...timestamps,
 });
 
-export const checkpointLogs = t.sqliteTable("checkpoint_logs", {
-  ...id,
-  attendeeId: t
-    .text("attendee_id")
-    .notNull()
-    .references(() => attendees.id),
-  checkpointId: t
-    .text("checkpoint_id")
-    .notNull()
-    .references(() => checkpoints.id),
-  checkerId: t.text("checker_id").references(() => staffs.id),
-  ...timestamps,
-});
+export const checkpointLogs = t.sqliteTable(
+  "checkpoint_logs",
+  {
+    ...id,
+    attendeeId: t
+      .text("attendee_id")
+      .notNull()
+      .references(() => attendees.id),
+    checkpointId: t
+      .text("checkpoint_id")
+      .notNull()
+      .references(() => checkpoints.id),
+    checkerId: t.text("checker_id").references(() => staffs.id),
+    ...timestamps,
+  },
+  (table) => [
+    t
+      .uniqueIndex("checkpoint_logs_active_attendee_checkpoint_unique")
+      .on(table.attendeeId, table.checkpointId)
+      .where(sql`${table.deletedAt} IS NULL`),
+  ],
+);
 
 export const rewardRedemptions = t.sqliteTable("reward_redemptions", {
   ...id,
@@ -173,6 +199,7 @@ export const tables = {
   users,
   attendees,
   staffs,
+  inviteCodes,
   workshops,
   workshopTimeSlots,
   workshopRegistrations,

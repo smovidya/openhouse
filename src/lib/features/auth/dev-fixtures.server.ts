@@ -49,7 +49,7 @@ export async function ensureDevFixture(
             type: "development",
             name: "Development staff",
             phone: "0000000000",
-            permission: "development",
+            permission: ["boothStaff:all"],
           })
           .onConflictDoNothing();
 
