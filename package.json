@@ -6,6 +6,7 @@
   "scripts": {
     "test": "bun test",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "staff:seed-admin": "bun scripts/seed-admin.ts",
     "dev": "vite dev",
     "build": "vite build",
     "preview": "bun run build && wrangler dev",

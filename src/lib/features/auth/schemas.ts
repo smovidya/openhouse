@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { StaffPermission } from "../staff/permissions";
 
 export const googleSignInInput = z.strictObject({
   googleIdToken: z.string().min(1).max(16384),
@@ -16,6 +17,7 @@ export interface AuthUser {
   name: string;
   image: string | null;
   role: "attendee" | "staff";
+  staff: { id: string; permission: StaffPermission[] } | null;
 }
 
 export interface AuthSession {

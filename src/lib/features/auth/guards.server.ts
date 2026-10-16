@@ -1,6 +1,7 @@
 import { error } from "@sveltejs/kit";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { AuthUser } from "./schemas";
+import { hasPermission, type StaffPermission } from "../staff/permissions";
 
 export function requireUser(user: AuthUser | null | undefined) {
   if (!user) error(401, "Sign in required");
@@ -9,7 +10,18 @@ export function requireUser(user: AuthUser | null | undefined) {
 
 export function requireStaff(user: AuthUser | null | undefined) {
   const actor = requireUser(user);
-  if (actor.role !== "staff") error(403, "Staff access required");
+  if (actor.role !== "staff" || !actor.staff)
+    error(403, "Staff access required");
+  return { ...actor, staff: actor.staff };
+}
+
+export function requirePermission(
+  user: AuthUser | null | undefined,
+  permission: StaffPermission,
+) {
+  const actor = requireStaff(user);
+  if (!hasPermission(actor.staff.permission, permission))
+    error(403, "Permission required");
   return actor;
 }
 

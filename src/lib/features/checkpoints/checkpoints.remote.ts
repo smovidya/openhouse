@@ -1,4 +1,21 @@
-// Frontend API: checkpoint queries and check-in commands belong here.
-// Validate with ./schemas and call ./service.server with trusted staff context.
-// Implement staff access checks before exposing check-in operations.
-export {};
+import { env } from "cloudflare:workers";
+import { command, getRequestEvent, query } from "$app/server";
+import { getAuthDb } from "../auth/config.server";
+import { requireSameOrigin, requireStaff } from "../auth/guards.server";
+import { checkInAttendeeInput, listCheckpointsInput } from "./schemas";
+import * as service from "./service.server";
+
+export const listScannableCheckpoints = query(
+  listCheckpointsInput,
+  async (input) => {
+    const actor = requireStaff(getRequestEvent().locals.user);
+    return service.listScannableCheckpoints(getAuthDb(env), actor.id, input);
+  },
+);
+
+export const checkInAttendee = command(checkInAttendeeInput, async (input) => {
+  const event = getRequestEvent();
+  requireSameOrigin(event);
+  const actor = requireStaff(event.locals.user);
+  return service.checkInAttendee(getAuthDb(env), actor.id, input);
+});

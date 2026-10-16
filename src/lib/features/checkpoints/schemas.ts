@@ -7,3 +7,8 @@ export const checkInAttendeeInput = z.strictObject({
 });
 
 export type CheckInAttendeeInput = z.infer<typeof checkInAttendeeInput>;
+
+export const listCheckpointsInput = z.strictObject({
+  offset: z.int().nonnegative().default(0),
+  limit: z.int().min(1).max(100).default(50),
+});

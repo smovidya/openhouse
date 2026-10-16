@@ -1,0 +1,32 @@
+import { z } from "zod";
+import { departmentId, staffPermissions } from "./permissions";
+
+export const staffProfileInput = z.strictObject({
+  name: z.string().trim().min(1).max(200),
+  phone: z.string().trim().min(1).max(32),
+  // Descriptive affiliation (for example student or organizer), not a role.
+  type: z.string().trim().min(1).max(80),
+  department: departmentId.nullable().optional().default(null),
+});
+
+export const redeemInviteInput = z.strictObject({
+  code: z.string().trim().min(8).max(128),
+});
+export const enrollStaffInput = staffProfileInput.extend(
+  redeemInviteInput.shape,
+);
+export type EnrollStaffInput = z.infer<typeof enrollStaffInput>;
+
+export const createInviteInput = z.strictObject({
+  permission: staffPermissions.refine(
+    (values) => values.length > 0 && values.length <= 100,
+    "Provide between 1 and 100 permissions",
+  ),
+});
+export const disableInviteInput = z.strictObject({
+  id: z.string().min(1).max(128),
+});
+export const listInvitesInput = z.strictObject({
+  offset: z.int().nonnegative().default(0),
+  limit: z.int().min(1).max(100).default(50),
+});

@@ -1,7 +1,8 @@
 import { error } from "@sveltejs/kit";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "#db";
-import { users } from "#db/tables.ts";
+import { staffs, users } from "#db/tables.ts";
+import { staffPermissions } from "../staff/permissions";
 import type { GoogleIdentity } from "./google.server";
 import type { AuthUser } from "./schemas";
 
@@ -18,11 +19,28 @@ export async function findSessionUser(
   userId: string,
 ): Promise<AuthUser | null> {
   const [user] = await db
-    .select(publicUserColumns)
+    .select({
+      ...publicUserColumns,
+      staffId: staffs.id,
+      permission: staffs.permission,
+    })
     .from(users)
+    .leftJoin(
+      staffs,
+      and(eq(staffs.userId, users.id), isNull(staffs.deletedAt)),
+    )
     .where(and(eq(users.id, userId), isNull(users.deletedAt)))
     .limit(1);
-  return user ?? null;
+  if (!user) return null;
+  const { staffId, permission, ...identity } = user;
+  const parsed = staffPermissions.safeParse(permission);
+  return {
+    ...identity,
+    staff:
+      identity.role === "staff" && staffId
+        ? { id: staffId, permission: parsed.success ? parsed.data : [] }
+        : null,
+  };
 }
 
 export async function findOrCreateGoogleUser(
@@ -50,5 +68,7 @@ export async function findOrCreateGoogleUser(
 
   // A disabled account remains disabled; signing in must not resurrect it.
   if (!user) error(403, "This account is unavailable");
-  return user;
+  const sessionUser = await findSessionUser(db, user.id);
+  if (!sessionUser) error(403, "This account is unavailable");
+  return sessionUser;
 }

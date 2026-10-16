@@ -7,6 +7,8 @@ const refreshAll = mock(async () => {});
 const signInWithGoogle = mock(async () => null);
 const createDevSession = mock(async () => null);
 const logout = mock(async () => ({ success: true }));
+const enrollStaff = mock(async () => null);
+const redeemInviteCode = mock(async () => null);
 const beginGoogleSignIn = mock(async () => ({
   clientId: "client",
   nonce: "nonce",
@@ -21,8 +23,15 @@ mock.module("../src/lib/features/auth/auth.remote", () => ({
 mock.module("../src/lib/features/auth/dev.remote", () => ({
   createDevSession,
 }));
+mock.module("../src/lib/features/staff/staff.remote", () => ({
+  enrollStaff,
+  redeemInviteCode,
+}));
 
-const client = await import("../src/lib/features/auth/auth.client");
+const client = {
+  ...(await import("../src/lib/features/auth/auth.client")),
+  ...(await import("../src/lib/features/staff/staff.client")),
+};
 
 afterEach(() => {
   for (const fn of [
@@ -31,6 +40,8 @@ afterEach(() => {
     createDevSession,
     logout,
     beginGoogleSignIn,
+    enrollStaff,
+    redeemInviteCode,
   ]) {
     fn.mockReset();
   }
@@ -49,6 +60,17 @@ describe("auth client session refresh", () => {
     ["signInWithGoogle", signInWithGoogle, { googleIdToken: "credential" }],
     ["createDevSession", createDevSession, { profile: "staff" }],
     ["logout", logout, undefined],
+    [
+      "enrollStaff",
+      enrollStaff,
+      {
+        name: "Staff",
+        phone: "0123456789",
+        type: "student",
+        code: "invite-code",
+      },
+    ],
+    ["redeemInviteCode", redeemInviteCode, { code: "invite-code" }],
   ]) {
     it(`${name} waits for the command, then refreshes before resolving`, async () => {
       const command = deferred();
