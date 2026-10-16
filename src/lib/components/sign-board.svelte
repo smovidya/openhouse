@@ -1,13 +1,16 @@
 <script lang="ts">
 	import signBoard from "#lib/assets/sign-board.svg";
+	import signBoardWide from "#lib/assets/sign-board-wide.svg";
+	import { cn } from "#lib/utils.js";
 
-	let { title }: { title: string } = $props();
+	/** `wide` fits longer titles such as "MY QR CODE". */
+	let { title, wide = false }: { title: string; wide?: boolean } = $props();
 </script>
 
-<div class="relative h-[88px] w-[239px] shrink-0 overflow-clip">
+<div class={cn("relative h-[88px] shrink-0 overflow-clip", wide ? "w-[300px]" : "w-[239px]")}>
 	<div class="absolute inset-[5%_2.14%_3.33%_1.83%]">
-		<div class="absolute inset-[-1.86%_-0.65%]">
-			<img src={signBoard} alt="" class="block size-full max-w-none" />
+		<div class={cn("absolute", wide ? "inset-[-1.86%_-0.52%]" : "inset-[-1.86%_-0.65%]")}>
+			<img src={wide ? signBoardWide : signBoard} alt="" class="block size-full max-w-none" />
 		</div>
 	</div>
 	<h1
