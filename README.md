@@ -99,10 +99,19 @@ the compiled worker JavaScript; TypeScript source remains strictly checked.
 
 ## Authentication API
 
-Import the public operations from `#lib/features/auth/auth.remote.ts`. SvelteKit
-generates their transport endpoints and input/output types; do not hardcode the
+For UI event handlers, import `beginGoogleSignIn`, `signInWithGoogle`,
+`createDevSession`, and `logout` from `#lib/features/auth/auth.client.ts`.
+The session-changing helpers await the remote command, then `refreshAll()` before
+resolving. Callers do not need to refresh layout data themselves. Failed commands
+do not trigger a refresh; refresh failures are propagated without retrying the
+mutation. Starting a Google challenge does not change the session or refresh data.
+
+The underlying `auth.remote.ts` and `dev.remote.ts` modules provide the transport;
+calling their commands directly bypasses the client helpers' layout refresh.
+SvelteKit generates their endpoints and input/output types; do not hardcode the
 generated endpoint hashes. The server hook registers the remote modules so they
-are available even before a UI imports them.
+are available even before a UI imports them. `getSession` remains available from
+`#lib/features/auth/auth.remote.ts` when a remote query is needed.
 
 | Operation                                         | Input                                | Result                                                             |
 | ------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------ |
@@ -143,14 +152,19 @@ details remains a separate feature. Soft-deleted accounts cannot sign in.
 - `guards.server.ts`: authentication, role, and origin checks.
 - `dev-fixtures.server.ts`: repeatable local attendee/staff fixtures.
 - `auth.remote.ts` and `dev.remote.ts`: frontend-facing commands and queries.
+- `auth.client.ts`: UI auth helpers that refresh layout data after session changes.
 
 Sessions have a fixed 24-hour lifetime, with no automatic renewal. Production uses
 a Secure, HttpOnly, SameSite=Lax, host-only `__Host-session` cookie. Development
 uses a separate local cookie and JWT audience. The hook verifies the JWT and reads
 the active user on every authenticated request, so role changes and soft deletion
 take effect immediately. It populates `locals.user` and `locals.session`;
-`+layout.server.ts` exposes the safe session to future pages. Login/logout refresh
-`getSession`; future client code should also invalidate layout data when needed.
+`+layout.server.ts` exposes the safe session as `data.session` in layouts/pages.
+Nested components can read `page.data.session` using `page` from `$app/state`;
+`App.PageData` supplies its `AuthSession | null` type. Use `$derived` if assigning
+it to a local reactive variable. No separate context or writable session store is
+needed. The client helpers refresh both layout data and active queries after
+Google sign-in, development sign-in, or logout.
 
 Logout clears this browser's cookie. It does not revoke a copied JWT, which remains
 valid until expiry unless the user is disabled or the signing key is rotated.
