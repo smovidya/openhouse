@@ -2,13 +2,14 @@
 
 ## Backend organization
 
-Backend code is grouped by feature. Authentication is implemented as a backend API;
-the other feature modules remain scaffolds. No sign-in UI is included yet.
+Backend code is grouped by feature. Authentication, staff enrollment/permissions,
+and checkpoint scanning have backend APIs. No sign-in or enrollment UI is included.
 
 ```text
 src/lib/
   features/
     auth/
+    staff/
     attendees/
     workshops/
     checkpoints/
@@ -29,8 +30,8 @@ Each feature contains:
 | `<feature>.remote.ts` | Frontend-facing queries, forms, and commands         |
 | `service.server.ts`   | Business rules, permissions, and database operations |
 
-Outside authentication, remote and service files are scaffolds. Attendees,
-workshops, checkpoints, and rewards include initial input schemas. Survey validation
+Attendees, workshops, rewards, and surveys remain service/remote scaffolds.
+Attendees, workshops, and rewards include initial input schemas. Survey validation
 is intentionally left for when the questionnaire is defined. Review input constraints
 alongside each feature's requirements before implementing its operations.
 
@@ -52,8 +53,10 @@ alongside each feature's requirements before implementing its operations.
 
 Keep identity, roles, checker IDs, generated IDs, and timestamps out of ordinary
 user-editable input. Resolve them from `locals.user`. Use `requireUser` or
-`requireStaff` from `auth/guards.server.ts`, plus any operation-specific permission
-checks, before exposing private data or restricted changes.
+`requireStaff` from `auth/guards.server.ts` for identity checks and
+`requirePermission(user, "workshopStaff")` (or the appropriate permission) for
+staff operations. Being staff alone does not authorize a module. For checkpoint
+scanning, check the actual stored checkpoint's type and department.
 
 Wrangler declares a local D1 binding named `DB`. Production requires its own binding
 under `env.production`. Run `bun run cf-typegen` after changing bindings. Database
@@ -121,7 +124,9 @@ are available even before a UI imports them. `getSession` remains available from
 | `logout()`                                        | None                                 | `{ success: true }`; clears session and challenge cookies          |
 | `createDevSession(...)` from `auth/dev.remote.ts` | `{ profile: "attendee" \| "staff" }` | `AuthSession`; development only                                    |
 
-`AuthSession` contains `{ user: { id, email, name, image, role }, expiresAt }`.
+`AuthSession` contains `{ user: { id, email, name, image, role, staff }, expiresAt }`.
+`staff` is `null` or `{ id, permission: StaffPermission[] }` for an active staff
+record. Permissions are loaded from D1, never trusted from JWT claims or UI state.
 JWTs are only sent through HttpOnly cookies. Zod validates inputs directly without
 an adapter. Authentication commands require a matching `Origin`, including locally.
 
@@ -187,8 +192,10 @@ existing sessions. Never commit the secret or expose it to client code.
 `createDevSession` creates or reuses fixed local users and matching attendee/staff
 records, then follows the normal JWT/cookie/session path. Existing fixtures are
 not reset, so local role changes and disabled-user scenarios remain testable.
-The staff fixture has a `development` permission marker; feature-specific
-permissions still need their own rules. Remote Cloudflare bindings are disabled
+New staff fixtures have `boothStaff:all`; existing fixture permissions are preserved.
+The migration clears the old free-text `development` marker to an empty permission
+list. Enroll/redeem an invite or seed the local first admin to grant access to an
+older fixture. Remote Cloudflare bindings are disabled
 in the development adapter. Mock login returns 404 in production builds,
 including `bun run preview`; it cannot be enabled by a request parameter.
 
@@ -208,6 +215,121 @@ The Google identity migration adds a unique index. If an existing database has
 duplicate Google IDs, reconcile those accounts before applying it; the migration
 intentionally fails rather than deleting data. No production resources or secrets
 are created by the local setup.
+
+## Staff enrollment and permissions
+
+Staff permissions are a deduplicated JSON array in `staffs.permission`. The five
+access categories are:
+
+| Permission                                        | Access                                                                                           |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `admin`                                           | Every staff module, every checkpoint, and invite-code management                                 |
+| `boothStaff:all`                                  | View and scan every configured department's booth checkpoints                                    |
+| `boothStaff:physics` (or another department slug) | View and scan only that department's booth checkpoints                                           |
+| `workshopStaff`                                   | View and scan all workshop checkpoints; use this permission for future workshop staff operations |
+| `activityStaff`                                   | View and scan entry, stage, and reward checkpoints                                               |
+
+Permissions combine: a staff member can hold both `boothStaff:physics` and
+`workshopStaff`. `boothStaff:all` does not grant workshop/activity access. An
+account marked `staff` without an active staff record or matching permissions
+cannot use restricted operations.
+
+Each booth checkpoint has one `department`, such as `physics` or `chemistry`.
+Use lowercase slugs matching `[a-z][a-z0-9-]{0,63}` and reserve `all` for the
+wildcard permission. The department list comes from active booth checkpoints,
+not from a separate hardcoded list. Set checkpoint departments in D1 before
+issuing department-specific codes; invite creation rejects unknown departments.
+The staff profile's optional department is descriptive and never grants access.
+
+### Backend operations
+
+`#lib/features/staff/staff.remote.ts` exports:
+
+| Operation                | Input                                      | Access/result                                                                           |
+| ------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `getMyStaffProfile()`    | None                                       | Signed-in user's active profile or `null`                                               |
+| `listBoothDepartments()` | None                                       | Signed-in user; active booth department slugs                                           |
+| `enrollStaff(...)`       | `{ name, phone, type, department?, code }` | Signed-in user; creates staff profile, adds invite permissions, returns updated session |
+| `redeemInviteCode(...)`  | `{ code }`                                 | Existing active staff; adds invite permissions and returns updated session              |
+| `createInviteCode(...)`  | `{ permission: StaffPermission[] }`        | Admin; returns invite metadata and generated reusable code                              |
+| `listInviteCodes(...)`   | `{ offset?: number, limit?: number }`      | Admin; active/disabled invite metadata, never codes or hashes                           |
+| `disableInviteCode(...)` | `{ id }`                                   | Admin; sets the invite's `deletedAt`                                                    |
+
+Enrollment collects `name`, `phone`, and descriptive `type` (for example `student`
+or `organizer`), plus optional `department`. It takes the user ID from the current
+session and permissions from the invite. Supplying `role`, `permission`, or another
+user ID in the enrollment input is rejected. Existing attendee records are kept
+when the user's account role changes to `staff`. A signed-in attendee without a
+completed attendee profile can enroll too; there is no extra `roleless` account
+role. Re-enrollment preserves existing staff profile details and adds permissions.
+
+Codes are case-sensitive, reusable across people, and have no expiry or usage
+limit. A code can grant multiple permissions, including `admin`. Creation returns
+the code once for sharing; D1 stores its SHA-256 hash. Invalid and disabled codes
+return the same error. Disabling a code stops future redemptions without revoking
+permissions already granted. Soft-deleted staff/users cannot use codes to restore
+their access. Repeated redemptions do not duplicate permissions, and simultaneous
+redemptions merge safely.
+
+Future UI handlers should import `enrollStaff` and `redeemInviteCode` from
+`#lib/features/staff/staff.client.ts`. These helpers await `refreshAll()` after a
+successful command, keeping `page.data.session.user.staff.permission` up to date.
+Promotion retains the session's original expiry. The raw remote commands refresh
+`getSession` and `getMyStaffProfile`, but callers bypassing the client helpers must
+refresh layout data themselves. Refresh invite listings after creating/disabling
+a code.
+
+### Checkpoint scanning
+
+`#lib/features/checkpoints/checkpoints.remote.ts` exports:
+
+- `listScannableCheckpoints({ offset?, limit? })`: only active checkpoints allowed
+  by the current user's permissions. Lists default to 50, with a maximum of 100.
+- `checkInAttendee({ qrCodeId, checkpointId })`: verifies access against the stored
+  checkpoint, resolves the active attendee, and records the authenticated staff
+  ID as checker. Returns `{ attendee, checkpointId, log, alreadyCheckedIn }`.
+
+The database permits one active log per attendee/checkpoint. Repeated or concurrent
+scans return the same log, so they cannot inflate the attendance count used for
+prize eligibility. Scanning a reward checkpoint records attendance only; it does
+not create a reward redemption or determine prize eligibility. Those business
+rules remain in the rewards feature. Booths without a configured department are
+not accessible to booth staff until configured; admins can still access them.
+
+Shared UI helpers `hasPermission` and `canScanCheckpoint` live in
+`staff/permissions.ts`. They can control module visibility, but server guards and
+services remain authoritative. Permissions are reloaded from D1 on each request;
+removing a grant or soft-deleting a staff record takes effect on subsequent requests.
+
+### First-admin seed and migration
+
+Apply migrations, then have the intended admin sign in once with Google. Use their
+**user ID** from the session, not their Google ID or email:
+
+```sh
+bun run db:migrate:local
+bun run staff:seed-admin --user-id USER_ID --name "Admin Name" --phone 0123456789
+```
+
+The seed defaults to local D1 and `type: "organizer"`. It optionally accepts
+`--type` and `--department`. For the configured production database, explicitly
+select both the remote database and environment:
+
+```sh
+bunx wrangler d1 migrations apply DB --remote --env production
+bun run staff:seed-admin --user-id USER_ID --name "Admin Name" --phone 0123456789 --remote --env production
+```
+
+The seed grants the first active admin, can safely be retried for that user, and
+refuses to bootstrap a second admin while one exists. Existing admins create admin
+invites for additional admins. The command requires an existing active account;
+it does not fabricate a Google identity or revive a deleted staff record.
+
+The staff migration adds invite storage, checkpoint departments, a unique staff
+record per user, unique attendee QR codes, and unique active checkpoint logs.
+Legacy non-JSON staff permission strings become `[]`; JSON arrays are preserved.
+Duplicate staff user IDs, QR codes, or active attendee/checkpoint pairs must be
+resolved before migration; records are not silently deleted.
 
 ## Project setup
 
