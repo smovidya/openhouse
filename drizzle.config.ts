@@ -49,7 +49,7 @@ const getCredentials = () => {
 };
 
 export default {
-  schema: "./src/lib/server/db/schema.ts",
+  schema: "./src/lib/server/db/tables.ts",
   out: "./drizzle",
   dialect: "sqlite",
   ...getCredentials(),
