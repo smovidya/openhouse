@@ -1,5 +1,7 @@
 # Pages
+
 ## 20 Oct
+
 - landing
 - ลงทะเบียน
   - หน้า login
@@ -7,13 +9,15 @@
   - pdpa
 - เลือก workshop
   - list workshop
-  - รายละเอียด workshop + เลือกสล็อตเวลา 
+  - รายละเอียด workshop + เลือกสล็อตเวลา
 - myid: ต้องมีลิงก์ลงทะเบียน workshop
 
 ## 26 Oct
+
 - make a guide
 
 ## 28 Oct
+
 - myid (เสร็จ)
 - staff
 - registration: ใส่ invite code
@@ -22,4 +26,5 @@
 - certification
 
 ## 30 Oct
+
 - เปิดงาน
