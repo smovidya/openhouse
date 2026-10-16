@@ -1,5 +1,12 @@
 <script lang="ts">
-	import { blurEnabled, fakeLoggedIn } from "#lib/dev-settings.svelte.js";
+	import {
+		animatedWater,
+		blurEnabled,
+		fakeLoggedIn,
+		useWebGPU,
+	} from "#lib/dev-settings.svelte.js";
+
+	const hasWebGPU = typeof navigator !== "undefined" && "gpu" in navigator;
 </script>
 
 <svelte:head>
@@ -18,5 +25,16 @@
 	<label class="flex items-center gap-2">
 		<input type="checkbox" bind:checked={fakeLoggedIn.current} />
 		Fake logged in (navbar variant)
+	</label>
+
+	<label class="flex items-center gap-2">
+		<input type="checkbox" bind:checked={useWebGPU.current} />
+		useWebGPU (water background; off = static image)
+	</label>
+	<p class="ps-6">navigator.gpu: {hasWebGPU ? "available" : "missing → always static"}</p>
+
+	<label class="flex items-center gap-2">
+		<input type="checkbox" bind:checked={animatedWater.current} disabled={!useWebGPU.current} />
+		animated (WebGPU only, off with reduced motion)
 	</label>
 </main>

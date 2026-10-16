@@ -15,6 +15,7 @@ const rewards = ["ปากกาโจรสลัด", "สมุดบัน�
 
 // TODO: placeholder data until the backend exists.
 export const load: PageLoad = () => ({
+	waterOverlay: 0.5,
 	profile: { name: "วิทยา รักจุฬา", code: "ABC12" },
 	workshopLimit: 3,
 	workshops: [
