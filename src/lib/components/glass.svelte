@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from "svelte";
 	import type { HTMLAttributes } from "svelte/elements";
-	import { registerGlass } from "#lib/liquid-glass.svelte.js";
+	import { registerGlass, requestGlassRedraw } from "#lib/liquid-glass.svelte.js";
 	import type { GlassOptions, GlassVariant } from "#lib/shaders/liquid-glass.js";
 	import { cn } from "#lib/utils.js";
 
@@ -23,6 +23,12 @@
 		children,
 		...restProps
 	}: Props = $props();
+
+	// The water background renders on demand; redraw this pane when its look changes.
+	$effect(() => {
+		JSON.stringify(options);
+		requestGlassRedraw();
+	});
 </script>
 
 <!--

@@ -15,8 +15,8 @@ export function createBlur(device: GPUDevice, format: GPUTextureFormat) {
 		primitive: { topology: "triangle-list" },
 	});
 	const sampler = device.createSampler({
-		magFilter: "linear",
-		minFilter: "linear",
+		magFilter: "nearest",
+		minFilter: "nearest",
 		addressModeU: "mirror-repeat",
 		addressModeV: "mirror-repeat",
 	});
@@ -46,6 +46,9 @@ export function createBlur(device: GPUDevice, format: GPUTextureFormat) {
 	}
 
 	return function blur(src: GPUTexture, tmp: GPUTexture, dst: GPUTexture, sigma: number) {
+		// Never below ~half a texel: when dst is smaller than src this doubles as the downsample
+		// prefilter (a single bilinear tap would alias and shimmer).
+		sigma = Math.max(sigma, 0.5);
 		const taps = Math.min(MAX_TAPS, Math.ceil(sigma * 3));
 		// Horizontal: src (any size, sampled by UV) → tmp. Vertical: tmp → dst.
 		const steps: [number, number][] = [
@@ -55,7 +58,7 @@ export function createBlur(device: GPUDevice, format: GPUTextureFormat) {
 		steps.forEach((step, i) => {
 			f32[0] = step[0];
 			f32[1] = step[1];
-			f32[2] = Math.max(sigma, 0.5);
+			f32[2] = sigma;
 			u32[3] = taps;
 			device.queue.writeBuffer(passes[i], 0, data);
 		});

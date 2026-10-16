@@ -8,6 +8,8 @@
 		paneRadius,
 		paneVariant,
 		releaseGlassPanes,
+		requestGlassRedraw,
+		setGlassRedrawHandler,
 		liquidGlassConfig,
 		paneOptions,
 	} from "#lib/liquid-glass.svelte.js";
@@ -34,6 +36,8 @@
 		highlightColor: { r: 0.804, g: 0.961, b: 1, a: 1 },
 	};
 	const LOOP_MS = 100_000;
+	/** The shared glass backdrop is blurred at 1/4 resolution per axis (1/16 the pixels). */
+	const BLUR_DOWNSCALE = 4;
 
 	// --brand-sky / --brand-navy as 0–1 RGB, for the shader-side tint.
 	const TINTS = {
@@ -46,6 +50,12 @@
 	let canvas = $state<HTMLCanvasElement>();
 	let ready = $state(false);
 
+	// Inputs read inside the (untracked) frame callback: ask for a frame when they change.
+	$effect(() => {
+		[tint, overlay, liquidGlassConfig.blur, ...Object.values(liquidGlassConfig.defaults)];
+		requestGlassRedraw();
+	});
+
 	$effect(() => {
 		const target = canvas;
 		const animate = animatedWater.current && !reducedMotion.current;
@@ -53,12 +63,13 @@
 		if (!target || !navigator.gpu) return;
 
 		let cancelled = false;
-		let raf = 0;
+		let scheduled = 0;
 		let device: GPUDevice | undefined;
 		let context: GPUCanvasContext | null = null;
 		let observer: ResizeObserver | undefined;
 		let waterTexture: GPUTexture | undefined;
 		let blurTextures: [GPUTexture, GPUTexture] | undefined;
+		let schedule = () => {};
 
 		(async () => {
 			try {
@@ -82,11 +93,21 @@
 
 				let waterDirty = true;
 				let blurSigma = liquidGlassConfig.blur;
-				let waterVersion = 0;
-				let backgroundKey = "";
+				// Bumped whenever what the glass sees changes (water, blur, tint).
+				let sceneVersion = 0;
+				let tintKey = "";
+				let drawnBackground = -1;
+
+				// On-demand rendering: frames run only when something asked for one (scroll, resize,
+				// layout shift, pane added/removed, settings). Animated water keeps the loop alive.
+				schedule = () => {
+					if (!scheduled && !cancelled) scheduled = requestAnimationFrame(frame);
+				};
 
 				const frame = (time: number) => {
-					raf = requestAnimationFrame(frame);
+					scheduled = 0;
+					if (animate) schedule();
+
 					const { width, height } = target;
 					const scale = width / Math.max(1, target.clientWidth);
 					const usage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING;
@@ -95,10 +116,13 @@
 						waterTexture?.destroy();
 						blurTextures?.forEach((t) => t.destroy());
 						waterTexture = gpu.createTexture({ size: [width, height], format: WATER_FORMAT, usage });
-						// The frost is soft, so blur at half resolution.
-						const half = [Math.max(1, width >> 1), Math.max(1, height >> 1)];
+						// The frost is soft, so blur at 1/BLUR_DOWNSCALE resolution (per axis).
+						const small = [
+							Math.max(1, Math.ceil(width / BLUR_DOWNSCALE)),
+							Math.max(1, Math.ceil(height / BLUR_DOWNSCALE)),
+						];
 						blurTextures = [0, 1].map(() =>
-							gpu.createTexture({ size: half, format: WATER_FORMAT, usage })
+							gpu.createTexture({ size: small, format: WATER_FORMAT, usage })
 						) as [GPUTexture, GPUTexture];
 						glass.bind(waterTexture, blurTextures[1]);
 						waterDirty = true;
@@ -112,45 +136,63 @@
 					// Global frost: one blurred copy shared by every pane.
 					if (blurChanged) blurSigma = liquidGlassConfig.blur;
 					if (refract && (animate || waterDirty || blurChanged)) {
-						blur(waterTexture, blurTmp, blurred, (blurSigma * scale) / 2);
+						blur(waterTexture, blurTmp, blurred, (blurSigma * scale) / BLUR_DOWNSCALE);
 					}
-					if (animate || waterDirty || blurChanged) waterVersion++;
+					if (animate || waterDirty || blurChanged) sceneVersion++;
 					waterDirty = false;
 
 					// The canvases apply the page tint themselves (so glass fills sit above it, as in Figma).
 					const tintRgba: [number, number, number, number] = [...TINTS[tint], overlay];
-					const sceneKey = `${waterVersion}|${tintRgba.join()}`;
+					const nextTintKey = tintRgba.join();
+					if (nextTintKey !== tintKey) {
+						tintKey = nextTintKey;
+						sceneVersion++;
+					}
 
-					if (sceneKey !== backgroundKey) {
+					if (drawnBackground !== sceneVersion) {
 						glass.background(ctx.getCurrentTexture(), scale, tintRgba);
-						backgroundKey = sceneKey;
+						drawnBackground = sceneVersion;
 					}
 
 					if (refract) {
 						const viewport = { width, height };
+						const vw = innerWidth;
+						const vh = innerHeight;
 						for (const pane of glassPanes()) {
+							// Far panes (beyond one viewport of margin) aren't even measured.
+							if (!pane.near) continue;
 							const box = pane.element.getBoundingClientRect();
-							// Pre-render one viewport above/below so panes are ready before they scroll in.
-							if (box.bottom < -innerHeight || box.top > 2 * innerHeight) continue;
 							const w = Math.max(1, Math.round(box.width * scale));
 							const h = Math.max(1, Math.round(box.height * scale));
 							if (pane.canvas.width !== w || pane.canvas.height !== h) {
 								pane.canvas.width = w;
 								pane.canvas.height = h;
-								pane.key = "";
+								pane.dirty = true;
 							}
 							pane.context ??= pane.canvas.getContext("webgpu");
 							if (!pane.context) continue;
 							if (pane.device !== gpu) {
 								pane.context.configure({ device: gpu, format, alphaMode: "premultiplied" });
 								pane.device = gpu;
-								pane.key = "";
+								pane.dirty = true;
 							}
 							const x = box.left * scale;
 							const y = box.top * scale;
 							const options = paneOptions(pane);
-							const key = `${sceneKey}|${x},${y},${w},${h}|${Object.values(options).join()}`;
-							if (key === pane.key) continue;
+							const optionsKey = Object.values(options).join();
+							// On screen: redraw when anything changed, including position (the glass shows the
+							// fixed water behind it). Off screen (the pre-render margin): only when dirty —
+							// entered the margin, resized, context reset. Water/tint/option changes wait; the
+							// pane moves when it scrolls into view, which redraws it with the current scene.
+							const onScreen = box.bottom > 0 && box.top < vh && box.right > 0 && box.left < vw;
+							const changed =
+								x !== pane.x ||
+								y !== pane.y ||
+								pane.sceneVersion !== sceneVersion ||
+								pane.optionsKey !== optionsKey;
+							if (!pane.dirty && !(onScreen && changed)) {
+								continue;
+							}
 							glass.glass(
 								pane.context.getCurrentTexture(),
 								viewport,
@@ -159,7 +201,11 @@
 								tintRgba,
 								options
 							);
-							pane.key = key;
+							pane.x = x;
+							pane.y = y;
+							pane.sceneVersion = sceneVersion;
+							pane.optionsKey = optionsKey;
+							pane.dirty = false;
 						}
 					}
 
@@ -179,6 +225,7 @@
 					target.width = Math.max(1, cssW, box?.inlineSize ?? 0);
 					target.height = Math.max(1, cssH, box?.blockSize ?? 0);
 					invalidateGlassPanes();
+					schedule();
 				});
 				// device-pixel-content-box gives exact device px (otherwise Chromium reports CSS px
 				// there); Safari doesn't support it, so fall back to contentRect × dpr.
@@ -187,7 +234,10 @@
 				} catch {
 					observer.observe(target);
 				}
-				raf = requestAnimationFrame(frame);
+
+				addEventListener("scroll", schedule, { passive: true });
+				setGlassRedrawHandler(schedule);
+				schedule();
 			} catch (error) {
 				// Keep the static fallback (and CSS blur on glass).
 				console.warn("Water background: WebGPU unavailable", error);
@@ -196,7 +246,9 @@
 
 		return () => {
 			cancelled = true;
-			cancelAnimationFrame(raf);
+			cancelAnimationFrame(scheduled);
+			removeEventListener("scroll", schedule);
+			setGlassRedrawHandler(null);
 			observer?.disconnect();
 			delete document.documentElement.dataset.liquidGlass;
 			releaseGlassPanes();
