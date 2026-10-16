@@ -1,13 +1,21 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
+	import MenuBar from '#lib/components/menu-bar.svelte';
+	import { fakeLoggedIn, syncDevSettings } from '#lib/dev-settings.svelte.js';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
+
+	syncDevSettings();
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-{@render children()}
+<div class="flex min-h-dvh flex-col bg-brand-sky">
+	<!-- TODO: drive loggedIn from the session once auth exists. -->
+	<MenuBar loggedIn={fakeLoggedIn.current} />
+	{@render children()}
+</div>

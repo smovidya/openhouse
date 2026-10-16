@@ -52,6 +52,9 @@
 	const barButtonClass =
 		"p-1 text-brand-mist hover:bg-white/10 hover:text-brand-mist active:bg-white/20 aria-expanded:bg-white/10 aria-expanded:text-brand-mist focus-visible:border-transparent focus-visible:ring-brand-mist/50 dark:hover:bg-white/10";
 
+	const navLinkClass =
+		"flex w-full items-center gap-3 rounded-lg p-3 font-heading text-xl font-medium text-brand-mist transition-colors outline-none hover:bg-white/10 focus-visible:bg-white/10 active:bg-white/20 focus-visible:ring-3 focus-visible:ring-brand-mist/50";
+
 	function logout() {
 		// TODO: sign out once auth exists.
 		open = false;
@@ -114,12 +117,18 @@
 					{#each links as link (link.href)}
 						<a
 							href={link.href}
-							class="flex w-full items-center gap-3 rounded-lg p-3 font-heading text-xl font-medium text-brand-mist transition-colors outline-none hover:bg-white/10 focus-visible:bg-white/10 active:bg-white/20 focus-visible:ring-3 focus-visible:ring-brand-mist/50"
+							class={navLinkClass}
 						>
 							<img src={link.icon} alt="" class="shrink-0" />
 							<span class="min-w-0 mt-1 flex-1">{link.label}</span>
 						</a>
 					{/each}
+					{#if import.meta.env.DEV}
+						<a href="/settings" class={navLinkClass}>
+							<span class="size-7 shrink-0"></span>
+							<span class="mt-1 min-w-0 flex-1">Dev settings</span>
+						</a>
+					{/if}
 				</nav>
 				{#if loggedIn}
 					<Button variant="cta" size="cta-sm" onclick={logout}>ออกจากระบบ</Button>

@@ -198,7 +198,7 @@
 </svelte:head>
 
 <main
-  class="flex min-h-screen flex-col items-center justify-center gap-6 bg-brand-sky p-4"
+  class="flex flex-1 min-h-screen flex-col items-center justify-center gap-6 bg-brand-sky p-4"
 >
   <h1 class="text-2xl">Components demo</h1>
   <Button variant="cta" size="cta-lg" class="w-full max-w-[378px]"

@@ -139,6 +139,12 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Dev setting (/settings): turn off all blur, e.g. to check low-end GPU performance. */
+:root[data-blur="off"] * {
+	-webkit-backdrop-filter: none !important;
+	backdrop-filter: none !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
