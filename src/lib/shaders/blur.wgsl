@@ -1,9 +1,7 @@
-// One direction of a separable Gaussian blur. Run twice (horizontal, then vertical).
-
+// Dual Kawase kernels: 5 bilinear samples down, 8 bilinear samples up.
+// Based on Marius Bjorge's SIGGRAPH 2015 "Bandwidth-efficient graphics" dual filter.
 struct Uniforms {
-  step: vec2f,  // one source texel along the blur direction, in UV
-  sigma: f32,   // standard deviation, in source texels
-  taps: u32,    // samples on each side of the centre
+  step: vec2f, // half an input texel in UV, scaled by the blur offset
 };
 
 @group(0) @binding(0) var src: texture_2d<f32>;
@@ -16,7 +14,6 @@ struct VsOut {
 };
 
 @vertex fn vs_main(@builtin(vertex_index) i: u32) -> VsOut {
-  // Fullscreen triangle.
   let p = vec2f(f32((i << 1u) & 2u), f32(i & 2u));
   var out: VsOut;
   out.position = vec4f(p * 2.0 - 1.0, 0.0, 1.0);
@@ -24,15 +21,25 @@ struct VsOut {
   return out;
 }
 
-@fragment fn fs_main(in: VsOut) -> @location(0) vec4f {
-  var acc = textureSampleLevel(src, samp, in.uv, 0.0);
-  var total = 1.0;
-  for (var i = 1u; i <= u.taps; i++) {
-    let x = f32(i);
-    let w = exp(-(x * x) / (2.0 * u.sigma * u.sigma));
-    acc += w * (textureSampleLevel(src, samp, in.uv + u.step * x, 0.0) +
-                textureSampleLevel(src, samp, in.uv - u.step * x, 0.0));
-    total += 2.0 * w;
-  }
-  return acc / total;
+@fragment fn fs_downsample(in: VsOut) -> @location(0) vec4f {
+  let d = u.step;
+  var color = textureSampleLevel(src, samp, in.uv, 0.0) * 4.0;
+  color += textureSampleLevel(src, samp, in.uv + vec2f(-d.x, -d.y), 0.0);
+  color += textureSampleLevel(src, samp, in.uv + vec2f( d.x, -d.y), 0.0);
+  color += textureSampleLevel(src, samp, in.uv + vec2f(-d.x,  d.y), 0.0);
+  color += textureSampleLevel(src, samp, in.uv + vec2f( d.x,  d.y), 0.0);
+  return color * 0.125;
+}
+
+@fragment fn fs_upsample(in: VsOut) -> @location(0) vec4f {
+  let d = u.step;
+  var color = textureSampleLevel(src, samp, in.uv + vec2f(-2.0 * d.x, 0.0), 0.0);
+  color += textureSampleLevel(src, samp, in.uv + vec2f(2.0 * d.x, 0.0), 0.0);
+  color += textureSampleLevel(src, samp, in.uv + vec2f(0.0, -2.0 * d.y), 0.0);
+  color += textureSampleLevel(src, samp, in.uv + vec2f(0.0, 2.0 * d.y), 0.0);
+  color += textureSampleLevel(src, samp, in.uv + vec2f(-d.x, -d.y), 0.0) * 2.0;
+  color += textureSampleLevel(src, samp, in.uv + vec2f( d.x, -d.y), 0.0) * 2.0;
+  color += textureSampleLevel(src, samp, in.uv + vec2f(-d.x,  d.y), 0.0) * 2.0;
+  color += textureSampleLevel(src, samp, in.uv + vec2f( d.x,  d.y), 0.0) * 2.0;
+  return color / 12.0;
 }

@@ -13,7 +13,7 @@
 		liquidGlassConfig,
 		paneOptions,
 	} from "#lib/liquid-glass.svelte.js";
-	import { createBlur } from "#lib/shaders/blur.js";
+	import { BLUR_DOWNSCALE, createBlur } from "#lib/shaders/blur.js";
 	import { createLiquidGlass } from "#lib/shaders/liquid-glass.js";
 	import { createWaterCaustic, type WaterCausticParams } from "#lib/shaders/water-caustic.js";
 
@@ -36,8 +36,8 @@
 		highlightColor: { r: 0.804, g: 0.961, b: 1, a: 1 },
 	};
 	const LOOP_MS = 100_000;
-	/** The shared glass backdrop is blurred at 1/4 resolution per axis (1/16 the pixels). */
-	const BLUR_DOWNSCALE = 4;
+	/** Each level downsamples 4x per axis; the result is reconstructed to 1/4 size. */
+	const BLUR_LEVELS = 3;
 
 	// --brand-sky / --brand-navy as 0–1 RGB, for the shader-side tint.
 	const TINTS = {
@@ -68,7 +68,8 @@
 		let context: GPUCanvasContext | null = null;
 		let observer: ResizeObserver | undefined;
 		let waterTexture: GPUTexture | undefined;
-		let blurTextures: [GPUTexture, GPUTexture] | undefined;
+		let blurredTexture: GPUTexture | undefined;
+		let blur: ReturnType<typeof createBlur> | undefined;
 		let schedule = () => {};
 
 		(async () => {
@@ -88,7 +89,8 @@
 				// canvas, which the compositor scrolls together with the card.
 				const WATER_FORMAT: GPUTextureFormat = "rgba8unorm";
 				const renderWater = createWaterCaustic(gpu, WATER_FORMAT);
-				const blur = createBlur(gpu, WATER_FORMAT);
+				const blurRenderer = createBlur(gpu, WATER_FORMAT, BLUR_LEVELS);
+				blur = blurRenderer;
 				const glass = createLiquidGlass(gpu, format);
 
 				let waterDirty = true;
@@ -114,20 +116,17 @@
 
 					if (!waterTexture || waterTexture.width !== width || waterTexture.height !== height) {
 						waterTexture?.destroy();
-						blurTextures?.forEach((t) => t.destroy());
+						blurredTexture?.destroy();
 						waterTexture = gpu.createTexture({ size: [width, height], format: WATER_FORMAT, usage });
 						// The frost is soft, so blur at 1/BLUR_DOWNSCALE resolution (per axis).
 						const small = [
 							Math.max(1, Math.ceil(width / BLUR_DOWNSCALE)),
 							Math.max(1, Math.ceil(height / BLUR_DOWNSCALE)),
 						];
-						blurTextures = [0, 1].map(() =>
-							gpu.createTexture({ size: small, format: WATER_FORMAT, usage })
-						) as [GPUTexture, GPUTexture];
-						glass.bind(waterTexture, blurTextures[1]);
+						blurredTexture = gpu.createTexture({ size: small, format: WATER_FORMAT, usage });
+						glass.bind(waterTexture, blurredTexture);
 						waterDirty = true;
 					}
-					const [blurTmp, blurred] = blurTextures!;
 					const blurChanged = blurSigma !== liquidGlassConfig.blur;
 					if (animate || waterDirty) {
 						const playhead = animate ? ((time % LOOP_MS) / LOOP_MS) * 100 : 0;
@@ -136,7 +135,7 @@
 					// Global frost: one blurred copy shared by every pane.
 					if (blurChanged) blurSigma = liquidGlassConfig.blur;
 					if (refract && (animate || waterDirty || blurChanged)) {
-						blur(waterTexture, blurTmp, blurred, (blurSigma * scale) / BLUR_DOWNSCALE);
+						blurRenderer.render(waterTexture, blurredTexture!, blurSigma * scale);
 					}
 					if (animate || waterDirty || blurChanged) sceneVersion++;
 					waterDirty = false;
@@ -253,7 +252,8 @@
 			delete document.documentElement.dataset.liquidGlass;
 			releaseGlassPanes();
 			waterTexture?.destroy();
-			blurTextures?.forEach((t) => t.destroy());
+			blur?.destroy();
+			blurredTexture?.destroy();
 			context?.unconfigure();
 			device?.destroy();
 			ready = false;

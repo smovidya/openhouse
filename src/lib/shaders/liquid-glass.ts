@@ -77,8 +77,8 @@ export function createLiquidGlass(device: GPUDevice, format: GPUTextureFormat) {
 	const glassPipeline = pipeline("fs_glass");
 
 	const sampler = device.createSampler({
-		magFilter: "nearest",
-		minFilter: "nearest",
+		magFilter: "linear",
+		minFilter: "linear",
 		addressModeU: "clamp-to-edge",
 		addressModeV: "clamp-to-edge",
 	});

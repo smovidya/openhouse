@@ -6,8 +6,9 @@ import {
 
 /**
  * Global liquid-glass settings, read by the water background every frame.
- * - `blur` is global by design: every pane samples one shared pre-blurred texture (Gaussian
- *   sigma, CSS px). Changing it re-blurs the water.
+ * - `blur` is global by design: every pane samples one shared Dual Kawase texture (approximate
+ *   Gaussian-equivalent sigma, CSS px; downsampling adds minimum softness).
+ *   Changing it re-blurs the water.
  * - `defaults` apply to every <Glass>; a pane's `options` prop overrides them.
  */
 export const liquidGlassConfig = $state({
