@@ -15,6 +15,10 @@ export function requireStaff(user: AuthUser | null | undefined) {
 
 // SvelteKit skips its built-in origin check in development. Protect mock login
 // and other auth commands there too, using the request's own origin.
-export function requireSameOrigin({ request, url }: Pick<RequestEvent, "request" | "url">) {
-  if (request.headers.get("origin") !== url.origin) error(403, "Cross-site authentication is forbidden");
+export function requireSameOrigin({
+  request,
+  url,
+}: Pick<RequestEvent, "request" | "url">) {
+  if (request.headers.get("origin") !== url.origin)
+    error(403, "Cross-site authentication is forbidden");
 }

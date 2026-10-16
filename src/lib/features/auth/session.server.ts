@@ -6,7 +6,10 @@ export const SESSION_TTL_SECONDS = 24 * 60 * 60;
 export const CHALLENGE_TTL_SECONDS = 5 * 60;
 const ISSUER = "openhouse26";
 
-const audience = (settings: SessionSettings, purpose: "session" | "google-login") =>
+const audience = (
+  settings: SessionSettings,
+  purpose: "session" | "google-login",
+) =>
   `${ISSUER}:${purpose}:${settings.development ? "development" : "production"}`;
 
 export const sessionCookieName = (development: boolean) =>
@@ -16,7 +19,12 @@ export const challengeCookieName = (development: boolean) =>
   development ? "openhouse26-google-login-dev" : "__Host-google-login";
 
 function cookieOptions(development: boolean) {
-  return { path: "/", httpOnly: true, secure: !development, sameSite: "lax" as const };
+  return {
+    path: "/",
+    httpOnly: true,
+    secure: !development,
+    sameSite: "lax" as const,
+  };
 }
 
 export async function issueSessionToken(
@@ -54,11 +62,15 @@ export async function verifySessionToken(
     });
     const { sub, iat, exp } = payload;
     if (
-      typeof sub !== "string" || !sub ||
-      typeof iat !== "number" || !Number.isInteger(iat) ||
-      typeof exp !== "number" || !Number.isInteger(exp) ||
+      typeof sub !== "string" ||
+      !sub ||
+      typeof iat !== "number" ||
+      !Number.isInteger(iat) ||
+      typeof exp !== "number" ||
+      !Number.isInteger(exp) ||
       exp - iat !== SESSION_TTL_SECONDS
-    ) return null;
+    )
+      return null;
     return {
       userId: sub,
       expiresAt: new Date(exp * 1000).toISOString(),
@@ -87,7 +99,10 @@ export function clearSessionCookie(cookies: Cookies, development: boolean) {
   cookies.delete(sessionCookieName(development), cookieOptions(development));
 }
 
-export async function beginLoginChallenge(cookies: Cookies, settings: SessionSettings) {
+export async function beginLoginChallenge(
+  cookies: Cookies,
+  settings: SessionSettings,
+) {
   const nonce = crypto.randomUUID();
   const challenge = await new SignJWT({ nonce })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })

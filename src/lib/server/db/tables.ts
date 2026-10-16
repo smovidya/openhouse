@@ -18,19 +18,23 @@ const timestamps = {
   deletedAt: t.integer("deleted_at", { mode: "timestamp" }),
 };
 
-export const users = t.sqliteTable("users", {
-  ...id,
-  googleId: t.text("google_id").notNull(),
-  email: t.text("email").notNull(),
-  name: t.text("name").notNull(),
-  image: t.text("image"),
-  role: t
-    .text("role", {
-      enum: ["staff", "attendee"],
-    })
-    .notNull(),
-  ...timestamps,
-}, (table) => [t.uniqueIndex("users_google_id_unique").on(table.googleId)]);
+export const users = t.sqliteTable(
+  "users",
+  {
+    ...id,
+    googleId: t.text("google_id").notNull(),
+    email: t.text("email").notNull(),
+    name: t.text("name").notNull(),
+    image: t.text("image"),
+    role: t
+      .text("role", {
+        enum: ["staff", "attendee"],
+      })
+      .notNull(),
+    ...timestamps,
+  },
+  (table) => [t.uniqueIndex("users_google_id_unique").on(table.googleId)],
+);
 
 export const attendees = t.sqliteTable(
   "attendees",

@@ -23,11 +23,11 @@ src/lib/
 
 Each feature contains:
 
-| File | Responsibility |
-| --- | --- |
-| `schemas.ts` | Browser-safe Zod input schemas and inferred types |
-| `<feature>.remote.ts` | Frontend-facing queries, forms, and commands |
-| `service.server.ts` | Business rules, permissions, and database operations |
+| File                  | Responsibility                                       |
+| --------------------- | ---------------------------------------------------- |
+| `schemas.ts`          | Browser-safe Zod input schemas and inferred types    |
+| `<feature>.remote.ts` | Frontend-facing queries, forms, and commands         |
+| `service.server.ts`   | Business rules, permissions, and database operations |
 
 Outside authentication, remote and service files are scaffolds. Attendees,
 workshops, checkpoints, and rewards include initial input schemas. Survey validation
@@ -104,13 +104,13 @@ generates their transport endpoints and input/output types; do not hardcode the
 generated endpoint hashes. The server hook registers the remote modules so they
 are available even before a UI imports them.
 
-| Operation | Input | Result |
-| --- | --- | --- |
-| `beginGoogleSignIn()` | None | `{ clientId, nonce }`; sets a signed, five-minute challenge cookie |
-| `signInWithGoogle(...)` | `{ googleIdToken: string }` | `AuthSession`; sets the session cookie |
-| `getSession()` | None | `AuthSession` or `null` |
-| `logout()` | None | `{ success: true }`; clears session and challenge cookies |
-| `createDevSession(...)` from `auth/dev.remote.ts` | `{ profile: "attendee" \| "staff" }` | `AuthSession`; development only |
+| Operation                                         | Input                                | Result                                                             |
+| ------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------ |
+| `beginGoogleSignIn()`                             | None                                 | `{ clientId, nonce }`; sets a signed, five-minute challenge cookie |
+| `signInWithGoogle(...)`                           | `{ googleIdToken: string }`          | `AuthSession`; sets the session cookie                             |
+| `getSession()`                                    | None                                 | `AuthSession` or `null`                                            |
+| `logout()`                                        | None                                 | `{ success: true }`; clears session and challenge cookies          |
+| `createDevSession(...)` from `auth/dev.remote.ts` | `{ profile: "attendee" \| "staff" }` | `AuthSession`; development only                                    |
 
 `AuthSession` contains `{ user: { id, email, name, image, role }, expiresAt }`.
 JWTs are only sent through HttpOnly cookies. Zod validates inputs directly without

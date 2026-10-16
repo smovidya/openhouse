@@ -1,9 +1,16 @@
 import { error } from "@sveltejs/kit";
-import { createRemoteJWKSet, errors, jwtVerify, type JWTVerifyGetKey } from "jose";
+import {
+  createRemoteJWKSet,
+  errors,
+  jwtVerify,
+  type JWTVerifyGetKey,
+} from "jose";
 import { z } from "zod";
 
 // Reuse the resolver so cached public keys survive across requests in an isolate.
-const googleKeys = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
+const googleKeys = createRemoteJWKSet(
+  new URL("https://www.googleapis.com/oauth2/v3/certs"),
+);
 
 const googleIdentity = z.object({
   sub: z.string().min(1).max(255),
@@ -42,7 +49,10 @@ export async function verifyGoogleIdToken(
       maxTokenAge: "2h",
     }));
   } catch (cause) {
-    if (cause instanceof errors.JOSEError && invalidTokenCodes.has(cause.code)) {
+    if (
+      cause instanceof errors.JOSEError &&
+      invalidTokenCodes.has(cause.code)
+    ) {
       error(401, "Invalid Google sign-in token");
     }
     error(503, "Google sign-in verification is temporarily unavailable");

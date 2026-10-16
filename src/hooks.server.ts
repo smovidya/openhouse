@@ -4,7 +4,10 @@ import { env } from "cloudflare:workers";
 import "#lib/features/auth/auth.remote.ts";
 import "#lib/features/auth/dev.remote.ts";
 import type { Handle } from "@sveltejs/kit/hooks";
-import { getAuthDb, getSessionSettings } from "#lib/features/auth/config.server.ts";
+import {
+  getAuthDb,
+  getSessionSettings,
+} from "#lib/features/auth/config.server.ts";
 import { findSessionUser } from "#lib/features/auth/service.server.ts";
 import {
   clearSessionCookie,
