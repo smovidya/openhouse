@@ -34,6 +34,7 @@
 	);
 
 	let open = $state(false);
+	let headerHeight = $state(72);
 
 	afterNavigate(() => {
 		open = false;
@@ -63,20 +64,24 @@
 
 <svelte:window onkeydown={(event) => event.key === "Escape" && (open = false)} />
 
-{#if open}
-	<button
-		type="button"
-		aria-label="ปิดเมนู"
-		tabindex="-1"
-		class="fixed inset-0 z-40 cursor-default bg-black/40 backdrop-blur-sm"
-		onclick={() => (open = false)}
-	></button>
-{/if}
-
 <!-- Reserves the closed bar's height so the open menu overlays the page instead of pushing it down. -->
 <div class={cn("sticky top-0 z-50 h-[72px] w-full shrink-0", className)}>
+	{#if open}
+		<!-- Dims only the page below the open menu (Figma), so the menu's own translucent fill
+		     isn't darkened by it. A sibling of <header>, not a child: the header's backdrop-filter
+		     would stop a nested blur from reaching the page. -->
+		<button
+			type="button"
+			aria-label="ปิดเมนู"
+			tabindex="-1"
+			class="absolute inset-x-0 h-dvh cursor-default bg-black/55 backdrop-blur-sm"
+			style:top="{headerHeight}px"
+			onclick={() => (open = false)}
+		></button>
+	{/if}
 	<Collapsible.Root bind:open>
 		<header
+			bind:offsetHeight={headerHeight}
 			class="absolute inset-x-0 top-0 flex flex-col items-center gap-8 border-b border-white/30 bg-black/30 px-6 py-4 shadow-md shadow-black/10 backdrop-blur-xl"
 		>
 			<div class="flex w-full items-start justify-between">

@@ -22,7 +22,7 @@
 		waterColor: { r: 0, g: 0.388, b: 0.706, a: 1 },
 		highlightColor: { r: 0.804, g: 0.961, b: 1, a: 1 },
 	};
-	const LOOP_MS = 75_000;
+	const LOOP_MS = 100_000;
 
 	const reducedMotion = new MediaQuery("prefers-reduced-motion: reduce");
 
