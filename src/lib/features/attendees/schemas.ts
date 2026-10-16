@@ -1,8 +1,4 @@
 import { z } from "zod";
-import { createInsertSchema } from "drizzle-orm/zod";
-import { tables } from "#db";
-
-export const attendeeProfile = createInsertSchema(tables.attendees);
 
 export const attendeeProfileInput = z.strictObject({
   title: z.string().min(1),
