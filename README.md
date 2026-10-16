@@ -67,7 +67,7 @@ bindings in module-level variables.
 - When an internal import or other boundary actually needs a database-derived Zod
   validator, add `db-schemas.server.ts` to its owning feature. Import
   `createInsertSchema`, `createUpdateSchema`, or `createSelectSchema` directly from
-  `drizzle-orm/zod`, and import the table from `#lib/server/db/tables`.
+  `drizzle-orm/zod`, and import the table from `#db/tables`.
 - Keep database-derived validators server-only. Select allowed fields explicitly
   before using one for an operation; a table's full insert shape is not a public API.
 - Let remote return types infer from explicitly selected response fields. Add a
