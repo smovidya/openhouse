@@ -16,7 +16,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<WaterBackground overlay={page.data.waterOverlay} />
+<WaterBackground overlay={page.data.waterOverlay} tint={page.data.waterTint} />
 
 <div class="flex min-h-dvh flex-col">
 	<!-- TODO: drive loggedIn from the session once auth exists. -->

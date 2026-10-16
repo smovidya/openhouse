@@ -4,8 +4,14 @@
 	import { animatedWater, useWebGPU } from "#lib/dev-settings.svelte.js";
 	import { createWaterCaustic, type WaterCausticParams } from "#lib/shaders/water-caustic.js";
 
-	/** Opacity of the brand-sky tint over the water (Figma: 0.85 on most frames, 0.5 on MY QR CODE). */
-	let { overlay = 0.85 }: { overlay?: number } = $props();
+	type Props = {
+		/** Opacity of the tint over the water (Figma: 0.85 on most frames, 0.5 on landing, 0.7 on staff). */
+		overlay?: number;
+		/** Tint colour: brand-sky for attendee pages, brand-navy for staff pages. */
+		tint?: "sky" | "navy";
+	};
+
+	let { overlay = 0.85, tint = "sky" }: Props = $props();
 
 	// Shader params from the Figma fill. `playhead` (0–100) is the phase; one cycle loops seamlessly.
 	const params: WaterCausticParams = {
@@ -104,5 +110,8 @@
 			]}
 		></canvas>
 	{/if}
-	<div class="bg-brand-sky [grid-area:1/1]" style:opacity={overlay}></div>
+	<div
+		class={["[grid-area:1/1]", tint === "navy" ? "bg-brand-navy" : "bg-brand-sky"]}
+		style:opacity={overlay}
+	></div>
 </div>

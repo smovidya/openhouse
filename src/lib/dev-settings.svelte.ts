@@ -1,4 +1,5 @@
 import { PersistedState } from "runed";
+import type { StaffRole } from "#lib/staff.js";
 
 // Dev-only toggles, persisted per browser in localStorage. Edited on /settings.
 
@@ -7,6 +8,9 @@ export const blurEnabled = new PersistedState("dev:blur", true);
 
 /** TODO: placeholder for the navbar's logged-in variant until auth exists. */
 export const fakeLoggedIn = new PersistedState("dev:loggedIn", false);
+
+/** TODO: placeholder for the staff role (/staff menu) until auth exists. */
+export const fakeStaffRole = new PersistedState<StaffRole>("dev:staffRole", "central");
 
 /** Render the water background with WebGPU; false forces the static image fallback. */
 export const useWebGPU = new PersistedState("dev:useWebGPU", true);

@@ -12,6 +12,7 @@ declare global {
       session: AuthSession | null;
       /** Sky tint over the water background (root layout); defaults to 0.85. */
       waterOverlay?: number;
+      waterTint?: "sky" | "navy";
     }
 
     interface Locals {
