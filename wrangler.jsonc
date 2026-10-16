@@ -18,11 +18,27 @@
 		"enabled": true
 	},
 	"upload_source_maps": true,
+	"secrets": {
+		"required": ["AUTH_JWT_SECRET"]
+	},
+	// Local development binding. Configure the real DB separately in env.production.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "openhouse26-local",
+			"remote": false,
+			"migrations_dir": "drizzle",
+			"migrations_pattern": "drizzle/*/migration.sql"
+		}
+	],
 	"vars": {
 		"GOOGLE_CLIENT_ID": "492442244723-srs10ae9048lgbab1qfp0hldiel8lvuv.apps.googleusercontent.com",
 	},
 	"env": {
 		"production": {
+			"secrets": {
+				"required": ["AUTH_JWT_SECRET"]
+			},
 			"vars": {
 				"GOOGLE_CLIENT_ID": "492442244723-srs10ae9048lgbab1qfp0hldiel8lvuv.apps.googleusercontent.com"
 			}

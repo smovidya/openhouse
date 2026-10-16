@@ -1,11 +1,10 @@
-// See https://svelte.dev/docs/kit/types#app.d.ts
-// for information about these interfaces
+import type { AuthSession, AuthUser } from "#lib/features/auth/schemas.ts";
+
 declare global {
 	namespace App {
-        interface Platform {
-            env: Env;
-            cf: CfProperties;
-            ctx: ExecutionContext;
+        interface Locals {
+            user: AuthUser | null;
+            session: AuthSession | null;
         }
     }
 }

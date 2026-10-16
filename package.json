@@ -4,6 +4,8 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
+		"test": "bun test",
+		"db:migrate:local": "wrangler d1 migrations apply DB --local",
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "bun run build && wrangler dev",
@@ -46,12 +48,13 @@
 		"wrangler": "^4.151.0"
 	},
 	"imports": {
-		"#lib": "./src/lib/index.js",
+		"#lib": "./src/lib/index.ts",
 		"#lib/*": "./src/lib/*",
-		"#db": "./src/lib/server/db/index.js",
+		"#db": "./src/lib/server/db/index.ts",
 		"#db/*": "./src/lib/server/db/*"
 	},
 	"dependencies": {
+		"jose": "^6",
 		"zod": "^4.6.7"
 	}
 }

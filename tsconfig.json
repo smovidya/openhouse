@@ -2,6 +2,7 @@
 	"extends": "$app/tsconfig",
 	"compilerOptions": {
 		"strict": true,
+		"checkJs": false,
 		"types": [
 			"$app/types",
 			"./src/worker-configuration.d.ts",
@@ -10,6 +11,7 @@
 	},
 	"include": [
 		"src",
+		"tests",
 		"vite.config.ts",
 		"drizzle.config.ts"
 	]
