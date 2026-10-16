@@ -30,7 +30,7 @@ export const users = t.sqliteTable("users", {
     })
     .notNull(),
   ...timestamps,
-});
+}, (table) => [t.uniqueIndex("users_google_id_unique").on(table.googleId)]);
 
 export const attendees = t.sqliteTable(
   "attendees",
