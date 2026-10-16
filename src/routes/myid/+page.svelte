@@ -23,7 +23,9 @@
 
 	<Glass
 		as="section"
-		class="rounded-xl bg-linear-to-br from-white/25 via-white/5 to-white/15 flex flex-col gap-2 p-4 text-center text-brand-mist"
+		variant="light"
+		options={{ vibrancy: 1 }}
+		class="rounded-xl flex flex-col gap-2 p-4 text-center text-brand-mist"
 	>
 		<QrCode value={data.profile.code} class="size-[227px]" />
 		<div>
@@ -53,7 +55,7 @@
 		{/each}
 
 		{#if remaining > 0}
-			<Glass class="rounded-lg bg-black/30 flex flex-col items-center gap-2 p-3">
+			<Glass class="rounded-lg flex flex-col items-center gap-2 p-3">
 				<p class="text-center text-xs text-brand-mist">คุณลงทะเบียนได้อีก {remaining} เวิร์กช็อป</p>
 				<Button variant="cta" size="cta-sm" href="/workshop">ลงทะเบียนเพิ่ม</Button>
 			</Glass>

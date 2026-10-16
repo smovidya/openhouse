@@ -8,143 +8,55 @@
 </script>
 
 <svelte:head>
-  <title>Components & Google sign-in demo</title>
+	<title>Sci CU Open House 2027</title>
 </svelte:head>
 
-<main
-  class="flex flex-1 min-h-screen flex-col items-center justify-center gap-6 bg-brand-sky p-4"
->
-  <h1 class="text-2xl">Components demo</h1>
-  <Button variant="cta" size="cta-lg" class="w-full max-w-[378px]"
-    >ลงทะเบียน</Button
-  >
-  <Button variant="cta" size="cta-sm">
-    ดูทั้งหมด <MoveRight />
-  </Button>
-  <div class="flex w-full max-w-[378px] flex-col gap-1">
-    <Label for="emergency-contact" class="text-base font-normal text-brand-navy"
-      >หมายเลขติดต่อฉุกเฉิน</Label
-    >
-    <Input id="emergency-contact" type="tel" placeholder="0XXXXXXXXX" />
-  </div>
-  <div class="flex w-full max-w-[378px] flex-col gap-1">
-    <Label for="attendee-status" class="text-base font-normal text-brand-navy"
-      >สถานะผู้เข้าร่วมงาน</Label
-    >
-    <Picker
-      id="attendee-status"
-      name="attendee-status"
-      placeholder="เลือกสถานะ"
-      options={attendeeStatuses}
-      bind:value={attendeeStatus}
-    />
-  </div>
-  <section
-    aria-labelledby="google-signin-heading"
-    class="flex w-full max-w-[378px] flex-col gap-4 rounded-2xl border border-brand-navy/20 bg-white p-6 text-brand-navy"
-  >
-    <div>
-      <p class="text-xs font-semibold uppercase tracking-widest">Frontend reference</p>
-      <h2 id="google-signin-heading" class="mt-1 text-xl font-semibold">Google sign-in demo</h2>
-      <p class="mt-2 text-sm">Uses the real authentication flow. Signing in creates a user session.</p>
-    </div>
+<!-- Content is capped at the 402px design width; the countdown ropes run edge to edge. -->
+<main class="flex w-full flex-col items-center gap-6 pt-6 pb-4">
+	<img src={logo} alt="Sci CU Open House 2027" class="size-62.75 object-cover" />
 
-    {#if session}
-      <div class="flex flex-col gap-1 text-sm">
-        <p class="font-semibold">Signed in as {session.user.name}</p>
-        <p class="break-all">{session.user.email}</p>
-        <p>Role: {session.user.role}</p>
-        <p class="break-all">User ID: {session.user.id}</p>
-      </div>
-      <Button type="button" variant="outline" onclick={handleLogout} disabled={authBusy}>
-        {authStatus === "signing-out" ? "Signing out…" : "Sign out"}
-      </Button>
-    {/if}
+	<Countdown target={EVENT_START} />
 
-    <!-- Keep the container mounted so Google's iframe survives status updates. -->
-    <div hidden={!!session || authStatus !== "ready" || pendingDevProfile !== null}>
-      {#key googleButtonVersion}
-        <div {@attach renderGoogleButton}></div>
-      {/key}
-    </div>
+	<div class="w-full max-w-100.5 px-3">
+		<Button variant="cta" size="cta-lg" href="/register" class="w-full">ลงทะเบียน</Button>
+	</div>
 
-    <p role="status" class="text-sm">
-      {#if !session && authStatus === "loading"}
-        Loading Google sign-in…
-      {:else if !session && authStatus === "signing-in"}
-        Signing in…
-      {:else if session && authStatus !== "signing-out"}
-        Your session is active.
-      {/if}
-    </p>
-    {#if authError}
-      <p role="alert" class="text-sm text-red-700">{authError}</p>
-    {/if}
-    {#if !session && (authStatus === "error" || authStatus === "ready")}
-      <Button type="button" variant="outline" onclick={prepareGoogleSignIn} disabled={authBusy}>
-        {authStatus === "error" ? "Try again" : "Restart sign-in"}
-      </Button>
-    {/if}
-  </section>
+	<div class="w-full max-w-100.5 p-3">
+		<Glass as="section" class="flex flex-col items-center gap-3 rounded-xl p-3">
+			<div class="w-full text-brand-yellow">
+				<h1 class="text-2xl font-semibold">Sci CU Open House 2027</h1>
+				<p class="text-sm">งานเปิดบ้านคณะวิทยาศาสตร์ จุฬาลงกรณ์มหาวิทยาลัย 2569</p>
+			</div>
+			<div class="flex w-full flex-col gap-[1lh] text-sm text-brand-mist">
+				<p class="indent-8">
+					ในมหาสมุทรแห่งวิทยาศาสตร์ มีหมู่เกาะมากมายที่รอให้ค้นพบ แต่ละเกาะมีเรื่องราว ความรู้
+					และเส้นทางการผจญภัยที่แตกต่างกัน ปีนี้น้องๆจะได้สวมบทเป็นโจรสลัดหน้าใหม่ ออกเดินทางสำรวจ 5
+					หมู่เกาะหลัก จากคณะวิทยาศาสตร์ จุฬาลงกรณ์มหาวิทยาลัย ได้แก่ เกาะกายภาพ เกาะชีวภาพ เกาะเทคโนโลยี
+					เกาะวิทยาศาสตร์ธรรมชาติ และเกาะนานาชาติ
+				</p>
+				<p class="indent-8">
+					น้องๆ อาจไม่ได้พบเกาะที่ใช่ตั้งแต่ครั้งแรก บางเกาะอาจทำให้รู้สึกว่า “นี่แหละสิ่งที่ชอบ”
+					ขณะที่บางเกาะอาจทำให้ค้นพบว่า “อันนี้ไม่ใช่เรา” แต่ไม่ว่าการเดินทางจะพาไปที่ไหน
+					ทุกก้าวล้วนเป็นประสบการณ์ที่ทำให้น้องได้รู้จักโลกวิทยาศาสตร์ และรู้จักตัวเองมากขึ้น ตลอดการเดินทาง
+					พี่เสือ ในฐานะกัปตัน จะคอยนำทางและพาน้องๆออกสำรวจแต่ละเกาะ เพื่อค้นหาว่า
+				</p>
+			</div>
+			<p class="text-center font-heading text-xl text-brand-yellow italic">
+				“เกาะไหนคือเกาะที่ใช่สำหรับเรา”
+			</p>
+		</Glass>
+	</div>
 
-  {#if dev}
-    <section
-      aria-labelledby="dev-session-heading"
-      class="flex w-full max-w-[378px] flex-col gap-4 rounded-2xl border border-brand-navy/20 bg-white p-6 text-brand-navy"
-    >
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-widest">Development only</p>
-        <h2 id="dev-session-heading" class="mt-1 text-xl font-semibold">Dev session demo</h2>
-        <p class="mt-2 text-sm">
-          Set the current session to a demo attendee or staff user without Google sign-in.
-          Choosing a profile replaces the current session.
-        </p>
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={authBusy}
-          onclick={() => handleDevSession("attendee")}
-        >
-          {pendingDevProfile === "attendee" ? "Setting attendee session…" : "Use demo attendee"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={authBusy}
-          onclick={() => handleDevSession("staff")}
-        >
-          {pendingDevProfile === "staff" ? "Setting staff session…" : "Use demo staff"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!session || authBusy}
-          onclick={handleLogout}
-        >
-          {authStatus === "signing-out" ? "Signing out…" : "Clear current session"}
-        </Button>
-      </div>
-
-      <p role="status" class="text-sm">
-        {#if pendingDevProfile}
-          Setting the current session to the demo {pendingDevProfile}…
-        {:else if session}
-          Current user: {session.user.name} ({session.user.role})
-        {:else}
-          No active session.
-        {/if}
-      </p>
-      {#if devSessionError}
-        <p role="alert" class="text-sm text-red-700">{devSessionError}</p>
-      {/if}
-
-      <div class="min-w-0">
-        <h3 class="mb-2 text-sm font-semibold">Current session (page.data.session)</h3>
-        <pre class="max-h-80 overflow-auto rounded-lg bg-brand-sky p-3 text-xs"><code>{JSON.stringify(session, null, 2)}</code></pre>
-      </div>
-    </section>
-  {/if}
+	<div class="w-full max-w-[402px] px-3">
+		<Glass as="section" class="flex flex-col items-center gap-2 rounded-xl p-3 text-brand-mist">
+			<h2 class="text-2xl font-medium text-brand-yellow">กำหนดการ</h2>
+			<dl class="grid w-full grid-cols-[auto_auto] justify-between gap-x-4">
+				<dt>วันเสาร์ที่ 31 ตุลาคม 2569</dt>
+				<dd>เวลา 13.00 - 20.00 น.</dd>
+				<dt>วันอาทิตย์ที่ 1 พฤศจิกายน 2569</dt>
+				<dd>เวลา 09.00 - 17.00 น.</dd>
+			</dl>
+			<p class="text-center">ณ จามจุรีสแควร์ ชั้น G</p>
+		</Glass>
+	</div>
 </main>

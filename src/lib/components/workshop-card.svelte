@@ -31,7 +31,7 @@
 	const end = $derived(new Date(workshop.end));
 </script>
 
-<Glass as="article" class="rounded-lg bg-black/30 flex flex-col gap-1 p-3">
+<Glass as="article" class="rounded-lg flex flex-col gap-1 p-3">
 	<div class="flex flex-col">
 		<h3 class="text-sm font-medium text-brand-yellow">{workshop.title}</h3>
 		<div class="flex items-center gap-2 text-xs text-brand-yellow">

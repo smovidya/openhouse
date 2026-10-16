@@ -15,6 +15,9 @@ export const fakeStaffRole = new PersistedState<StaffRole>("dev:staffRole", "cen
 /** Render the water background with WebGPU; false forces the static image fallback. */
 export const useWebGPU = new PersistedState("dev:useWebGPU", true);
 
+/** Refract the water under <Glass> panes in WebGPU instead of CSS backdrop blur. */
+export const liquidGlass = new PersistedState("dev:liquidGlass", true);
+
 /** Animate the WebGPU water (ignored with prefers-reduced-motion). */
 export const animatedWater = new PersistedState("dev:animatedWater", false);
 

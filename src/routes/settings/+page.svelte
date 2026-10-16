@@ -4,6 +4,7 @@
 		blurEnabled,
 		fakeLoggedIn,
 		fakeStaffRole,
+		liquidGlass,
 		useWebGPU,
 	} from "#lib/dev-settings.svelte.js";
 
@@ -45,6 +46,11 @@
 		useWebGPU (water background; off = static image)
 	</label>
 	<p class="ps-6">navigator.gpu: {hasWebGPU ? "available" : "missing → always static"}</p>
+
+	<label class="flex items-center gap-2">
+		<input type="checkbox" bind:checked={liquidGlass.current} disabled={!useWebGPU.current} />
+		liquid glass (WebGPU refraction under &lt;Glass&gt;; off = CSS blur)
+	</label>
 
 	<label class="flex items-center gap-2">
 		<input type="checkbox" bind:checked={animatedWater.current} disabled={!useWebGPU.current} />

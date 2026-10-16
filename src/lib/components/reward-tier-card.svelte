@@ -13,7 +13,7 @@
 	let { tier }: { tier: RewardTier } = $props();
 </script>
 
-<Glass as="article" class="rounded-lg bg-black/30 flex flex-col gap-2 p-3">
+<Glass as="article" class="rounded-lg flex flex-col gap-2 p-3">
 	<h3 class="text-center text-base font-medium text-brand-yellow">{tier.title}</h3>
 	<div class="flex items-center gap-2 rounded-lg border border-brand-sky p-2 text-xs text-brand-yellow">
 		<span class="flex shrink-0 items-center gap-1">
