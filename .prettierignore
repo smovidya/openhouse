@@ -1,0 +1,9 @@
+# Ignore artifacts:
+build
+coverage
+.svelte-kit
+.wrangler
+drizzle
+static
+.gemini
+.github/skills
