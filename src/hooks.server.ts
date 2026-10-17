@@ -5,6 +5,7 @@ import "#lib/features/auth/auth.remote.ts";
 import "#lib/features/auth/dev.remote.ts";
 import "#lib/features/staff/staff.remote.ts";
 import "#lib/features/checkpoints/checkpoints.remote.ts";
+import "#lib/features/time/time.remote.ts";
 import type { Handle } from "@sveltejs/kit/hooks";
 import {
   getAuthDb,
