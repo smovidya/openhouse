@@ -71,3 +71,26 @@ When closed, attendee and workshop commands return neverthrow errors:
 - `WORKSHOP_REGISTRATION_CLOSED`
 
 Sign-in commands reject with `SIGN_IN_NOT_OPEN`.
+
+## Workshop unregistration
+
+Attendees can unregister through the final millisecond before the workshop
+registration deadline. The command resolves the attendee from the signed-in
+user, so the frontend cannot cancel another attendee's registration.
+
+```ts
+import { unregisterFromWorkshop } from "#lib/features/workshops/workshops.remote";
+
+const result = await unregisterFromWorkshop({
+  workshopSlug: "chemistry-lab",
+  workshopRoundNumber: 1,
+});
+```
+
+The command returns the soft-deleted registration in `Ok`. It returns one of
+these neverthrow error codes when it cannot unregister:
+
+- `ATTENDEE_NOT_FOUND`
+- `WORKSHOP_REGISTRATION_NOT_FOUND`
+- `WORKSHOP_REGISTRATION_CLOSED`
+- `UNREGISTER_FROM_WORKSHOP_FAILED`
