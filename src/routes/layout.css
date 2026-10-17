@@ -149,18 +149,6 @@
   backdrop-filter: none !important;
 }
 
-/* The WebGPU water background renders every <Glass> pane (refraction, scrim, highlights);
-   drop the CSS fallback look. */
-:root[data-liquid-glass="on"] [data-glass] {
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-  background: none !important;
-  box-shadow: none !important;
-}
-:root[data-liquid-glass="on"] [data-glass-canvas] {
-  display: block;
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;

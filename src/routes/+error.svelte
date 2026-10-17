@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import Glass from "#lib/components/glass.svelte";
+	import Glass from "#lib/render/glass.svelte";
 	import SignBoard from "#lib/components/sign-board.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 

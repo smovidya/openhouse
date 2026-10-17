@@ -23,7 +23,7 @@
 <script lang="ts">
 	import calendarIcon from "#lib/assets/icons/calendar.svg";
 	import clockIcon from "#lib/assets/icons/clock.svg";
-	import Glass from "./glass.svelte";
+	import Glass from "#lib/render/glass.svelte";
 
 	let { workshop }: { workshop: RegisteredWorkshop } = $props();
 

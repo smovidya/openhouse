@@ -1,7 +1,7 @@
 <script lang="ts">
 	import arrowRightIcon from "#lib/assets/icons/arrow-right.svg";
 	import checkCircleIcon from "#lib/assets/icons/check-circle.svg";
-	import Glass from "#lib/components/glass.svelte";
+	import Glass from "#lib/render/glass.svelte";
 	import QrCode from "#lib/components/qr-code.svelte";
 	import RewardTierCard from "#lib/components/reward-tier-card.svelte";
 	import SignBoard from "#lib/components/sign-board.svelte";

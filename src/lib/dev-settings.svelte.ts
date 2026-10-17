@@ -1,4 +1,5 @@
 import { PersistedState } from "runed";
+import type { GlassMode } from "#lib/render/frame-plan.js";
 import type { StaffRole } from "#lib/staff.js";
 
 export const toolbarPositions = [
@@ -30,8 +31,11 @@ export const fakeStaffRole = new PersistedState<StaffRole>(
 /** Render the water background with WebGPU; false forces the static image fallback. */
 export const useWebGPU = new PersistedState("dev:useWebGPU", true);
 
-/** Refract the water under <Glass> panes in WebGPU instead of CSS backdrop blur. */
-export const liquidGlass = new PersistedState("dev:liquidGlass", true);
+/**
+ * How <Glass> panes render (see GlassMode): "full" needs the WebGPU water, so with the static
+ * background it falls back to "rim".
+ */
+export const glassMode = new PersistedState<GlassMode>("dev:glassMode", "full");
 
 /** Animate the WebGPU water (ignored with prefers-reduced-motion). */
 export const animatedWater = new PersistedState("dev:animatedWater", false);
