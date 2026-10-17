@@ -12,9 +12,13 @@ export interface GoogleIdentity {
     element: HTMLElement,
     options: {
       type: "standard";
-      theme: "outline";
+      theme: "outline" | "filled_blue" | "filled_black";
       size: "large";
-      text: "continue_with";
+      text: "continue_with" | "signin_with" | "signup_with";
+      shape?: "rectangular" | "pill";
+      /** px, 200–400 */
+      width?: number;
+      locale?: string;
     },
   ): void;
   disableAutoSelect(): void;
