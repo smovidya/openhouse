@@ -1,7 +1,7 @@
 <script lang="ts">
 	import logo from "#lib/assets/logo.png";
 	import Countdown from "#lib/components/countdown.svelte";
-	import Glass from "#lib/components/glass.svelte";
+	import Glass from "#lib/render/glass.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 
 	const EVENT_START = "2026-10-31T13:00:00+07:00";

@@ -8,7 +8,7 @@
 
 <script lang="ts">
 	import trophyIcon from "#lib/assets/icons/trophy.svg";
-	import Glass from "./glass.svelte";
+	import Glass from "#lib/render/glass.svelte";
 
 	let { tier }: { tier: RewardTier } = $props();
 </script>

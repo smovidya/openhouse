@@ -21,7 +21,7 @@
 	import clockIcon from "#lib/assets/icons/clock.svg";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { sessionsByDay, type Workshop } from "#lib/workshops.js";
-	import Glass from "./glass.svelte";
+	import Glass from "#lib/render/glass.svelte";
 
 	let { workshop }: { workshop: Workshop } = $props();
 

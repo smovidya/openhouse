@@ -37,7 +37,7 @@
 <script lang="ts">
 	import calendarIcon from "#lib/assets/icons/calendar-lg.svg";
 	import infoIcon from "#lib/assets/icons/info.svg";
-	import Glass from "#lib/components/glass.svelte";
+	import Glass from "#lib/render/glass.svelte";
 	import SignBoard from "#lib/components/sign-board.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { sessionsByDay, sessionStatus, type WorkshopSession } from "#lib/workshops.js";

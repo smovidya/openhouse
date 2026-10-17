@@ -3,10 +3,12 @@
 //   → surface fill → thin additive highlight along the rim.
 // Everything behind the glass is our own water, so no DOM capture is needed.
 //
-// Two entry points:
+// Entry points:
 // - fs_background: the fixed, full-viewport canvas (tinted water).
 // - fs_glass: one <Glass> pane, drawn into that pane's own canvas so the compositor scrolls it
 //   with the card (no lag between the DOM and the glass edges).
+// - fs_rim: only that pane's rim highlight, over the CSS blur + fill (glass mode "rim"). It reads
+//   no water, so it needs only the pane's size, radius and `look`.
 
 struct Uniforms {
   viewport: vec2f, // viewport size, device px (water textures cover it)
@@ -63,6 +65,24 @@ fn tinted(c: vec3f) -> vec3f {
 fn saturate_color(c: vec3f, s: f32) -> vec3f {
   let luma = dot(c, vec3f(0.213, 0.715, 0.072));
   return clamp(mix(vec3f(luma), c, s), vec3f(0.0), vec3f(1.0));
+}
+
+// Rim highlight strength at pane-local p: a thin stroke inside the edge, intensity |n · light|
+// (lights two opposite edges).
+fn rim_light(p: vec2f, half: vec2f, r: f32, inside: f32) -> f32 {
+  let a = radians(u.look.w);
+  let n = grad_round_rect(p, half, min(r * 1.5, min(half.x, half.y)));
+  let lit = abs(dot(n, vec2f(cos(a), sin(a))));
+  let w = u.look.y * u.dpr;
+  let stroke = 1.0 - smoothstep(w * 0.5, w * 1.5, inside);
+  return u.look.z * lit * stroke;
+}
+
+// Rim highlight colour: white with a subtle cast of the page tint (sky or navy), normalised so the
+// highlight stays bright.
+fn rim_color() -> vec3f {
+  let tint = u.tint.rgb / max(max(u.tint.r, u.tint.g), max(u.tint.b, 1e-3));
+  return mix(vec3f(1.0), tint, 0.4);
 }
 
 // What the glass sees at a viewport position (device px): blurred, tinted, saturated water.
@@ -122,14 +142,28 @@ fn dispersed(base: vec2f, off: vec2f) -> vec3f {
   // Surface fill.
   glass = over(glass, u.fill.rgb, u.fill.a);
 
-  // Highlight: thin rim stroke, intensity |n · light| (lights two opposite edges), added.
-  let a = radians(u.look.w);
-  let n = grad_round_rect(p, half, min(r * 1.5, min(half.x, half.y)));
-  let lit = abs(dot(n, vec2f(cos(a), sin(a))));
-  let w = u.look.y * u.dpr;
-  let stroke = 1.0 - smoothstep(w * 0.5, w * 1.5, inside);
-  glass = min(glass + vec3f(u.look.z * lit * stroke), vec3f(1.0));
+  // Highlight, added.
+  glass = min(glass + rim_color() * rim_light(p, half, r, inside), vec3f(1.0));
 
   // Premultiplied output (canvas alphaMode "premultiplied").
   return vec4f(glass * coverage, coverage);
+}
+
+@fragment fn fs_rim(@builtin(position) frag: vec4f) -> @location(0) vec4f {
+  let half = u.size * 0.5;
+  let p = frag.xy - half;
+  let r = min(u.radius, min(half.x, half.y));
+  let sd = sd_round_rect(p, half, r);
+  let coverage = clamp(0.5 - sd / u.dpr, 0.0, 1.0);
+  if (coverage <= 0.0) {
+    return vec4f(0.0);
+  }
+  // The full glass adds its rim: d + h. The canvas can only composite over the CSS surface,
+  // d + a·(1 − d), so match it with a = h / (1 − d), estimating the surface d per variant
+  // (measured against the full glass's edge: ~0.5 under the dark scrim, ~0.6 under the light).
+  let surface = mix(0.5, 0.6, u.fill.r);
+  let h = rim_light(p, half, r, max(-sd, 0.0));
+  let alpha = clamp(h / (1.0 - surface), 0.0, 1.0) * coverage;
+  // Premultiplied.
+  return vec4f(rim_color() * alpha, alpha);
 }
