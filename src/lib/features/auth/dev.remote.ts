@@ -7,6 +7,7 @@ import { requireSameOrigin } from "./guards.server";
 import { getAuthDb, getSessionSettings } from "./config.server";
 import { devSessionInput } from "./schemas";
 import { clearLoginChallenge, setSessionCookie } from "./session.server";
+import { getRequestTimeGates } from "../time/time.server";
 
 export const createDevSession = command(
   devSessionInput,
@@ -14,6 +15,8 @@ export const createDevSession = command(
     // This is a server build-time flag, never an input or an environment toggle.
     if (!dev) error(404, "Not found");
     requireSameOrigin(getRequestEvent());
+    if (!getRequestTimeGates(getRequestEvent().cookies, dev).flags.signInOpen)
+      error(403, "SIGN_IN_NOT_OPEN");
     const { ensureDevFixture } = await import("./dev-fixtures.server");
     const { cookies, locals } = getRequestEvent();
     const settings = getSessionSettings(env, dev);

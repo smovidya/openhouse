@@ -18,11 +18,18 @@ import {
   readLoginChallenge,
   setSessionCookie,
 } from "./session.server";
+import { getRequestTimeGates } from "../time/time.server";
+
+function requireSignInOpen() {
+  if (!getRequestTimeGates(getRequestEvent().cookies, dev).flags.signInOpen)
+    error(403, "SIGN_IN_NOT_OPEN");
+}
 
 export const getSession = query(() => getRequestEvent().locals.session);
 
 export const beginGoogleSignIn = command(async () => {
   requireSameOrigin(getRequestEvent());
+  requireSignInOpen();
   const { cookies } = getRequestEvent();
   const clientId = getGoogleClientId(env);
   const settings = getSessionSettings(env, dev);
@@ -34,6 +41,7 @@ export const signInWithGoogle = command(
   googleSignInInput,
   async ({ googleIdToken }) => {
     requireSameOrigin(getRequestEvent());
+    requireSignInOpen();
     const { cookies, locals } = getRequestEvent();
     const settings = getSessionSettings(env, dev);
     const nonce = await readLoginChallenge(cookies, settings);
