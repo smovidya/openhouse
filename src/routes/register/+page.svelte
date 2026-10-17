@@ -11,6 +11,7 @@
 	import * as Form from "#lib/components/ui/form/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { MultiPicker, Picker } from "#lib/components/ui/picker/index.js";
+	import * as Select from "#lib/components/ui/select/index.js";
 	import { Separator } from "#lib/components/ui/separator/index.js";
 	import { selfRegisterAttendee } from "#lib/features/attendees/attendees.remote.ts";
 	import {
@@ -79,6 +80,10 @@
 		},
 	});
 	const { form: formData, enhance, submitting, validateForm } = form;
+
+	const provinceLabel = $derived(
+		provinceOptions.find((option) => option.value === $formData.province)?.label
+	);
 	const enhanceAttachment = fromAction(enhance);
 
 	const isStudent = $derived(!nonStudentStatuses.has($formData.status));
@@ -190,13 +195,19 @@
 							<Form.Label class="text-base leading-normal font-normal text-brand-navy"
 								>จังหวัดที่อยู่อาศัยในปัจจุบัน</Form.Label
 							>
-							<Picker
-								id={props.id}
-								name={props.name}
-								placeholder="เลือกจังหวัด"
-								options={provinceOptions}
-								bind:value={$formData.province}
-							/>
+							<Select.Root type="single" name={props.name} bind:value={$formData.province}>
+								<Select.Trigger
+									{...props}
+									class="h-10 w-full rounded-lg border-transparent bg-brand-mist px-3 text-base text-brand-navy shadow-none focus-visible:border-brand-navy focus-visible:ring-brand-navy/50 data-placeholder:text-brand-sky [&>svg]:size-6 [&>svg]:text-brand-navy"
+								>
+									{provinceLabel ?? "เลือกจังหวัด"}
+								</Select.Trigger>
+								<Select.Content class="max-h-80 bg-brand-mist text-brand-navy">
+									{#each provinceOptions as option (option.value)}
+										<Select.Item value={option.value} label={option.label} class="text-base" />
+									{/each}
+								</Select.Content>
+							</Select.Root>
 						{/snippet}
 					</Form.Control>
 					<Form.FieldErrors />
