@@ -37,3 +37,10 @@
 - ช่องทางข่าวสารงาน (เลือก >=1 หรือ >=0)
 - workshop data
 - รางวัล
+
+
+# design
+- better fallback mode for rim light (webgpu lmao)
+- fade transition
+- render background ar halfres
+- background loop static render

@@ -34,7 +34,7 @@ export const DEFAULT_GLASS_OPTIONS: GlassOptions = {
 	refractionHeight: 24,
 	refractionAmount: 100,
 	depth: 1,
-	dispersion: 1,
+	dispersion: 1.25,
 	vibrancy: 1.5,
 	highlightWidth: 1,
 	highlightAlpha: 0.5,

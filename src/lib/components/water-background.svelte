@@ -37,7 +37,7 @@
 	};
 	const LOOP_MS = 100_000;
 	/** Each level downsamples 4x per axis; the result is reconstructed to 1/4 size. */
-	const BLUR_LEVELS = 3;
+	const BLUR_LEVELS = 2;
 
 	// --brand-sky / --brand-navy as 0–1 RGB, for the shader-side tint.
 	const TINTS = {

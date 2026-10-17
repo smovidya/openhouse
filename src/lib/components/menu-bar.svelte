@@ -82,7 +82,7 @@
 	<Collapsible.Root bind:open>
 		<header
 			bind:offsetHeight={headerHeight}
-			class="absolute inset-x-0 top-0 flex flex-col items-center gap-8 border-b border-white/30 bg-black/30 px-6 py-4 shadow-md shadow-black/10 backdrop-blur-xl"
+			class="absolute inset-x-0 top-0 flex flex-col items-center gap-8 border-b border-white/30 bg-black/30 px-6 py-4 shadow-md shadow-black/10 backdrop-blur-xl backdrop-saturate-125"
 		>
 			<div class="flex w-full items-start justify-between">
 				<a href="/" class="block h-[40.078px] w-10">
