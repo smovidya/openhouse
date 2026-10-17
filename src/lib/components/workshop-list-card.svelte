@@ -3,6 +3,11 @@
 		dateStyle: "long",
 		timeZone: "Asia/Bangkok",
 	});
+	const dayFormat = new Intl.DateTimeFormat("th-TH", {
+		day: "numeric",
+		month: "short",
+		timeZone: "Asia/Bangkok",
+	});
 	const timeFormat = new Intl.DateTimeFormat("th-TH", {
 		hour: "2-digit",
 		minute: "2-digit",
@@ -15,14 +20,16 @@
 	import calendarIcon from "#lib/assets/icons/calendar.svg";
 	import clockIcon from "#lib/assets/icons/clock.svg";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import type { Workshop } from "#lib/workshops.js";
+	import { sessionsByDay, type Workshop } from "#lib/workshops.js";
 	import Glass from "./glass.svelte";
 
 	let { workshop }: { workshop: Workshop } = $props();
 
 	let expanded = $state(false);
 
-	const firstStart = $derived(workshop.sessions[0]?.start);
+	const days = $derived(sessionsByDay(workshop.sessions));
+	const firstStart = $derived(workshop.sessions.at(0)?.start);
+	const lastStart = $derived(workshop.sessions.at(-1)?.start);
 
 	// Pressing anywhere on the card expands the description; its own controls keep their action.
 	function toggle(event: MouseEvent) {
@@ -31,17 +38,21 @@
 	}
 </script>
 
-<Glass as="article" class="flex cursor-pointer flex-col gap-3 rounded-lg p-3" onclick={toggle}>
+<Glass
+	as="article"
+	class={["flex flex-col gap-3 rounded-lg p-3", workshop.description && "cursor-pointer"]}
+	onclick={workshop.description ? toggle : undefined}
+>
 	<div class="flex items-start gap-3">
 		<div class="flex min-w-0 flex-1 flex-col gap-1">
 			<div class="flex flex-col">
 				<h3 class="text-base font-medium text-brand-yellow">{workshop.title}</h3>
-				<p class="text-[10px] text-brand-mist">{workshop.department}</p>
+				<p class="text-[10px] text-brand-mist">{workshop.hostDepartmentAbbr}</p>
 			</div>
-			{#if firstStart}
+			{#if firstStart && lastStart}
 				<p class="flex items-center gap-1 text-xs text-brand-yellow">
 					<img src={calendarIcon} alt="" />
-					<time datetime={firstStart}>{dateFormat.format(new Date(firstStart))}</time>
+					{dateFormat.formatRange(new Date(firstStart), new Date(lastStart))}
 				</p>
 			{/if}
 		</div>
@@ -53,27 +64,40 @@
 			<img src={clockIcon} alt="" />
 			รอบเวลาทั้งหมด
 		</p>
-		<ul class="min-w-0 flex-1 text-brand-mist">
-			{#each workshop.sessions as session (session.id)}
+		<ul class="flex min-w-0 flex-1 flex-col gap-1 text-brand-mist">
+			{#each days as { day, sessions } (day)}
 				<li>
-					<time datetime={session.start}>{formatTime(session.start)}</time> -
-					<time datetime={session.end}>{formatTime(session.end)}</time>
-					<span
-						class={session.registered >= session.capacity ? "text-status-red" : "text-status-green"}
-					>
-						({session.registered}/{session.capacity})
-					</span>
+					<time datetime={day} class="text-brand-yellow">
+						{dayFormat.format(new Date(sessions[0].start))}
+					</time>
+					<ul>
+						{#each sessions as session (session.id)}
+							<li>
+								<time datetime={session.start}>{formatTime(session.start)}</time> -
+								<time datetime={session.end}>{formatTime(session.end)}</time>
+								<span
+									class={session.registered >= session.capacity
+										? "text-status-red"
+										: "text-status-green"}
+								>
+									({session.registered}/{session.capacity})
+								</span>
+							</li>
+						{/each}
+					</ul>
 				</li>
 			{/each}
 		</ul>
 	</div>
 
-	<button
-		type="button"
-		aria-expanded={expanded}
-		class="block w-full cursor-pointer rounded-sm text-left text-xs text-brand-mist outline-none focus-visible:ring-3 focus-visible:ring-brand-mist/50"
-		onclick={() => (expanded = !expanded)}
-	>
-		<span class={[!expanded && "line-clamp-2"]}>{workshop.description}</span>
-	</button>
+	{#if workshop.description}
+		<button
+			type="button"
+			aria-expanded={expanded}
+			class="block w-full cursor-pointer rounded-sm text-left text-xs text-brand-mist outline-none focus-visible:ring-3 focus-visible:ring-brand-mist/50"
+			onclick={() => (expanded = !expanded)}
+		>
+			<span class={[!expanded && "line-clamp-2"]}>{workshop.description}</span>
+		</button>
+	{/if}
 </Glass>

@@ -4,6 +4,10 @@
 	import checkCircleGreenIcon from "#lib/assets/icons/check-circle-green.svg";
 	import type { SessionStatus } from "#lib/workshops.js";
 
+	const dayFormat = new Intl.DateTimeFormat("th-TH", {
+		dateStyle: "full",
+		timeZone: "Asia/Bangkok",
+	});
 	const timeFormat = new Intl.DateTimeFormat("th-TH", {
 		hour: "2-digit",
 		minute: "2-digit",
@@ -36,7 +40,7 @@
 	import Glass from "#lib/components/glass.svelte";
 	import SignBoard from "#lib/components/sign-board.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import { sessionStatus, type WorkshopSession } from "#lib/workshops.js";
+	import { sessionsByDay, sessionStatus, type WorkshopSession } from "#lib/workshops.js";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -61,16 +65,18 @@
 		<Glass as="article" class="flex w-full flex-col gap-3 rounded-lg p-3">
 			<header class="text-center">
 				<h2 class="text-lg font-medium text-brand-yellow">{workshop.title}</h2>
-				<p class="text-[10px] text-brand-mist">{workshop.department}</p>
+				<p class="text-[10px] text-brand-mist">{workshop.hostDepartmentAbbr}</p>
 			</header>
 
-			<section>
-				<h3 class="flex items-center gap-1 text-sm text-brand-yellow">
-					<img src={infoIcon} alt="" />
-					รายละเอียดกิจกรรม
-				</h3>
-				<p class="text-xs text-brand-mist">{workshop.description}</p>
-			</section>
+			{#if workshop.description}
+				<section>
+					<h3 class="flex items-center gap-1 text-sm text-brand-yellow">
+						<img src={infoIcon} alt="" />
+						รายละเอียดกิจกรรม
+					</h3>
+					<p class="text-xs text-brand-mist">{workshop.description}</p>
+				</section>
+			{/if}
 
 			<section class="flex flex-col gap-2">
 				<div class="flex items-center gap-2 text-brand-yellow">
@@ -81,41 +87,46 @@
 					<p class="text-xs">(กดที่รอบเวลาว่างเพื่อลงทะเบียน)</p>
 				</div>
 
-				{#each workshop.sessions as session (session.id)}
-					{@const status = sessionStatus(session, booked)}
-					{@const look = statusLook[status]}
-					{@const rowClass = [
-						"flex w-full items-start justify-between rounded-lg border px-4 py-2 text-xs",
-						look.class,
-					]}
-					{#snippet row()}
-						<span class="flex items-center gap-4 text-brand-mist">
-							<span>
-								<time datetime={session.start}>{timeFormat.format(new Date(session.start))}</time> -
-								<time datetime={session.end}>{timeFormat.format(new Date(session.end))}</time>
+				{#each sessionsByDay(workshop.sessions) as { day, sessions } (day)}
+					<time datetime={day} class="text-xs text-brand-mist">
+						{dayFormat.format(new Date(sessions[0].start))}
+					</time>
+					{#each sessions as session (session.id)}
+						{@const status = sessionStatus(session, booked)}
+						{@const look = statusLook[status]}
+						{@const rowClass = [
+							"flex w-full items-start justify-between rounded-lg border px-4 py-2 text-xs",
+							look.class,
+						]}
+						{#snippet row()}
+							<span class="flex items-center gap-4 text-brand-mist">
+								<span>
+									<time datetime={session.start}>{timeFormat.format(new Date(session.start))}</time> -
+									<time datetime={session.end}>{timeFormat.format(new Date(session.end))}</time>
+								</span>
+								<span>จำนวน {session.registered}/{session.capacity}</span>
 							</span>
-							<span>จำนวน {session.registered}/{session.capacity}</span>
-						</span>
-						<span class="flex items-center gap-1">
-							{look.label}
-							<img src={look.icon} alt="" />
-						</span>
-					{/snippet}
+							<span class="flex items-center gap-1">
+								{look.label}
+								<img src={look.icon} alt="" />
+							</span>
+						{/snippet}
 
-					{#if status === "available"}
-						<button
-							type="button"
-							class={[
-								rowClass,
-								"cursor-pointer transition-colors outline-none hover:bg-white/10 focus-visible:ring-3 focus-visible:ring-brand-mist/50 active:bg-white/20",
-							]}
-							onclick={() => register(session)}
-						>
-							{@render row()}
-						</button>
-					{:else}
-						<div class={rowClass}>{@render row()}</div>
-					{/if}
+						{#if status === "available"}
+							<button
+								type="button"
+								class={[
+									rowClass,
+									"cursor-pointer transition-colors outline-none hover:bg-white/10 focus-visible:ring-3 focus-visible:ring-brand-mist/50 active:bg-white/20",
+								]}
+								onclick={() => register(session)}
+							>
+								{@render row()}
+							</button>
+						{:else}
+							<div class={rowClass}>{@render row()}</div>
+						{/if}
+					{/each}
 				{/each}
 			</section>
 		</Glass>
