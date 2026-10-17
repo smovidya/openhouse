@@ -95,6 +95,7 @@ export const inviteCodes = t.sqliteTable("invite_codes", {
 
 export const workshops = t.sqliteTable("workshops", {
   ...id,
+  slug: t.text("slug").notNull().unique(),
   title: t.text("title").notNull(),
   hostDepartment: t.text("host_department").notNull(),
   hostDepartimentAbbr: t.text("host_department_abbr").notNull(),
