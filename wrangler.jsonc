@@ -23,10 +23,11 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "openhouse26-local",
+      "database_name": "openhouse27",
       "remote": false,
       "migrations_dir": "drizzle",
       "migrations_pattern": "drizzle/*/migration.sql",
+      "database_id": "748a9871-c120-460e-a9fe-a436865867e1",
     },
   ],
   "vars": {
