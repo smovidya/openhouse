@@ -5,24 +5,39 @@
 import z from "zod";
 import { getDb, tables } from "#lib/server/db/index.ts";
 import { env } from "cloudflare:workers";
-import { err, ResultAsync } from "neverthrow";
+import { err, ok, ResultAsync } from "neverthrow";
 import { type AttendeeProfileInsert } from "./schemas";
 
-const db = getDb(env.DB);
+export const getActiveAttendeeByUserId = (userId: string) => {
+  const db = getDb(env.DB);
+  return ResultAsync.fromPromise(
+    db.query.attendees.findFirst({
+      columns: { id: true },
+      where: { userId, deletedAt: { isNull: true } },
+    }),
+    () => "FETCH_ATTENDEE_PROFILE_FAILED" as const,
+  ).andThen((attendee) =>
+    attendee ? ok(attendee) : err("ATTENDEE_NOT_FOUND" as const),
+  );
+};
 
-export const getAttendeeProfile = async (query: {
+export const getAttendeeProfile = (query: {
   qrCodeId?: string;
   id?: string;
-}) =>
-  ResultAsync.fromPromise(
+}) => {
+  const db = getDb(env.DB);
+  return ResultAsync.fromPromise(
     db.query.attendees.findFirst({
       where: query,
     }),
-    () => err("FETCH_ATTENDEE_PROFILE_FAILED"),
+    () => "FETCH_ATTENDEE_PROFILE_FAILED" as const,
   );
+};
 
-export const createAttendeeProfile = async (input: AttendeeProfileInsert) =>
-  ResultAsync.fromPromise(
+export const createAttendeeProfile = (input: AttendeeProfileInsert) => {
+  const db = getDb(env.DB);
+  return ResultAsync.fromPromise(
     db.insert(tables.attendees).values(input).returning().get(),
-    () => err("CREATE_ATTENDEE_PROFILE_FAILED"),
+    () => "CREATE_ATTENDEE_PROFILE_FAILED" as const,
   );
+};

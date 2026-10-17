@@ -2,6 +2,7 @@
 // Pass schemas from ./schemas directly to SvelteKit's query/form/command.
 // Implement identity and access checks before exposing profile operations.
 
+import { dev } from "$app/env";
 import { command, getRequestEvent, query } from "$app/server";
 import { error } from "@sveltejs/kit";
 import z from "zod";
@@ -14,6 +15,7 @@ import {
   requireUser,
 } from "../auth/guards.server";
 import { err, ok, safeTry } from "neverthrow";
+import { getRequestTimeGates } from "../time/time.server";
 
 export const getAttendeeProfileByQrCodeId = query(
   z.string(),
@@ -37,6 +39,11 @@ export const selfRegisterAttendee = command(
   async (input) => {
     const { locals } = getRequestEvent();
     const user = requireUser(locals.user);
+    if (
+      !getRequestTimeGates(getRequestEvent().cookies, dev).flags
+        .generalRegistrationOpen
+    )
+      return err("GENERAL_REGISTRATION_NOT_OPEN" as const);
 
     const nanoid = customAlphabet("2345679ACDEFGHJKLMNPQRSTUVWXYZ%#@", 5);
     return safeTry(async function* () {
