@@ -36,6 +36,8 @@
 		highlightColor: { r: 0.804, g: 0.961, b: 1, a: 1 },
 	};
 	const LOOP_MS = 100_000;
+	/** Water renders at this fraction of device px per axis; the canvases upscale it (linear). */
+	const WATER_RESOLUTION = 0.5;
 	/** Each level downsamples 4x per axis; the result is reconstructed to 1/4 size. */
 	const BLUR_LEVELS = 2;
 
@@ -113,15 +115,22 @@
 					const { width, height } = target;
 					const scale = width / Math.max(1, target.clientWidth);
 					const usage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING;
+					// The caustics are soft, so the sharp water is rendered at reduced resolution too.
+					const waterWidth = Math.max(1, Math.ceil(width * WATER_RESOLUTION));
+					const waterHeight = Math.max(1, Math.ceil(height * WATER_RESOLUTION));
 
-					if (!waterTexture || waterTexture.width !== width || waterTexture.height !== height) {
+					if (!waterTexture || waterTexture.width !== waterWidth || waterTexture.height !== waterHeight) {
 						waterTexture?.destroy();
 						blurredTexture?.destroy();
-						waterTexture = gpu.createTexture({ size: [width, height], format: WATER_FORMAT, usage });
-						// The frost is soft, so blur at 1/BLUR_DOWNSCALE resolution (per axis).
+						waterTexture = gpu.createTexture({
+							size: [waterWidth, waterHeight],
+							format: WATER_FORMAT,
+							usage,
+						});
+						// The frost is soft, so blur at 1/BLUR_DOWNSCALE of the water (per axis).
 						const small = [
-							Math.max(1, Math.ceil(width / BLUR_DOWNSCALE)),
-							Math.max(1, Math.ceil(height / BLUR_DOWNSCALE)),
+							Math.max(1, Math.ceil(waterWidth / BLUR_DOWNSCALE)),
+							Math.max(1, Math.ceil(waterHeight / BLUR_DOWNSCALE)),
 						];
 						blurredTexture = gpu.createTexture({ size: small, format: WATER_FORMAT, usage });
 						glass.bind(waterTexture, blurredTexture);
@@ -135,7 +144,8 @@
 					// Global frost: one blurred copy shared by every pane.
 					if (blurChanged) blurSigma = liquidGlassConfig.blur;
 					if (refract && (animate || waterDirty || blurChanged)) {
-						blurRenderer.render(waterTexture, blurredTexture!, blurSigma * scale);
+						// Sigma is in source (water texture) px.
+						blurRenderer.render(waterTexture, blurredTexture!, blurSigma * scale * WATER_RESOLUTION);
 					}
 					if (animate || waterDirty || blurChanged) sceneVersion++;
 					waterDirty = false;
