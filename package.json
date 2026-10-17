@@ -65,6 +65,7 @@
   },
   "dependencies": {
     "jose": "^6",
+    "nanoid": "^6.0.2",
     "neverthrow": "^8.2.0",
     "zod": "^4.6.7"
   },
