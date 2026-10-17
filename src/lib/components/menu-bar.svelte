@@ -28,7 +28,7 @@
 					{ href: "/", label: "หน้าแรก", icon: homeIcon },
 					{ href: "/myid", label: "MY QR CODE", icon: qrCodeIcon },
 					{ href: "/workshop", label: "Workshop", icon: labPanelIcon },
-					{ href: "/prize", label: "ภารกิจล่าของรางวัล", icon: giftIcon },
+					// { href: "/prize", label: "ภารกิจล่าของรางวัล", icon: giftIcon },
 				]
 			: [{ href: "/", label: "หน้าแรก", icon: homeIcon }]
 	);
