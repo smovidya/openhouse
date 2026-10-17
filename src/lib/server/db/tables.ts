@@ -104,18 +104,25 @@ export const workshops = t.sqliteTable("workshops", {
   ...timestamps,
 });
 
-export const workshopTimeSlots = t.sqliteTable("workshop_time_slots", {
-  ...id,
-  workshopId: t
-    .text("workshop_id")
-    .notNull()
-    .references(() => workshops.id),
-  roundNumber: t.integer("round_number").notNull(),
-  date: t.integer("date", { mode: "timestamp" }).notNull(),
-  startTime: t.integer("start_time", { mode: "timestamp" }).notNull(),
-  endTime: t.integer("end_time", { mode: "timestamp" }).notNull(),
-  ...timestamps,
-});
+export const workshopTimeSlots = t.sqliteTable(
+  "workshop_time_slots",
+  {
+    ...id,
+    workshopId: t
+      .text("workshop_id")
+      .notNull()
+      .references(() => workshops.id),
+    roundNumber: t.integer("round_number").notNull(),
+    startsAt: t.integer("starts_at", { mode: "timestamp" }).notNull(),
+    endsAt: t.integer("ends_at", { mode: "timestamp" }).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    t
+      .uniqueIndex("workshop_time_slots_workshop_id_round_number_unique")
+      .on(table.workshopId, table.roundNumber),
+  ],
+);
 
 export const workshopRegistrations = t.sqliteTable("workshop_registrations", {
   ...id,
