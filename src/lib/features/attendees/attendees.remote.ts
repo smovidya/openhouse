@@ -7,7 +7,6 @@ import { command, getRequestEvent, query } from "$app/server";
 import { error } from "@sveltejs/kit";
 import z from "zod";
 import { createAttendeeProfile, getAttendeeProfile } from "./service.server";
-import { createAttendeeProfileInput } from "./schemas";
 import { customAlphabet } from "nanoid";
 import {
   requirePermission,
@@ -16,6 +15,7 @@ import {
 } from "../auth/guards.server";
 import { err, ok, safeTry } from "neverthrow";
 import { getRequestTimeGates } from "../time/time.server";
+import { registrationSchema } from "#lib/registration/schema.ts";
 
 export const getAttendeeProfileByQrCodeId = query(
   z.string(),
@@ -35,7 +35,7 @@ export const getAttendeeProfileByQrCodeId = query(
 );
 
 export const selfRegisterAttendee = command(
-  createAttendeeProfileInput,
+  registrationSchema,
   async (input) => {
     const { locals } = getRequestEvent();
     const user = requireUser(locals.user);
@@ -53,7 +53,26 @@ export const selfRegisterAttendee = command(
         if (existingProfile) continue;
 
         return await createAttendeeProfile({
-          ...input,
+          title: input.prefix === "other" ? input.prefixOther : input.prefix,
+          prefixOther: input.prefixOther || null,
+          firstname: input.firstName,
+          lastname: input.lastName,
+          age: input.age,
+          residentProvince: input.province,
+          emergencyPhone: input.emergencyPhone,
+          emergencyName: input.emergencyName,
+          specialNeed: input.specialNeeds || null,
+          type: input.status,
+          school: input.schoolName || null,
+          surveyResponses: {
+            reason: input.reason,
+            expectation: input.expectation,
+            newsSources: input.newsSources,
+            visitIntent: input.visitIntent,
+            major1: input.major1,
+            major2: input.major2,
+            major3: input.major3,
+          },
           userId: user.id,
           qrCodeId,
         });

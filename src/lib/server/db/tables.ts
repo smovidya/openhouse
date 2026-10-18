@@ -20,6 +20,16 @@ const timestamps = {
   deletedAt: t.integer("deleted_at", { mode: "timestamp" }),
 };
 
+export type AttendeeSurveyResponses = {
+  reason: string;
+  expectation: string;
+  newsSources: string[];
+  visitIntent: string;
+  major1: string;
+  major2: string;
+  major3: string;
+};
+
 export const users = t.sqliteTable(
   "users",
   {
@@ -54,9 +64,15 @@ export const attendees = t.sqliteTable(
     residentProvince: t.text("resident_province").notNull(),
     type: t.text("type").notNull(),
     school: t.text("school"),
-    surveyResponses: t.text("questions", {
-      mode: "json",
-    }),
+    prefixOther: t.text("prefix_other"),
+    emergencyPhone: t.text("emergency_phone"),
+    emergencyName: t.text("emergency_name"),
+    specialNeed: t.text("special_need"),
+    surveyResponses: t
+      .text("questions", {
+        mode: "json",
+      })
+      .$type<AttendeeSurveyResponses>(),
     ...timestamps,
   },
   (table) => [t.uniqueIndex("idx_attendees_qr_code_id").on(table.qrCodeId)],

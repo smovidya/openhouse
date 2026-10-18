@@ -33,12 +33,47 @@ mock.module("../src/lib/features/attendees/service.server", () => ({
 const { selfRegisterAttendee } =
   await import("../src/lib/features/attendees/attendees.remote");
 const input = {
-  title: "Mx",
+  prefix: "mr",
+  prefixOther: "",
+  firstName: "Test",
+  lastName: "Attendee",
+  age: 18,
+  province: "Bangkok",
+  emergencyPhone: "0812345678",
+  emergencyName: "Emergency Person",
+  specialNeeds: "",
+  reason: "Learn science",
+  expectation: "Try workshops",
+  newsSources: ["instagram"],
+  visitIntent: "intended",
+  status: "upper-secondary",
+  schoolName: "Science School",
+  major1: "major-1",
+  major2: "major-2",
+  major3: "",
+  pdpa: true,
+};
+const profileInput = {
+  title: "mr",
+  prefixOther: null,
   firstname: "Test",
   lastname: "Attendee",
   age: 18,
   residentProvince: "Bangkok",
-  type: "student",
+  emergencyPhone: "0812345678",
+  emergencyName: "Emergency Person",
+  specialNeed: null,
+  type: "upper-secondary",
+  school: "Science School",
+  surveyResponses: {
+    reason: "Learn science",
+    expectation: "Try workshops",
+    newsSources: ["instagram"],
+    visitIntent: "intended",
+    major1: "major-1",
+    major2: "major-2",
+    major3: "",
+  },
 };
 
 beforeEach(() => {
@@ -57,7 +92,7 @@ it("registers through a command, retries occupied QR codes, and returns the crea
     .mockResolvedValueOnce(ok({ qrCodeId: "TAKEN" }))
     .mockResolvedValueOnce(ok(undefined));
   const profile = {
-    ...input,
+    ...profileInput,
     id: "attendee-profile",
     userId: user.id,
     qrCodeId: "ABCDE",
@@ -72,7 +107,7 @@ it("registers through a command, retries occupied QR codes, and returns the crea
     [{ qrCodeId: "TAKEN" }, { qrCodeId: "ABCDE" }],
   );
   assert.deepEqual(createAttendeeProfile.mock.calls, [
-    [{ ...input, userId: user.id, qrCodeId: "ABCDE" }],
+    [{ ...profileInput, userId: user.id, qrCodeId: "ABCDE" }],
   ]);
 });
 
