@@ -12,17 +12,23 @@ import path from "path";
 
 const getLocalD1 = () => {
   try {
-    const basePath = path.resolve(".wrangler");
+    const basePath = path.resolve(
+      ".wrangler/state/v3/d1/miniflare-D1DatabaseObject",
+    );
     const dbFile = fs
-      .readdirSync(basePath, { encoding: "utf-8", recursive: true })
-      .find((f) => f.endsWith(".sqlite"));
+      .readdirSync(basePath, { encoding: "utf-8" })
+      .filter((f) => f.endsWith(".sqlite") && f !== "metadata.sqlite")
+      .map((f) => path.resolve(basePath, f))
+      // One per D1 binding; take the most recently written if there are several.
+      .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0];
 
     if (!dbFile) {
-      throw new Error(`.sqlite file not found in ${basePath}`);
+      throw new Error(
+        `No local D1 database in ${basePath}; run \`bun run db:migrate:local\` (or \`bun run dev\`) first`,
+      );
     }
 
-    const url = path.resolve(basePath, dbFile);
-    return url;
+    return dbFile;
   } catch (err) {
     console.log(`Error  ${err}`);
   }
