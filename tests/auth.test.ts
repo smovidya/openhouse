@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
+import { existsSync } from "node:fs";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -316,10 +317,10 @@ describe("D1 identity and development fixtures", () => {
       envFiles: [],
     });
     for (const migration of (await readdir("drizzle")).sort()) {
-      const sql = await readFile(
-        join("drizzle", migration, "migration.sql"),
-        "utf8",
-      );
+      const migrationPath = join("drizzle", migration, "migration.sql");
+      // Drizzle can leave empty local directories after regenerating migrations.
+      if (!existsSync(migrationPath)) continue;
+      const sql = await readFile(migrationPath, "utf8");
       for (const statement of sql
         .split("--> statement-breakpoint")
         .filter((s) => s.trim())) {
@@ -407,5 +408,37 @@ describe("D1 identity and development fixtures", () => {
 
   it("rejects development fixture creation in production", async () => {
     await assert.rejects(ensureDevFixture(db, "staff", false), isStatus(404));
+  });
+
+  it("restores the saved attendee identity when the same Google user signs in again", async () => {
+    const googleIdentity = { ...identity, sub: "returning-google-attendee" };
+    const first = await findOrCreateGoogleUser(db, googleIdentity);
+    assert.equal(first.role, "attendee");
+    assert.equal(first.attendee, null);
+    await db.insert(attendees).values({
+      id: "returning-profile",
+      userId: first.id,
+      qrCodeId: "RTURN",
+      title: "mr",
+      firstname: "Returning",
+      lastname: "Attendee",
+      age: 18,
+      residentProvince: "Bangkok",
+      type: "parent",
+    });
+    const returning = await findOrCreateGoogleUser(db, googleIdentity);
+    assert.equal(returning.id, first.id);
+    assert.equal(returning.role, "attendee");
+    assert.deepEqual(returning.attendee, {
+      id: "returning-profile",
+      qrCodeId: "RTURN",
+    });
+    const issued = await issueSessionToken(returning.id, settings);
+    const claims = await verifySessionToken(issued.token, settings);
+    assert.ok(claims);
+    assert.deepEqual(
+      (await findSessionUser(db, claims.userId))?.attendee,
+      returning.attendee,
+    );
   });
 });

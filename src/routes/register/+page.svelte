@@ -68,11 +68,11 @@
 			registrationError = "";
 			try {
 				const result = await selfRegisterAttendee(form.data);
-				if (result.isErr()) {
+				if (result.isErr() && result.error !== "ALREADY_REGISTERED") {
 					registrationError = registrationErrorMessage(result.error as RegistrationError);
 					return;
 				}
-				await goto("/myid");
+				await goto("/myid", { invalidateAll: true, replaceState: true });
 			} catch {
 				registrationError = "ไม่สามารถลงทะเบียนได้ กรุณาลองใหม่อีกครั้ง";
 			}

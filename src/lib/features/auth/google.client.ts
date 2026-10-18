@@ -1,9 +1,11 @@
-// The subset of Google Identity Services used by the login demo.
+// The subset of Google Identity Services used by the main page.
 export interface GoogleIdentity {
   initialize(options: {
     client_id: string;
+    ux_mode: "popup";
     nonce: string;
     auto_select: boolean;
+    button_auto_select: boolean;
     callback: (response: { credential: string }) => void;
   }): void;
   renderButton(

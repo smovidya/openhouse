@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Collapsible } from "bits-ui";
-	import { afterNavigate } from "$app/navigation";
+	import { afterNavigate, goto } from "$app/navigation";
+	import { logout as endSession } from "#lib/features/auth/auth.client.ts";
+	import { disableGoogleAutoSelect } from "#lib/features/auth/google.client.ts";
 	import giftIcon from "#lib/assets/icons/gift.svg";
 	import homeIcon from "#lib/assets/icons/home.svg";
 	import labPanelIcon from "#lib/assets/icons/lab-panel.svg";
@@ -12,7 +14,6 @@
 	import { cn } from "#lib/utils.js";
 
 	type Props = {
-		/** TODO: placeholder until auth exists; drive from the session instead. */
 		loggedIn?: boolean;
 		class?: string;
 	};
@@ -35,6 +36,8 @@
 
 	let open = $state(false);
 	let headerHeight = $state(72);
+	let signingOut = $state(false);
+	let logoutError = $state("");
 
 	afterNavigate(() => {
 		open = false;
@@ -56,9 +59,20 @@
 	const navLinkClass =
 		"flex w-full items-center gap-3 rounded-lg p-3 font-heading text-xl font-medium text-brand-mist transition-colors outline-none hover:bg-white/10 focus-visible:bg-white/10 active:bg-white/20 focus-visible:ring-3 focus-visible:ring-brand-mist/50";
 
-	function logout() {
-		// TODO: sign out once auth exists.
-		open = false;
+	async function logout() {
+		if (signingOut) return;
+		signingOut = true;
+		logoutError = "";
+		try {
+			await endSession();
+			disableGoogleAutoSelect();
+			open = false;
+			await goto("/", { invalidateAll: true });
+		} catch {
+			logoutError = "ไม่สามารถออกจากระบบได้ กรุณาลองอีกครั้ง";
+		} finally {
+			signingOut = false;
+		}
 	}
 </script>
 
@@ -136,10 +150,14 @@
 					{/if}
 				</nav>
 				{#if loggedIn}
-					<Button variant="cta" size="cta-sm" onclick={logout}>ออกจากระบบ</Button>
+					<Button variant="cta" size="cta-sm" onclick={logout} disabled={signingOut}>
+						{signingOut ? "กำลังออกจากระบบ..." : "ออกจากระบบ"}
+					</Button>
 				{:else}
-					<!-- TODO: point at the login page once it exists. -->
-					<Button variant="cta" size="cta-sm" href="/register">เข้าสู่ระบบ / ลงทะเบียน</Button>
+					<Button variant="cta" size="cta-sm" href="/#register">เข้าสู่ระบบ / ลงทะเบียน</Button>
+				{/if}
+				{#if logoutError}
+					<p role="alert" class="text-sm text-brand-yellow">{logoutError}</p>
 				{/if}
 			</Collapsible.Content>
 		</header>

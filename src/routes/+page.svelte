@@ -1,4 +1,94 @@
 <script lang="ts">
+	import { onMount, untrack } from "svelte";
+	import { page } from "$app/state";
+	import { goto } from "$app/navigation";
+	import { beginGoogleSignIn, signInWithGoogle } from "#lib/features/auth/auth.client.ts";
+	import { loadGoogleIdentity, type GoogleIdentity } from "#lib/features/auth/google.client.ts";
+
+	const session = $derived(page.data.session);
+	let status = $state<"loading" | "ready" | "signing-in" | "error">("loading");
+	let authError = $state("");
+	let buttonVersion = $state(0);
+	let google: GoogleIdentity | undefined;
+	let disposed = false;
+	let attempt = 0;
+
+	function showError(message: string) {
+		if (disposed) return;
+		authError = message;
+		status = "error";
+	}
+
+	async function prepareSignIn() {
+		if (disposed || session || status === "signing-in") return;
+		const currentAttempt = ++attempt;
+		status = "loading";
+		authError = "";
+		try {
+			google = await loadGoogleIdentity();
+			if (disposed || currentAttempt !== attempt) return;
+			const { clientId, nonce } = await beginGoogleSignIn();
+			if (disposed || currentAttempt !== attempt) return;
+			google.initialize({
+				client_id: clientId,
+				ux_mode: "popup",
+				nonce,
+				auto_select: false,
+				button_auto_select: false,
+				callback: ({ credential }) => {
+					if (currentAttempt === attempt) void completeSignIn(credential);
+				},
+			});
+			buttonVersion += 1;
+			status = "ready";
+		} catch {
+			showError("ไม่สามารถเตรียมการเข้าสู่ระบบได้ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง");
+		}
+	}
+
+	function renderGoogleButton(container: HTMLDivElement) {
+		try {
+			google?.renderButton(container, {
+				type: "standard",
+				theme: "outline",
+				size: "large",
+				text: "continue_with",
+			});
+		} catch {
+			showError("ไม่สามารถแสดงปุ่ม Google ได้ กรุณาลองอีกครั้ง");
+		}
+	}
+
+	async function completeSignIn(credential: string) {
+		if (disposed || session || status !== "ready") return;
+		status = "signing-in";
+		authError = "";
+		try {
+			// Wait for credential verification, the session cookie, and session refresh.
+			const signedIn = await signInWithGoogle({ googleIdToken: credential });
+			if (!disposed) {
+				await goto(signedIn.user.attendee ? "/myid" : "/register", {
+					invalidateAll: true,
+					replaceState: true,
+				});
+			}
+		} catch {
+			showError("เข้าสู่ระบบไม่สำเร็จ กรุณาเลือกบัญชี Google และลองอีกครั้ง");
+		}
+	}
+
+	function initializeGoogleSignIn() {
+		// The signed-out section mounts again after logout, including on this page.
+		untrack(() => void prepareSignIn());
+	}
+
+	onMount(() => {
+		return () => {
+			disposed = true;
+			attempt += 1;
+		};
+	});
+
 	import logo from "#lib/assets/logo.png";
 	import Countdown from "#lib/components/countdown.svelte";
 	import Glass from "#lib/components/glass.svelte";
@@ -17,8 +107,33 @@
 
 	<Countdown target={EVENT_START} />
 
-	<div class="w-full max-w-100.5 px-3">
-		<Button variant="cta" size="cta-lg" href="/register" class="w-full">ลงทะเบียน</Button>
+	<div id="register" class="w-full max-w-100.5 scroll-mt-24 px-3">
+		{#if session}
+			<Button variant="cta" size="cta-lg" href={session.user.attendee ? "/myid" : "/register"} class="w-full">ลงทะเบียน</Button>
+		{:else}
+			<div class="flex flex-col items-center gap-3 text-center text-brand-mist" {@attach initializeGoogleSignIn}>
+				<p class="text-sm">ลงทะเบียนด้วยบัญชี Google</p>
+				<!-- Google's button opens its popup directly from the user's click. -->
+				<div hidden={status !== "ready"}>
+					{#key buttonVersion}
+						<div {@attach renderGoogleButton}></div>
+					{/key}
+				</div>
+				<p role="status" class="text-sm">
+					{#if status === "loading"}
+						กำลังเตรียมการเข้าสู่ระบบ...
+					{:else if status === "signing-in"}
+						กำลังตรวจสอบบัญชี Google...
+					{/if}
+				</p>
+				{#if authError}
+					<p role="alert" class="text-sm text-brand-yellow">{authError}</p>
+				{/if}
+				{#if status === "error"}
+					<Button type="button" variant="cta" size="cta-sm" onclick={prepareSignIn}>ลองอีกครั้ง</Button>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	<div class="w-full max-w-100.5 p-3">

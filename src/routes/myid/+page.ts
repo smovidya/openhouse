@@ -10,10 +10,10 @@ const conditions = [
 ];
 const rewards = ["ปากกาโจรสลัด", "สมุดบันทึกการเดินทาง"];
 
-// TODO: placeholder data until the backend exists.
-export const load: PageLoad = () => ({
+// TODO: connect workshop bookings and reward progress to the backend.
+export const load: PageLoad = ({ data }) => ({
+  ...data,
   waterOverlay: 0.5,
-  profile: { name: "วิทยา รักจุฬา", code: "ABC12" },
   workshopLimit: 3,
   workshops: [] as RegisteredWorkshop[],
   rewardTiers: [
