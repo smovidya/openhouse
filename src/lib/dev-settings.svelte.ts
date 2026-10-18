@@ -14,13 +14,10 @@ export const toolbarPosition = new PersistedState<
   (typeof toolbarPositions)[number]
 >("dev:toolbarPosition", "bottom-center");
 
-// Dev-only toggles, persisted per browser in localStorage. Edited on /settings.
+// Dev-only toggles, persisted per browser in localStorage. Edited in the dev toolbar.
 
 /** When false, every backdrop-filter is disabled via `data-blur="off"` (see layout.css). */
 export const blurEnabled = new PersistedState("dev:blur", true);
-
-/** TODO: placeholder for the navbar's logged-in variant until auth exists. */
-export const fakeLoggedIn = new PersistedState("dev:loggedIn", false);
 
 /** TODO: placeholder for the staff role (/staff menu) until auth exists. */
 export const fakeStaffRole = new PersistedState<StaffRole>(

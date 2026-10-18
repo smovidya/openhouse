@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { dev } from "$app/env";
   import { page } from "$app/state";
   import { Button } from "#lib/components/ui/button/index.js";
   import { Input } from "#lib/components/ui/input/index.js";
@@ -12,11 +11,9 @@
   import MoveRight from "@lucide/svelte/icons/move-right";
   import {
     beginGoogleSignIn,
-    createDevSession,
     logout,
     signInWithGoogle,
   } from "#lib/features/auth/auth.client.js";
-  import type { DevProfile } from "#lib/features/auth/schemas.js";
 
   // Kept inline as a reference for the frontend team, before extracting a component.
   // API reference: https://developers.google.com/identity/gsi/web/reference/js-reference
@@ -47,32 +44,11 @@
     "loading" | "ready" | "signing-in" | "signing-out" | "error"
   >("loading");
   let authError = $state("");
-  let pendingDevProfile = $state<DevProfile | null>(null);
-  let devSessionError = $state("");
   const session = $derived(page.data.session);
   const authBusy = $derived(
-    pendingDevProfile !== null ||
-      authStatus === "signing-in" ||
-      authStatus === "signing-out",
+    authStatus === "signing-in" || authStatus === "signing-out",
   );
 
-  async function handleDevSession(profile: DevProfile) {
-    if (!dev || authBusy) return;
-    pendingDevProfile = profile;
-    devSessionError = "";
-    try {
-      // Creates/reuses a fixed demo user and sets the real session cookie.
-      // The client helper refreshes page.data.session; never assign it manually.
-      await createDevSession({ profile });
-      authError = "";
-    } catch (error) {
-      devSessionError = error instanceof Error
-        ? error.message
-        : "Could not create a development session. Please try again.";
-    } finally {
-      pendingDevProfile = null;
-    }
-  }
 
   function showAuthError(error: unknown) {
     if (disposed) return;
@@ -248,7 +224,7 @@
     {/if}
 
     <!-- Keep the container mounted so Google's iframe survives status updates. -->
-    <div hidden={!!session || authStatus !== "ready" || pendingDevProfile !== null}>
+    <div hidden={!!session || authStatus !== "ready"}>
       {#key googleButtonVersion}
         <div {@attach renderGoogleButton}></div>
       {/key}
@@ -273,64 +249,4 @@
     {/if}
   </section>
 
-  {#if dev}
-    <section
-      aria-labelledby="dev-session-heading"
-      class="flex w-full max-w-[378px] flex-col gap-4 rounded-2xl border border-brand-navy/20 bg-white p-6 text-brand-navy"
-    >
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-widest">Development only</p>
-        <h2 id="dev-session-heading" class="mt-1 text-xl font-semibold">Dev session demo</h2>
-        <p class="mt-2 text-sm">
-          Set the current session to a demo attendee or staff user without Google sign-in.
-          Choosing a profile replaces the current session.
-        </p>
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={authBusy}
-          onclick={() => handleDevSession("attendee")}
-        >
-          {pendingDevProfile === "attendee" ? "Setting attendee session…" : "Use demo attendee"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={authBusy}
-          onclick={() => handleDevSession("staff")}
-        >
-          {pendingDevProfile === "staff" ? "Setting staff session…" : "Use demo staff"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!session || authBusy}
-          onclick={handleLogout}
-        >
-          {authStatus === "signing-out" ? "Signing out…" : "Clear current session"}
-        </Button>
-      </div>
-
-      <p role="status" class="text-sm">
-        {#if pendingDevProfile}
-          Setting the current session to the demo {pendingDevProfile}…
-        {:else if session}
-          Current user: {session.user.name} ({session.user.role})
-        {:else}
-          No active session.
-        {/if}
-      </p>
-      {#if devSessionError}
-        <p role="alert" class="text-sm text-red-700">{devSessionError}</p>
-      {/if}
-
-      <div class="min-w-0">
-        <h3 class="mb-2 text-sm font-semibold">Current session (page.data.session)</h3>
-        <pre class="max-h-80 overflow-auto rounded-lg bg-brand-sky p-3 text-xs"><code>{JSON.stringify(session, null, 2)}</code></pre>
-      </div>
-    </section>
-  {/if}
 </main>

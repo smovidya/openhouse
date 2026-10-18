@@ -6,7 +6,7 @@
 	import favicon from '#lib/assets/favicon.svg';
 	import MenuBar from '#lib/components/menu-bar.svelte';
 	import WaterBackground from '#lib/render/water-background.svelte';
-	import { fakeLoggedIn, syncDevSettings } from '#lib/dev-settings.svelte.js';
+	import { syncDevSettings } from '#lib/dev-settings.svelte.js';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -21,7 +21,7 @@
 <WaterBackground overlay={page.data.waterOverlay} tint={page.data.waterTint} />
 
 <div class="flex min-h-dvh flex-col">
-	<MenuBar loggedIn={Boolean(page.data.session) || (dev && fakeLoggedIn.current)} />
+	<MenuBar loggedIn={Boolean(page.data.session)} />
 	{@render children()}
 </div>
 

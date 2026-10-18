@@ -2,7 +2,6 @@
 	import {
 		animatedWater,
 		blurEnabled,
-		fakeLoggedIn,
 		fakeStaffRole,
 		glassMode,
 		useWebGPU,
@@ -21,10 +20,6 @@
 		Enable blur (backdrop-filter)
 	</label>
 
-	<label class="flex items-center gap-2">
-		<input type="checkbox" bind:checked={fakeLoggedIn.current} />
-		Fake logged in (navbar variant)
-	</label>
 
 	<label class="flex items-center gap-2">
 		Fake staff role (/staff menu)
@@ -56,6 +51,7 @@
 			css: no WebGPU (CSS blur, fill and masked rim)
 		</label>
 	</fieldset>
+	<a href="/settings" class="ps-6 underline">Open the &lt;Glass&gt; preview page</a>
 
 	<label class="flex items-center gap-2">
 		<input type="checkbox" bind:checked={animatedWater.current} disabled={!useWebGPU.current} />

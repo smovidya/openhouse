@@ -142,12 +142,6 @@
 							<span class="min-w-0 mt-1 flex-1">{link.label}</span>
 						</a>
 					{/each}
-					{#if import.meta.env.DEV}
-						<a href="/settings" class={navLinkClass}>
-							<span class="size-7 shrink-0"></span>
-							<span class="mt-1 min-w-0 flex-1">Dev settings</span>
-						</a>
-					{/if}
 				</nav>
 				{#if loggedIn}
 					<Button variant="cta" size="cta-sm" onclick={logout} disabled={signingOut}>

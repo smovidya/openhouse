@@ -6,7 +6,7 @@
  import { logout } from "#lib/features/auth/auth.remote.ts";
  import { getTimeGates, setMockTime, clearMockTime } from "#lib/features/time/time.remote.ts";
  import { EVENT_SCHEDULE, type TimeGateSnapshot } from "#lib/constants/time.ts";
- import { toolbarPosition, toolbarPositions, fakeLoggedIn } from "#lib/dev-settings.svelte.js";
+ import { toolbarPosition, toolbarPositions } from "#lib/dev-settings.svelte.js";
  import DevVisualSettings from "./dev-visual-settings.svelte";
 
  let busy = $state(false);
@@ -62,14 +62,10 @@
    {#each ["attendee", "newcomer", "staff"] as const as profile (profile)}
     <button type="button" onclick={() => run(async () => {
      await createDevSession({ profile });
-     fakeLoggedIn.current = false;
      if (profile === "newcomer") await goto("/register", { invalidateAll: true });
     }, `Signed in as ${profile}`)}>{profile === "newcomer" ? "New registration" : `Use ${profile}`}</button>
    {/each}
-   <button type="button" onclick={() => run(async () => {
-    await logout();
-    fakeLoggedIn.current = false;
-   }, "Signed out")}>Sign out</button>
+   <button type="button" onclick={() => run(() => logout(), "Signed out")}>Sign out</button>
   </div>
  </fieldset>
 
