@@ -34,8 +34,10 @@
 			if (disposed) return;
 			google.initialize({
 				client_id: clientId,
+				ux_mode: "popup",
 				nonce,
 				auto_select: false,
+				button_auto_select: false,
 				callback: (response) => void handleCredential(response.credential),
 			});
 			status = "ready";
