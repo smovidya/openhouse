@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import { fromAction } from "svelte/attachments";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import { defaults, superForm } from "sveltekit-superforms";
@@ -11,6 +12,7 @@
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { MultiPicker, Picker } from "#lib/components/ui/picker/index.js";
 	import { Separator } from "#lib/components/ui/separator/index.js";
+	import { selfRegisterAttendee } from "#lib/features/attendees/attendees.remote.ts";
 	import {
 		attendeeStatusOptions,
 		majorOptions,
@@ -19,13 +21,13 @@
 		prefixOptions,
 		visitIntentOptions,
 	} from "#lib/registration/options.js";
+	import { provinceOptions } from "#lib/registration/provinces.js";
 	import { registrationInfoSchema, registrationSchema } from "#lib/registration/schema.js";
 
 	type TextField =
 		| "prefixOther"
 		| "firstName"
 		| "lastName"
-		| "province"
 		| "emergencyPhone"
 		| "emergencyName"
 		| "specialNeeds"
@@ -38,8 +40,13 @@
 	const infoValidator = zod4(registrationInfoSchema);
 
 	type Step = "info" | "pdpa";
+	type RegistrationError =
+		| "GENERAL_REGISTRATION_NOT_OPEN"
+		| "FETCH_ATTENDEE_PROFILE_FAILED"
+		| "CREATE_ATTENDEE_PROFILE_FAILED";
 
 	const step: Step = $derived(page.url.searchParams.get("step") === "pdpa" ? "pdpa" : "info");
+	let registrationError = $state("");
 
 	function setStep(next: Step) {
 		const url = new URL(page.url.href);
@@ -53,17 +60,27 @@
 		dataType: "json",
 		resetForm: false,
 		validators: zod4(registrationSchema),
-		onUpdate({ form }) {
+		async onUpdate({ form }) {
 			if (!form.valid) {
 				// Only PDPA lives on this step; any other error means step 1 needs fixing.
 				if (Object.keys(form.errors).some((key) => key !== "pdpa")) setStep("info");
 				return;
 			}
-			// TODO: send form.data to the API once the backend exists.
-			// Drop schoolName/major* when nonStudentStatuses.has(form.data.status).
+			registrationError = "";
+			try {
+				const result = await selfRegisterAttendee(form.data);
+				if (result.isErr()) {
+					registrationError = registrationErrorMessage(result.error as RegistrationError);
+					return;
+				}
+				await goto("/myid");
+			} catch {
+				registrationError = "ไม่สามารถลงทะเบียนได้ กรุณาลองใหม่อีกครั้ง";
+			}
 		},
 	});
-	const { form: formData, enhance, validateForm } = form;
+	const { form: formData, enhance, submitting, validateForm } = form;
+	const enhanceAttachment = fromAction(enhance);
 
 	const isStudent = $derived(!nonStudentStatuses.has($formData.status));
 
@@ -78,6 +95,16 @@
 	async function next() {
 		const { valid } = await validateForm({ update: true, schema: infoValidator, focusOnError: true });
 		if (valid) setStep("pdpa");
+	}
+
+	function registrationErrorMessage(code: RegistrationError) {
+		switch (code) {
+			case "GENERAL_REGISTRATION_NOT_OPEN":
+				return "ยังไม่เปิดรับลงทะเบียนทั่วไป";
+			case "FETCH_ATTENDEE_PROFILE_FAILED":
+			case "CREATE_ATTENDEE_PROFILE_FAILED":
+				return "ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง";
+		}
 	}
 
 	// Each rank hides nothing but disables majors already picked in another rank.
@@ -105,7 +132,8 @@
 
 <form
 	method="POST"
-	use:enhance
+	{@attach enhanceAttachment}
+	aria-busy={$submitting}
 	class="mx-auto flex w-full max-w-[402px] flex-1 flex-col gap-6 px-3 pt-6 pb-7"
 >
 	{#if step === "info"}
@@ -159,7 +187,23 @@
 					<Form.FieldErrors />
 				</Form.Field>
 
-				{@render textField("province", "จังหวัดที่อยู่อาศัยในปัจจุบัน")}
+				<Form.Field {form} name="province" class="space-y-1">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label class="text-base leading-normal font-normal text-brand-navy"
+								>จังหวัดที่อยู่อาศัยในปัจจุบัน</Form.Label
+							>
+							<Picker
+								id={props.id}
+								name={props.name}
+								placeholder="เลือกจังหวัด"
+								options={provinceOptions}
+								bind:value={$formData.province}
+							/>
+						{/snippet}
+					</Form.Control>
+					<Form.FieldErrors />
+				</Form.Field>
 
 				<div class="grid grid-cols-2 items-start gap-2">
 					{@render textField("emergencyPhone", "หมายเลขติดต่อฉุกเฉิน", "0XXXXXXXXX", "tel")}
@@ -259,7 +303,7 @@
 			</div>
 		</section>
 
-		<Button variant="cta" size="cta-lg" class="w-full" onclick={next}>ถัดไป</Button>
+		<Button type="button" variant="cta" size="cta-lg" class="w-full" onclick={next}>ถัดไป</Button>
 	{:else}
 		<div class="flex justify-center">
 			<SignBoard title="PDPA" />
@@ -293,7 +337,12 @@
 				</Form.Control>
 				<Form.FieldErrors />
 			</Form.Field>
-			<Button type="submit" variant="cta" size="cta-lg" class="w-full">ลงทะเบียน</Button>
+			{#if registrationError}
+				<p class="text-sm text-status-red" role="alert">{registrationError}</p>
+			{/if}
+			<Button type="submit" variant="cta" size="cta-lg" class="w-full" disabled={$submitting}>
+				{$submitting ? "กำลังลงทะเบียน..." : "ลงทะเบียน"}
+			</Button>
 		</div>
 	{/if}
 </form>

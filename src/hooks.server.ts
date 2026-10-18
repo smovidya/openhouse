@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 // Register the backend API even before any client component imports it.
 import "#lib/features/auth/auth.remote.ts";
 import "#lib/features/auth/dev.remote.ts";
+import "#lib/features/attendees/attendees.remote.ts";
 import "#lib/features/staff/staff.remote.ts";
 import "#lib/features/checkpoints/checkpoints.remote.ts";
 import "#lib/features/time/time.remote.ts";
