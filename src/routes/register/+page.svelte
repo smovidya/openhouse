@@ -264,7 +264,7 @@
 			</div>
 		</section>
 
-		<Separator class="bg-[#3682b6]" />
+		<Separator class="bg-brand-blue" />
 
 		<section class="flex flex-col gap-2">
 			<h2 class="text-xl font-medium text-brand-navy">สถานะผู้เข้าร่วมงาน</h2>

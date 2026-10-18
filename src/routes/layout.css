@@ -49,8 +49,9 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  /* Figma "Color" / "Color 3" / "Color 4" / "Color 5" / "Color 6" */
+  /* Figma "Color" / "Color 2" / "Color 3" / "Color 4" / "Color 5" / "Color 6" */
   --brand-navy: #213a62;
+  --brand-blue: #3682b6;
   --brand-sky: #85b8d7;
   --brand-mist: #eef3f7;
   --brand-brown: #663d21;
@@ -97,6 +98,7 @@
   --font-sans: "Cloud Loop", sans-serif;
   --font-heading: "Taviraj", serif;
   --color-brand-navy: var(--brand-navy);
+  --color-brand-blue: var(--brand-blue);
   --color-brand-sky: var(--brand-sky);
   --color-brand-mist: var(--brand-mist);
   --color-brand-brown: var(--brand-brown);

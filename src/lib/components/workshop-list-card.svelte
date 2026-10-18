@@ -3,11 +3,6 @@
 		dateStyle: "long",
 		timeZone: "Asia/Bangkok",
 	});
-	const dayFormat = new Intl.DateTimeFormat("th-TH", {
-		day: "numeric",
-		month: "short",
-		timeZone: "Asia/Bangkok",
-	});
 	const timeFormat = new Intl.DateTimeFormat("th-TH", {
 		hour: "2-digit",
 		minute: "2-digit",
@@ -28,8 +23,6 @@
 	let expanded = $state(false);
 
 	const days = $derived(sessionsByDay(workshop.sessions));
-	const firstStart = $derived(workshop.sessions.at(0)?.start);
-	const lastStart = $derived(workshop.sessions.at(-1)?.start);
 
 	// Pressing anywhere on the card expands the description; its own controls keep their action.
 	function toggle(event: MouseEvent) {
@@ -44,50 +37,41 @@
 	onclick={workshop.description ? toggle : undefined}
 >
 	<div class="flex items-start gap-3">
-		<div class="flex min-w-0 flex-1 flex-col gap-1">
-			<div class="flex flex-col">
-				<h3 class="text-base font-medium text-brand-yellow">{workshop.title}</h3>
-				<p class="text-[10px] text-brand-mist">{workshop.hostDepartmentAbbr}</p>
-			</div>
-			{#if firstStart && lastStart}
-				<p class="flex items-center gap-1 text-xs text-brand-yellow">
-					<img src={calendarIcon} alt="" />
-					{dateFormat.formatRange(new Date(firstStart), new Date(lastStart))}
-				</p>
-			{/if}
+		<div class="flex min-w-0 flex-1 flex-col">
+			<h3 class="text-base font-medium text-brand-yellow">{workshop.title}</h3>
+			<p class="text-[10px] text-brand-mist">{workshop.hostDepartmentAbbr}</p>
 		</div>
 		<Button variant="cta" size="cta-sm" href="/workshop/{workshop.id}">ลงทะเบียน</Button>
 	</div>
 
-	<div class="flex items-center gap-6 text-xs">
-		<p class="flex shrink-0 items-center gap-1 text-brand-yellow">
-			<img src={clockIcon} alt="" />
-			รอบเวลาทั้งหมด
-		</p>
-		<ul class="flex min-w-0 flex-1 flex-col gap-1 text-brand-mist">
-			{#each days as { day, sessions } (day)}
-				<li>
-					<time datetime={day} class="text-brand-yellow">
-						{dayFormat.format(new Date(sessions[0].start))}
-					</time>
-					<ul>
+	<!-- One row per day: the date, then that day's sessions in two columns (filled top to bottom).
+	     From 400px the dates and times share one grid, which keeps the times aligned when the
+	     dates differ in width; narrower, each date sits above its times. -->
+	<div
+		class="flex flex-col gap-3 text-xs text-brand-yellow min-[400px]:grid min-[400px]:grid-cols-[auto_minmax(0,1fr)] min-[400px]:items-start min-[400px]:gap-x-4"
+	>
+		{#each days as { day, sessions } (day)}
+			<div class="flex flex-col gap-1 min-[400px]:contents">
+				<p class="flex items-center gap-1">
+					<img src={calendarIcon} alt="" />
+					<time datetime={day}>{dateFormat.format(new Date(sessions[0].start))}</time>
+				</p>
+				<div class="flex min-w-0 items-start gap-1">
+					<img src={clockIcon} alt="" class="shrink-0" />
+					<ul
+						class="grid min-w-0 flex-1 grid-flow-col grid-cols-2 gap-x-2"
+						style:grid-template-rows="repeat({Math.ceil(sessions.length / 2)}, auto)"
+					>
 						{#each sessions as session (session.id)}
 							<li>
 								<time datetime={session.start}>{formatTime(session.start)}</time> -
 								<time datetime={session.end}>{formatTime(session.end)}</time>
-								<span
-									class={session.registered >= session.capacity
-										? "text-status-red"
-										: "text-status-green"}
-								>
-									({session.registered}/{session.capacity})
-								</span>
 							</li>
 						{/each}
 					</ul>
-				</li>
-			{/each}
-		</ul>
+				</div>
+			</div>
+		{/each}
 	</div>
 
 	{#if workshop.description}

@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	import addCircleIcon from "#lib/assets/icons/add-circle.svg";
+	import addCircleIcon from "#lib/assets/icons/add-circle-blue.svg";
 	import cancelRedIcon from "#lib/assets/icons/cancel-red.svg";
 	import checkCircleGreenIcon from "#lib/assets/icons/check-circle-green.svg";
 	import type { SessionStatus } from "#lib/workshops.js";
@@ -18,7 +18,7 @@
 		available: {
 			label: "กดเพื่อลงทะเบียน",
 			icon: addCircleIcon,
-			class: "border-white text-brand-mist",
+			class: "border-brand-blue text-brand-blue",
 		},
 		full: { label: "เต็ม", icon: cancelRedIcon, class: "border-status-red text-status-red" },
 		conflict: {
@@ -95,11 +95,11 @@
 						{@const status = sessionStatus(session, booked)}
 						{@const look = statusLook[status]}
 						{@const rowClass = [
-							"flex w-full items-start justify-between rounded-lg border px-4 py-2 text-xs",
+							"flex w-full items-start justify-between rounded-lg border bg-brand-mist px-4 py-2 text-xs",
 							look.class,
 						]}
 						{#snippet row()}
-							<span class="flex items-center gap-4 text-brand-mist">
+							<span class="flex items-center gap-4 text-brand-navy">
 								<span>
 									<time datetime={session.start}>{timeFormat.format(new Date(session.start))}</time> -
 									<time datetime={session.end}>{timeFormat.format(new Date(session.end))}</time>
@@ -117,7 +117,7 @@
 								type="button"
 								class={[
 									rowClass,
-									"cursor-pointer transition-colors outline-none hover:bg-white/10 focus-visible:ring-3 focus-visible:ring-brand-mist/50 active:bg-white/20",
+									"cursor-pointer transition-colors outline-none hover:bg-white focus-visible:ring-3 focus-visible:ring-brand-mist active:bg-[color-mix(in_oklab,var(--color-brand-mist),var(--color-brand-blue)_15%)]",
 								]}
 								onclick={() => register(session)}
 							>
