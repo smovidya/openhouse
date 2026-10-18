@@ -1,5 +1,7 @@
 <script lang="ts">
 	import './layout.css';
+	import { dev } from '$app/env';
+	import DevToolbar from '#lib/components/dev-toolbar.svelte';
 	import { page } from '$app/state';
 	import favicon from '#lib/assets/favicon.svg';
 	import MenuBar from '#lib/components/menu-bar.svelte';
@@ -19,7 +21,10 @@
 <WaterBackground overlay={page.data.waterOverlay} tint={page.data.waterTint} />
 
 <div class="flex min-h-dvh flex-col">
-	<!-- TODO: drive loggedIn from the session once auth exists. -->
-	<MenuBar loggedIn={fakeLoggedIn.current} />
+	<MenuBar loggedIn={Boolean(page.data.session) || (dev && fakeLoggedIn.current)} />
 	{@render children()}
 </div>
+
+{#if dev}
+	<DevToolbar />
+{/if}

@@ -1,6 +1,18 @@
 import { PersistedState } from "runed";
 import type { StaffRole } from "#lib/staff.js";
 
+export const toolbarPositions = [
+  "bottom-center",
+  "bottom-left",
+  "bottom-right",
+  "top-center",
+  "top-left",
+  "top-right",
+] as const;
+export const toolbarPosition = new PersistedState<
+  (typeof toolbarPositions)[number]
+>("dev:toolbarPosition", "bottom-center");
+
 // Dev-only toggles, persisted per browser in localStorage. Edited on /settings.
 
 /** When false, every backdrop-filter is disabled via `data-blur="off"` (see layout.css). */
@@ -10,7 +22,10 @@ export const blurEnabled = new PersistedState("dev:blur", true);
 export const fakeLoggedIn = new PersistedState("dev:loggedIn", false);
 
 /** TODO: placeholder for the staff role (/staff menu) until auth exists. */
-export const fakeStaffRole = new PersistedState<StaffRole>("dev:staffRole", "central");
+export const fakeStaffRole = new PersistedState<StaffRole>(
+  "dev:staffRole",
+  "central",
+);
 
 /** Render the water background with WebGPU; false forces the static image fallback. */
 export const useWebGPU = new PersistedState("dev:useWebGPU", true);
@@ -23,7 +38,7 @@ export const animatedWater = new PersistedState("dev:animatedWater", false);
 
 /** Mirror settings onto the document. Call once from the root layout. */
 export function syncDevSettings() {
-	$effect(() => {
-		document.documentElement.dataset.blur = blurEnabled.current ? "on" : "off";
-	});
+  $effect(() => {
+    document.documentElement.dataset.blur = blurEnabled.current ? "on" : "off";
+  });
 }
