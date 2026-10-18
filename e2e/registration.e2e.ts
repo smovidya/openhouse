@@ -1,33 +1,8 @@
-import { execFileSync } from "node:child_process";
-import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
-// Registration flow: sign-in → registration form → PDPA → /myid, and the registration guard.
-// Runs against the local D1. The dev "newcomer" fixture is signed in but not registered, so it
-// plays the new visitor; its attendee row is removed before and after so the spec can re-run.
-const NEWCOMER_USER = "dev-user-newcomer";
-
-function resetNewcomerRegistration() {
-  const sql = [
-    `DELETE FROM workshop_registrations WHERE attendee_id IN (SELECT id FROM attendees WHERE user_id = '${NEWCOMER_USER}')`,
-    `DELETE FROM attendees WHERE user_id = '${NEWCOMER_USER}'`,
-  ].join("; ");
-  // Wrangler's own script under Node, without a shell, so the SQL reaches it as one argument.
-  const wrangler = join(
-    process.cwd(),
-    "node_modules",
-    "wrangler",
-    "bin",
-    "wrangler.js",
-  );
-  execFileSync(
-    process.execPath,
-    [wrangler, "d1", "execute", "DB", "--local", "--command", sql],
-    {
-      stdio: "pipe",
-    },
-  );
-}
+// Registration flow: sign-in → registration form → PDPA → /myid, and the registration guards.
+// Runs against the local D1 through the dev toolbar's fixture accounts: "attendee" is already
+// registered; "New registration" signs in a fresh account each time, so nothing needs cleaning up.
 
 /** Load a page and give SvelteKit time to hydrate (clicks before that do nothing). */
 async function open(page: Page, path: string) {
@@ -35,23 +10,22 @@ async function open(page: Page, path: string) {
   await page.waitForLoadState("networkidle");
 }
 
-/** Sign in as a dev fixture via the dev toolbar, with the clock past the registration gate. */
-async function signInAs(
+/** Use one of the dev toolbar's session buttons. */
+async function devSession(
   page: Page,
-  profile: "attendee" | "newcomer" | "staff",
+  button: "Use attendee" | "New registration",
 ) {
   await open(page, "/");
   const toggle = page.getByRole("button", { name: /DEV/ });
   await toggle.click();
   const panel = page.locator("#dev-toolbar-panel");
-  await panel
-    .getByRole("button", { name: /General registration opens/ })
-    .click();
-  await expect(panel.getByRole("status")).toHaveText(
-    "General registration opens",
-  );
-  await panel.getByRole("button", { name: `Use ${profile}` }).click();
-  await expect(panel.getByRole("status")).toHaveText(`Signed in as ${profile}`);
+  await panel.getByRole("button", { name: button }).click();
+  if (button === "New registration") {
+    // The toolbar goes straight to the registration form.
+    await expect(page).toHaveURL(/\/register$/);
+    return;
+  }
+  await expect(panel.getByRole("status")).toHaveText(/^Signed in as /);
   await toggle.click();
 }
 
@@ -68,18 +42,17 @@ async function pick(page: Page, placeholder: string, option: string) {
 }
 
 test.describe.configure({ mode: "serial" });
-test.beforeAll(resetNewcomerRegistration);
-test.afterAll(resetNewcomerRegistration);
 
 test("a registered user skips the form for /myid", async ({ page }) => {
-  await signInAs(page, "attendee");
+  await devSession(page, "Use attendee");
   await open(page, "/register");
   await expect(page).toHaveURL(/\/myid$/);
   await expect(page.getByText("dev-attendee-qr")).toBeVisible();
 });
 
 test("an unregistered user registers and lands on /myid", async ({ page }) => {
-  await signInAs(page, "newcomer");
+  // A fresh account: the toolbar takes it straight to the form.
+  await devSession(page, "New registration");
 
   // Unregistered: every attendee page leads to the form.
   await open(page, "/myid");
@@ -120,7 +93,7 @@ test("an unregistered user registers and lands on /myid", async ({ page }) => {
   await page.getByRole("button", { name: "ลงทะเบียน", exact: true }).click();
 
   await expect(page).toHaveURL(/\/myid$/);
-  await expect(page.getByText("นางสาวเอมะ ซากุราบะ")).toBeVisible();
+  await expect(page.getByText("เอมะ ซากุราบะ", { exact: true })).toBeVisible();
 
   // Registered now: the form is skipped.
   await open(page, "/register");
