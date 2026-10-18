@@ -18,6 +18,8 @@ export interface AuthUser {
   image: string | null;
   role: "attendee" | "staff";
   staff: { id: string; permission: StaffPermission[] } | null;
+  /** The user's attendee registration; null until they complete the registration form. */
+  attendee: { id: string; qrCodeId: string } | null;
 }
 
 export interface AuthSession {

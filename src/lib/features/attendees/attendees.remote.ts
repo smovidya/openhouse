@@ -6,7 +6,11 @@ import { dev } from "$app/env";
 import { command, getRequestEvent, query } from "$app/server";
 import { error } from "@sveltejs/kit";
 import z from "zod";
-import { createAttendeeProfile, getAttendeeProfile } from "./service.server";
+import {
+  createAttendeeProfile,
+  getActiveAttendeeByUserId,
+  getAttendeeProfile,
+} from "./service.server";
 import { customAlphabet } from "nanoid";
 import {
   requirePermission,
@@ -45,6 +49,12 @@ export const selfRegisterAttendee = command(
     )
       return err("GENERAL_REGISTRATION_NOT_OPEN" as const);
 
+    // One registration per user: a resubmit (double click, back button) must not create a second
+    // attendee with a second QR code.
+    const existing = await getActiveAttendeeByUserId(user.id);
+    if (existing.isOk()) return err("ALREADY_REGISTERED" as const);
+    if (existing.error !== "ATTENDEE_NOT_FOUND") return err(existing.error);
+
     const nanoid = customAlphabet("2345679ACDEFGHJKLMNPQRSTUVWXYZ%#@", 5);
     return safeTry(async function* () {
       while (true) {
@@ -82,11 +92,15 @@ export const selfRegisterAttendee = command(
 );
 
 export const getMyAttendeeProfile = query(async () => {
-  const { locals } = getRequestEvent();
-  requireUser(locals.user);
+  const user = requireUser(getRequestEvent().locals.user);
+  // Attendees are keyed by their own id; find the user's active one first.
   return safeTry(async function* () {
-    const profile = yield* await getAttendeeProfile({ id: locals.user?.id });
-    if (!profile) return err("NO_ATTENDEE_PROFILE_FOUND");
+    const attendee = yield* getActiveAttendeeByUserId(user.id).mapErr(
+      (error) =>
+        error === "ATTENDEE_NOT_FOUND" ? "NO_ATTENDEE_PROFILE_FOUND" : error,
+    );
+    const profile = yield* await getAttendeeProfile({ id: attendee.id });
+    if (!profile) return err("NO_ATTENDEE_PROFILE_FOUND" as const);
     return ok(profile);
   });
 });

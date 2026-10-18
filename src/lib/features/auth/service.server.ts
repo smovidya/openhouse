@@ -1,7 +1,7 @@
 import { error } from "@sveltejs/kit";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "#db";
-import { staffs, users } from "#db/tables.ts";
+import { attendees, staffs, users } from "#db/tables.ts";
 import { staffPermissions } from "../staff/permissions";
 import type { GoogleIdentity } from "./google.server";
 import type { AuthUser } from "./schemas";
@@ -23,16 +23,22 @@ export async function findSessionUser(
       ...publicUserColumns,
       staffId: staffs.id,
       permission: staffs.permission,
+      attendeeId: attendees.id,
+      qrCodeId: attendees.qrCodeId,
     })
     .from(users)
     .leftJoin(
       staffs,
       and(eq(staffs.userId, users.id), isNull(staffs.deletedAt)),
     )
+    .leftJoin(
+      attendees,
+      and(eq(attendees.userId, users.id), isNull(attendees.deletedAt)),
+    )
     .where(and(eq(users.id, userId), isNull(users.deletedAt)))
     .limit(1);
   if (!user) return null;
-  const { staffId, permission, ...identity } = user;
+  const { staffId, permission, attendeeId, qrCodeId, ...identity } = user;
   const parsed = staffPermissions.safeParse(permission);
   return {
     ...identity,
@@ -40,6 +46,7 @@ export async function findSessionUser(
       identity.role === "staff" && staffId
         ? { id: staffId, permission: parsed.success ? parsed.data : [] }
         : null,
+    attendee: attendeeId && qrCodeId ? { id: attendeeId, qrCodeId } : null,
   };
 }
 
