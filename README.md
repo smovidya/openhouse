@@ -1,5 +1,25 @@
 # Open House 2027
 
+## Workshop catalog
+
+`src/lib/data/workshops.ts` contains the nine workshops and 40 rounds from
+“เนื้อหา Workshop [Science Chula Open House 2027]”. The explicit dates in the
+attachment are 31 October–1 November 2569 (2026), using Bangkok time.
+The workshop pages use this catalog; attendance counts and registration remain
+demo data until those pages are connected to the backend.
+
+Per-round capacities follow the organizer’s confirmation: GEO/MATSCI/BISTECH 20,
+FOODTECH 10, and BIOCHEM/MICRO/IMPRINT/BSAC & CHEM/BBTech 15.
+To populate the database used by the workshop backend, run migrations followed by:
+
+```sh
+bun run workshops:seed
+```
+
+The seed keeps existing workshop/session IDs and registrations on repeat runs.
+It updates matching slugs and rounds without deleting unrelated records.
+Append `--remote --env production` to target production explicitly.
+
 ## Backend organization
 
 Backend code is grouped by feature. Authentication, staff enrollment/permissions,
