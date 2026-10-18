@@ -3,6 +3,7 @@
 // and duplicate-registration rules atomically using operations supported by D1.
 
 import { getDb, tables } from "#lib/server/db/index.ts";
+import { MAX_ADVANCE_WORKSHOP_REGISTRATIONS } from "#lib/constants/workshops.ts";
 import { env } from "cloudflare:workers";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { err, ok, ResultAsync } from "neverthrow";
@@ -139,6 +140,7 @@ export type WorkshopRegistrationError =
   | "WORKSHOP_TIME_SLOT_NOT_FOUND"
   | "ALREADY_REGISTERED_FOR_WORKSHOP"
   | "WORKSHOP_TIME_CONFLICT"
+  | "WORKSHOP_ADVANCE_REGISTRATION_LIMIT_REACHED"
   | "WORKSHOP_FULL"
   | "WORKSHOP_ALREADY_STARTED"
   | "REGISTER_FOR_WORKSHOP_FAILED";
@@ -195,6 +197,13 @@ export const registerForWorkshop = (input: {
             AND registered_slot.starts_at < ${workshopTimeSlots.endsAt}
             AND registered_slot.ends_at > ${workshopTimeSlots.startsAt}
         ) THEN 'WORKSHOP_TIME_CONFLICT'
+        WHEN ${input.type} = 'advance' AND (
+          SELECT count(*) FROM ${workshopRegistrations}
+          WHERE ${workshopRegistrations.attendeeId} = ${input.attendeeId}
+            AND ${workshopRegistrations.type} = 'advance'
+            AND ${workshopRegistrations.deletedAt} IS NULL
+        ) >= ${MAX_ADVANCE_WORKSHOP_REGISTRATIONS}
+          THEN 'WORKSHOP_ADVANCE_REGISTRATION_LIMIT_REACHED'
         WHEN (
           SELECT count(*) FROM ${workshopRegistrations}
           WHERE ${workshopRegistrations.workshopTimeSlotId} = ${workshopTimeSlots.id}

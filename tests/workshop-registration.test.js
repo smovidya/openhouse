@@ -318,7 +318,7 @@ describe("atomic workshop registration on D1", () => {
       { start: 540, end: 600, date: "2030-01-02" },
     ]) {
       const target = await workshop(10, [interval]);
-      assert.ok((await book(person.id, target.slug)).isOk());
+      assert.ok((await book(person.id, target.slug, 1, "walk-in")).isOk());
     }
   });
 
@@ -343,6 +343,47 @@ describe("atomic workshop registration on D1", () => {
     const second = await attendee();
     assert.ok((await book(first.id, target.slug, 1)).isOk());
     assert.ok((await book(second.id, target.slug, 2)).isOk());
+  });
+
+  it("atomically limits attendees to two active advance registrations", async () => {
+    const person = await attendee();
+    const targets = await Promise.all([
+      workshop(10, [{ start: 540, end: 600, date: "2030-01-01" }]),
+      workshop(10, [{ start: 660, end: 720, date: "2030-01-01" }]),
+      workshop(10, [{ start: 780, end: 840, date: "2030-01-01" }]),
+    ]);
+
+    const results = await Promise.all(
+      targets.map((target) => book(person.id, target.slug)),
+    );
+    assert.equal(results.filter((result) => result.isOk()).length, 2);
+    expectError(
+      results.find((result) => result.isErr()),
+      "WORKSHOP_ADVANCE_REGISTRATION_LIMIT_REACHED",
+    );
+  });
+
+  it("excludes walk-ins and cancelled registrations from the advance limit", async () => {
+    const person = await attendee();
+    const first = await workshop(10, [
+      { start: 540, end: 600, date: "2030-01-01" },
+    ]);
+    const second = await workshop(10, [
+      { start: 660, end: 720, date: "2030-01-01" },
+    ]);
+    const third = await workshop(10, [
+      { start: 780, end: 840, date: "2030-01-01" },
+    ]);
+    const walkIn = await workshop(10, [
+      { start: 900, end: 960, date: "2030-01-01" },
+    ]);
+
+    assert.ok((await book(person.id, first.slug)).isOk());
+    assert.ok((await book(person.id, second.slug)).isOk());
+    assert.ok((await book(person.id, walkIn.slug, 1, "walk-in")).isOk());
+    const cancelled = await cancel(person.id, first.slug);
+    assert.ok(cancelled.isOk());
+    assert.ok((await book(person.id, third.slug)).isOk());
   });
 
   it("does not book a round with zero capacity", async () => {
