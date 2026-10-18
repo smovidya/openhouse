@@ -11,6 +11,7 @@
   - list workshop
   - รายละเอียด workshop + เลือกสล็อตเวลา
 - myid: ต้องมีลิงก์ลงทะเบียน workshop
+- actual qrcode
 
 ## 26 Oct
 
@@ -21,7 +22,7 @@
 - myid (เสร็จ)
   - prize
 - staff
-- registration: ใส่ invite code
+- staff registration: ใส่ invite code
 - qrcode page
 - certification
 
@@ -31,10 +32,7 @@
 
 # Placeholder
 
-- เวลาเปิดงาน
-- pdpa
 - ช่องทางข่าวสารงาน (เลือก >=1 หรือ >=0)
-- workshop data (เต็ม)
 - รางวัล
 
 # todo

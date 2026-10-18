@@ -22,6 +22,7 @@
 		prefixOptions,
 		visitIntentOptions,
 	} from "#lib/registration/options.js";
+	import PrivacyPolicy from "#lib/registration/privacy-policy.svelte";
 	import { provinceOptions } from "#lib/registration/provinces.js";
 	import { registrationInfoSchema, registrationSchema } from "#lib/registration/schema.js";
 
@@ -317,14 +318,15 @@
 			<SignBoard title="PDPA" />
 		</div>
 
-		<!-- TODO: replace with the real privacy policy text. -->
-		<div class="flex-1 text-base text-brand-navy">
-			Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam et ante vitae nibh luctus
-			rhoncus. Sed luctus tristique varius. Duis lobortis tellus eu sapien facilisis, eget euismod
-			quam elementum. Cras magna tortor, varius at massa non, egestas vehicula sem. Phasellus
-			pellentesque magna eget rutrum facilisis. Mauris ultrices nibh at mi auctor feugiat congue in
-			sapien. Aenean bibendum, nisl vel auctor congue, nibh metus commodo diam, id aliquam diam eros
-			non leo
+		<!-- Scrolls on its own so the consent checkbox and submit stay in reach. -->
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+		<div
+			tabindex="0"
+			role="region"
+			aria-label="นโยบายข้อมูลส่วนบุคคล"
+			class="max-h-[55dvh] flex-1 overflow-y-auto rounded-lg bg-brand-mist p-4 outline-none focus-visible:ring-3 focus-visible:ring-brand-navy/50"
+		>
+			<PrivacyPolicy />
 		</div>
 
 		<div class="flex flex-col gap-2">
