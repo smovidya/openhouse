@@ -121,10 +121,28 @@ checks, and identity/fixture operations against an isolated local D1 database.
 `checkJs` is disabled because Wrangler's generated binding declarations reference
 the compiled worker JavaScript; TypeScript source remains strictly checked.
 
+## Sign-in and registration
+
+The main page shows Google's sign-in button, which opens account selection in a
+popup. After the server verifies the credential and refreshes the session, the
+attendee continues to `/register`. Direct visits to `/register` require an active
+session and otherwise return to the main page's `#register` section. Attendees
+who already have a profile go to `/myid`. Failed sign-ins stay on the main page
+and can be retried with a fresh challenge. Existing `/login` links redirect to
+the main page. The menu's sign-out button clears the real session.
+
+Google sign-in and general attendee registration are open immediately. Their
+former opening-date restrictions have been removed. Workshop registration still
+uses its configured time window.
+
 ## Login demo
 
 After completing the local setup below, open `http://localhost:5173/`.
-Choose **Demo attendee** or **Demo staff** to exercise real local sessions without
+The home page's **ลงทะเบียน** button creates a fresh attendee account and opens
+the registration form without Google. Repeat it for as many test registrations
+as needed. The DEV toolbar's **New registration** button does the same.
+
+Open `/demo` and choose **Demo attendee** or **Demo staff** to exercise real local sessions without
 a Google account. Sign out before switching profiles. The page shows the current
 user, role, permissions, expiry, and an expandable session payload; reloading keeps
 the session. Development profile buttons are absent from production builds and
@@ -152,13 +170,13 @@ generated endpoint hashes. The server hook registers the remote modules so they
 are available even before a UI imports them. `getSession` remains available from
 `#lib/features/auth/auth.remote.ts` when a remote query is needed.
 
-| Operation                                         | Input                                | Result                                                             |
-| ------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------ |
-| `beginGoogleSignIn()`                             | None                                 | `{ clientId, nonce }`; sets a signed, five-minute challenge cookie |
-| `signInWithGoogle(...)`                           | `{ googleIdToken: string }`          | `AuthSession`; sets the session cookie                             |
-| `getSession()`                                    | None                                 | `AuthSession` or `null`                                            |
-| `logout()`                                        | None                                 | `{ success: true }`; clears session and challenge cookies          |
-| `createDevSession(...)` from `auth/dev.remote.ts` | `{ profile: "attendee" \| "staff" }` | `AuthSession`; development only                                    |
+| Operation                                         | Input                                              | Result                                                             |
+| ------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------ |
+| `beginGoogleSignIn()`                             | None                                               | `{ clientId, nonce }`; sets a signed, five-minute challenge cookie |
+| `signInWithGoogle(...)`                           | `{ googleIdToken: string }`                        | `AuthSession`; sets the session cookie                             |
+| `getSession()`                                    | None                                               | `AuthSession` or `null`                                            |
+| `logout()`                                        | None                                               | `{ success: true }`; clears session and challenge cookies          |
+| `createDevSession(...)` from `auth/dev.remote.ts` | `{ profile: "attendee" \| "newcomer" \| "staff" }` | `AuthSession`; development only                                    |
 
 `AuthSession` contains `{ user: { id, email, name, image, role, staff }, expiresAt }`.
 `staff` is `null` or `{ id, permission: StaffPermission[] }` for an active staff
@@ -225,8 +243,9 @@ from the shell environment; no environment file is added. Keep the same secret i
 your shell to retain sessions across restarts. A newly generated key invalidates
 existing sessions. Never commit the secret or expose it to client code.
 
-`createDevSession` creates or reuses fixed local users and matching attendee/staff
-records, then follows the normal JWT/cookie/session path. Existing fixtures are
+`createDevSession` creates a new local user for each `newcomer` request, while
+`attendee` and `staff` reuse fixed users and matching profiles. All follow the
+normal JWT/cookie/session path. Existing fixed fixtures are
 not reset, so local role changes and disabled-user scenarios remain testable.
 New staff fixtures have `boothStaff:all`; existing fixture permissions are preserved.
 The migration clears the old free-text `development` marker to an empty permission

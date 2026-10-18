@@ -1,6 +1,6 @@
 <script lang="ts">
  import { onMount } from "svelte";
- import { invalidateAll } from "$app/navigation";
+ import { goto, invalidateAll } from "$app/navigation";
  import { page } from "$app/state";
  import { createDevSession } from "#lib/features/auth/dev.remote.ts";
  import { logout } from "#lib/features/auth/auth.remote.ts";
@@ -63,7 +63,8 @@
     <button type="button" onclick={() => run(async () => {
      await createDevSession({ profile });
      fakeLoggedIn.current = false;
-    }, `Signed in as ${profile}`)}>Use {profile}</button>
+     if (profile === "newcomer") await goto("/register", { invalidateAll: true });
+    }, `Signed in as ${profile}`)}>{profile === "newcomer" ? "New registration" : `Use ${profile}`}</button>
    {/each}
    <button type="button" onclick={() => run(async () => {
     await logout();

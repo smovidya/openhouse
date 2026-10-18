@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount, untrack } from "svelte";
+	import { dev } from "$app/env";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
-	import { beginGoogleSignIn, signInWithGoogle } from "#lib/features/auth/auth.client.ts";
+	import { beginGoogleSignIn, createDevSession, signInWithGoogle } from "#lib/features/auth/auth.client.ts";
 	import { loadGoogleIdentity, type GoogleIdentity } from "#lib/features/auth/google.client.ts";
 
 	const session = $derived(page.data.session);
@@ -12,6 +13,18 @@
 	let google: GoogleIdentity | undefined;
 	let disposed = false;
 	let attempt = 0;
+
+	async function startDevRegistration() {
+		if (!dev || status === "signing-in") return;
+		status = "signing-in";
+		authError = "";
+		try {
+			await createDevSession({ profile: "newcomer" });
+			await goto("/register", { invalidateAll: true });
+		} catch {
+			showError("ไม่สามารถสร้างบัญชีทดสอบได้ กรุณาลองอีกครั้ง");
+		}
+	}
 
 	function showError(message: string) {
 		if (disposed) return;
@@ -108,7 +121,15 @@
 	<Countdown target={EVENT_START} />
 
 	<div id="register" class="w-full max-w-100.5 scroll-mt-24 px-3">
-		{#if session}
+		{#if dev}
+			<Button type="button" variant="cta" size="cta-lg" class="w-full" disabled={status === "signing-in"} onclick={startDevRegistration}>
+				{status === "signing-in" ? "กำลังสร้างบัญชีทดสอบ..." : "ลงทะเบียน"}
+			</Button>
+			<p class="mt-2 text-center text-sm text-brand-mist">Development · เริ่มลงทะเบียนด้วยบัญชีทดสอบใหม่ทุกครั้ง</p>
+			{#if authError}
+				<p role="alert" class="mt-2 text-center text-sm text-brand-yellow">{authError}</p>
+			{/if}
+		{:else if session}
 			<Button variant="cta" size="cta-lg" href={session.user.attendee ? "/myid" : "/register"} class="w-full">ลงทะเบียน</Button>
 		{:else}
 			<div class="flex flex-col items-center gap-3 text-center text-brand-mist" {@attach initializeGoogleSignIn}>

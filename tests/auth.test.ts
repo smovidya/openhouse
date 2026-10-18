@@ -407,7 +407,40 @@ describe("D1 identity and development fixtures", () => {
   });
 
   it("rejects development fixture creation in production", async () => {
-    await assert.rejects(ensureDevFixture(db, "staff", false), isStatus(404));
+    for (const profile of ["attendee", "newcomer", "staff"] as const) {
+      await assert.rejects(ensureDevFixture(db, profile, false), isStatus(404));
+    }
+  });
+
+  it("creates independent unregistered attendee accounts for repeated development registrations", async () => {
+    const first = await ensureDevFixture(db, "newcomer", true);
+    const second = await ensureDevFixture(db, "newcomer", true);
+    assert.notEqual(first.id, second.id);
+    assert.notEqual(first.email, second.email);
+    for (const user of [first, second]) {
+      assert.equal(user.role, "attendee");
+      assert.equal(user.attendee, null);
+      assert.equal(user.staff, null);
+    }
+    await db.insert(attendees).values({
+      id: "first-dev-registration",
+      userId: first.id,
+      qrCodeId: "DEV01",
+      title: "mr",
+      firstname: "First",
+      lastname: "Test",
+      age: 18,
+      residentProvince: "Bangkok",
+      type: "parent",
+    });
+    assert.deepEqual((await findSessionUser(db, first.id))?.attendee, {
+      id: "first-dev-registration",
+      qrCodeId: "DEV01",
+    });
+    assert.equal((await findSessionUser(db, second.id))?.attendee, null);
+    const third = await ensureDevFixture(db, "newcomer", true);
+    assert.ok(![first.id, second.id].includes(third.id));
+    assert.equal(third.attendee, null);
   });
 
   it("restores the saved attendee identity when the same Google user signs in again", async () => {
