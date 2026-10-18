@@ -1,13 +1,34 @@
 import { workshopCatalog } from "#lib/data/workshops.ts";
 
 export type WorkshopSession = {
+  /** `<workshop slug>:<round>` (see sessionId). */
   id: string;
-  /** ISO 8601 with offset, e.g. 2026-10-31T13:00:00+07:00 */
+  /** The workshop's slug. */
+  workshop: string;
+  /** Round number within the workshop (what the booking API takes). */
+  round: number;
+  /** ISO 8601 in Bangkok time, e.g. 2026-10-31T13:00:00+07:00 */
   start: string;
   end: string;
-  registered: number;
+  /** Active registrations, or null when unknown (the workshops API doesn't report it yet). */
+  registered: number | null;
   capacity: number;
 };
+
+/** A session the attendee is booked into (from getWorkshopRegistrationsByAttendeeId). */
+export type BookedSession = Pick<
+  WorkshopSession,
+  "id" | "workshop" | "start" | "end"
+>;
+
+export const sessionId = (workshop: string, round: number) =>
+  `${workshop}:${round}`;
+
+/** A Date as ISO 8601 in Bangkok time (UTC+7, no DST), so its first 10 chars are the local day. */
+export function toBangkokIso(date: Date) {
+  const local = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+  return `${local.toISOString().slice(0, 19)}+07:00`;
+}
 
 export type Workshop = {
   id: string;
@@ -21,15 +42,20 @@ export type Workshop = {
   sessions: WorkshopSession[];
 };
 
-export type SessionStatus = "available" | "full" | "conflict" | "registered";
+/** `other-round`: booked into another round of the same workshop (one round per workshop). */
+export type SessionStatus =
+  "available" | "full" | "conflict" | "registered" | "other-round";
 
 /** Status of `session` for an attendee already booked into `booked` (sessions of any workshop). */
 export function sessionStatus(
   session: WorkshopSession,
-  booked: WorkshopSession[],
+  booked: BookedSession[],
 ): SessionStatus {
   if (booked.some((other) => other.id === session.id)) return "registered";
-  if (session.registered >= session.capacity) return "full";
+  if (booked.some((other) => other.workshop === session.workshop))
+    return "other-round";
+  if (session.registered !== null && session.registered >= session.capacity)
+    return "full";
   const start = Date.parse(session.start);
   const end = Date.parse(session.end);
   const overlaps = booked.some(
@@ -49,7 +75,7 @@ export function sessionsByDay(sessions: WorkshopSession[]) {
 }
 
 // The catalog (#lib/data/workshops.ts) is the single source: the D1 seed script reads it too.
-// Session ids match the seeded workshop_time_slots ids (`workshop-<slug>-<round>`).
+// The list page shows it as is; pages with seat counts and bookings read D1 (toWorkshop).
 export const workshops: Workshop[] = workshopCatalog.map((workshop) => ({
   id: workshop.slug,
   title: workshop.title,
@@ -59,12 +85,53 @@ export const workshops: Workshop[] = workshopCatalog.map((workshop) => ({
   capacity: workshop.capacity,
   sessions: workshop.sessions.map((session, index) => ({
     ...session,
-    id: `workshop-${workshop.slug}-${index + 1}`,
-    // TODO: live counts from workshop_registrations.
-    registered: 0,
+    id: sessionId(workshop.slug, index + 1),
+    workshop: workshop.slug,
+    round: index + 1,
+    registered: null,
     capacity: workshop.capacity,
   })),
 }));
 
-/** Session ids the signed-in attendee booked. TODO: from workshop_registrations. */
-export const placeholderBookedIds: string[] = [];
+/** A workshop as the workshops service's getWorkshop returns it. */
+export type ApiWorkshop = {
+  slug: string;
+  title: string;
+  hostDepartment: string;
+  hostDepartimentAbbr: string;
+  description: string;
+  capacity: number;
+  timeSlots: { roundNumber: number; startsAt: Date; endsAt: Date }[];
+};
+
+export const toWorkshop = (workshop: ApiWorkshop): Workshop => ({
+  id: workshop.slug,
+  title: workshop.title,
+  hostDepartment: workshop.hostDepartment,
+  hostDepartmentAbbr: workshop.hostDepartimentAbbr,
+  description: workshop.description,
+  capacity: workshop.capacity,
+  sessions: workshop.timeSlots.map((slot) => ({
+    id: sessionId(workshop.slug, slot.roundNumber),
+    workshop: workshop.slug,
+    round: slot.roundNumber,
+    start: toBangkokIso(slot.startsAt),
+    end: toBangkokIso(slot.endsAt),
+    // Not reported by the API yet; a full round shows up when booking it (WORKSHOP_FULL).
+    registered: null,
+    capacity: workshop.capacity,
+  })),
+});
+
+/** A registration as getWorkshopRegistrationsByAttendeeId returns it. */
+export const toBookedSession = (registration: {
+  workshopSlug: string;
+  workshopRoundNumber: number;
+  startsAt: Date;
+  endsAt: Date;
+}): BookedSession => ({
+  id: sessionId(registration.workshopSlug, registration.workshopRoundNumber),
+  workshop: registration.workshopSlug,
+  start: toBangkokIso(registration.startsAt),
+  end: toBangkokIso(registration.endsAt),
+});

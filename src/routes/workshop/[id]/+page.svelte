@@ -2,6 +2,8 @@
 	import addCircleIcon from "#lib/assets/icons/add-circle-blue.svg";
 	import cancelRedIcon from "#lib/assets/icons/cancel-red.svg";
 	import checkCircleGreenIcon from "#lib/assets/icons/check-circle-green.svg";
+	import { EVENT_SCHEDULE } from "#lib/constants/time.ts";
+	import { MAX_ADVANCE_WORKSHOP_REGISTRATIONS } from "#lib/constants/workshops.ts";
 	import type { SessionStatus } from "#lib/workshops.js";
 
 	const dayFormat = new Intl.DateTimeFormat("th-TH", {
@@ -31,7 +33,43 @@
 			icon: checkCircleGreenIcon,
 			class: "border-status-green text-status-green",
 		},
+		// One round per workshop: the attendee holds another round of this one.
+		"other-round": {
+			label: "ลงทะเบียนรอบอื่นแล้ว",
+			icon: checkCircleGreenIcon,
+			class: "border-brand-sky text-brand-navy",
+		},
 	};
+
+	const opensAt = new Intl.DateTimeFormat("th-TH", {
+		dateStyle: "long",
+		timeStyle: "short",
+		timeZone: "Asia/Bangkok",
+	}).format(new Date(EVENT_SCHEDULE.workshopRegistrationOpensAt));
+
+	/** Booking error codes from registerForWorkshop, in Thai. */
+	function bookingError(code: string) {
+		switch (code) {
+			case "WORKSHOP_REGISTRATION_NOT_OPEN":
+				return `ยังไม่เปิดให้ลงทะเบียนเวิร์กช็อป (เปิด ${opensAt} น.)`;
+			case "WORKSHOP_REGISTRATION_CLOSED":
+				return "ปิดรับลงทะเบียนเวิร์กช็อปแล้ว";
+			case "WORKSHOP_FULL":
+				return "รอบนี้เต็มแล้ว";
+			case "WORKSHOP_TIME_CONFLICT":
+				return "เวลาชนกับเวิร์กช็อปที่ลงทะเบียนไว้แล้ว";
+			case "ALREADY_REGISTERED_FOR_WORKSHOP":
+				return "ลงทะเบียนเวิร์กช็อปนี้ไว้แล้ว";
+			case "WORKSHOP_ADVANCE_REGISTRATION_LIMIT_REACHED":
+				return `ลงทะเบียนล่วงหน้าได้สูงสุด ${MAX_ADVANCE_WORKSHOP_REGISTRATIONS} เวิร์กช็อป`;
+			case "WORKSHOP_ALREADY_STARTED":
+				return "รอบนี้เริ่มไปแล้ว";
+			case "ATTENDEE_NOT_FOUND":
+				return "กรุณาลงทะเบียนเข้าร่วมงานก่อน";
+			default:
+				return "ลงทะเบียนไม่สำเร็จ กรุณาลองอีกครั้ง";
+		}
+	}
 </script>
 
 <script lang="ts">
@@ -40,17 +78,37 @@
 	import Glass from "#lib/render/glass.svelte";
 	import SignBoard from "#lib/components/sign-board.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { refreshAll } from "$app/navigation";
+	import { registerForWorkshop } from "#lib/features/workshops/workshops.remote.ts";
 	import { sessionsByDay, sessionStatus, type WorkshopSession } from "#lib/workshops.js";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
 
 	const workshop = $derived(data.workshop);
-	let booked = $derived(data.booked);
+	const canBook = $derived(data.attendee === "registered");
 
-	function register(session: WorkshopSession) {
-		// TODO: book through the backend once it exists; this only updates the page.
-		booked = [...booked, session];
+	/** The session being booked, while the request runs. */
+	let pending = $state<string | null>(null);
+	let message = $state("");
+
+	async function register(session: WorkshopSession) {
+		if (pending) return;
+		pending = session.id;
+		message = "";
+		try {
+			const result = await registerForWorkshop({
+				workshopSlug: session.workshop,
+				workshopRoundNumber: session.round,
+			});
+			if (result.isErr()) message = bookingError(result.error);
+			// Seat counts and the attendee's bookings come from the server load.
+			await refreshAll();
+		} catch {
+			message = bookingError("");
+		} finally {
+			pending = null;
+		}
 	}
 </script>
 
@@ -87,12 +145,30 @@
 					<p class="text-xs">(กดที่รอบเวลาว่างเพื่อลงทะเบียน)</p>
 				</div>
 
+				{#if !canBook}
+					<!-- Booking needs a registered attendee. -->
+					<div class="flex items-center justify-between gap-3 rounded-lg bg-black/20 px-3 py-2 text-xs text-brand-mist">
+						<p>
+							{data.attendee === "signed-out"
+								? "เข้าสู่ระบบและลงทะเบียนเข้าร่วมงานก่อนเลือกรอบเวิร์กช็อป"
+								: "ลงทะเบียนเข้าร่วมงานก่อนเลือกรอบเวิร์กช็อป"}
+						</p>
+						<Button
+							variant="cta"
+							size="cta-sm"
+							href={data.attendee === "signed-out" ? "/#register" : "/register"}
+						>
+							{data.attendee === "signed-out" ? "เข้าสู่ระบบ" : "ลงทะเบียน"}
+						</Button>
+					</div>
+				{/if}
+
 				{#each sessionsByDay(workshop.sessions) as { day, sessions } (day)}
 					<time datetime={day} class="text-xs text-brand-mist">
 						{dayFormat.format(new Date(sessions[0].start))}
 					</time>
 					{#each sessions as session (session.id)}
-						{@const status = sessionStatus(session, booked)}
+						{@const status = sessionStatus(session, data.booked)}
 						{@const look = statusLook[status]}
 						{@const rowClass = [
 							"flex w-full items-start justify-between rounded-lg border bg-brand-mist px-4 py-2 text-xs",
@@ -104,30 +180,39 @@
 									<time datetime={session.start}>{timeFormat.format(new Date(session.start))}</time> -
 									<time datetime={session.end}>{timeFormat.format(new Date(session.end))}</time>
 								</span>
-								<span>จำนวน {session.registered}/{session.capacity}</span>
+								{#if session.registered !== null}
+									<span>จำนวน {session.registered}/{session.capacity}</span>
+								{/if}
 							</span>
 							<span class="flex items-center gap-1">
-								{look.label}
+								{pending === session.id ? "กำลังลงทะเบียน…" : look.label}
 								<img src={look.icon} alt="" />
 							</span>
 						{/snippet}
 
-						{#if status === "available"}
+						{#if status === "available" && canBook}
 							<button
 								type="button"
+								data-session={session.id}
+								data-status={status}
+								disabled={pending !== null}
 								class={[
 									rowClass,
-									"cursor-pointer transition-colors outline-none hover:bg-white focus-visible:ring-3 focus-visible:ring-brand-mist active:bg-[color-mix(in_oklab,var(--color-brand-mist),var(--color-brand-blue)_15%)]",
+									"cursor-pointer transition-colors outline-none disabled:cursor-wait disabled:opacity-70 hover:bg-white focus-visible:ring-3 focus-visible:ring-brand-mist active:bg-[color-mix(in_oklab,var(--color-brand-mist),var(--color-brand-blue)_15%)]",
 								]}
 								onclick={() => register(session)}
 							>
 								{@render row()}
 							</button>
 						{:else}
-							<div class={rowClass}>{@render row()}</div>
+							<div class={rowClass} data-session={session.id} data-status={status}>{@render row()}</div>
 						{/if}
 					{/each}
 				{/each}
+
+				{#if message}
+					<p role="alert" class="text-sm text-brand-yellow">{message}</p>
+				{/if}
 			</section>
 		</Glass>
 	</div>

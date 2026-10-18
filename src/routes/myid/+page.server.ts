@@ -3,6 +3,11 @@ import {
   getActiveAttendeeByUserId,
   getAttendeeProfile,
 } from "#lib/features/attendees/service.server.ts";
+import type { RegisteredWorkshop } from "#lib/components/workshop-card.svelte";
+import { MAX_ADVANCE_WORKSHOP_REGISTRATIONS } from "#lib/constants/workshops.ts";
+import { workshopCatalog } from "#lib/data/workshops.ts";
+import { getWorkshopRegistrationsByAttendeeId } from "#lib/features/workshops/service.server.ts";
+import { toBangkokIso } from "#lib/workshops.ts";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -24,10 +29,35 @@ export const load: PageServerLoad = async ({ locals }) => {
     error(503, "ไม่สามารถโหลดข้อมูลลงทะเบียนได้ กรุณาลองอีกครั้ง");
   }
 
+  const registrations = await getWorkshopRegistrationsByAttendeeId(
+    active.value.id,
+  );
+  if (registrations.isErr()) {
+    error(503, "ไม่สามารถโหลดเวิร์กช็อปที่ลงทะเบียนได้ กรุณาลองอีกครั้ง");
+  }
+  // Department and description are catalog content, not stored per registration.
+  const workshops = registrations.value.map(
+    (registration): RegisteredWorkshop => {
+      const info = workshopCatalog.find(
+        (w) => w.slug === registration.workshopSlug,
+      );
+      return {
+        id: registration.id,
+        title: registration.workshopTitle,
+        department: info?.hostDepartmentAbbr ?? "",
+        description: info?.description ?? "",
+        start: toBangkokIso(registration.startsAt),
+        end: toBangkokIso(registration.endsAt),
+      };
+    },
+  );
+
   return {
     profile: {
       name: `${result.value.firstname} ${result.value.lastname}`,
       code: result.value.qrCodeId,
     },
+    workshops,
+    workshopLimit: MAX_ADVANCE_WORKSHOP_REGISTRATIONS,
   };
 };
