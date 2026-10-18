@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { MediaQuery } from "svelte/reactivity";
 	import waterTile from "#lib/assets/water-caustic.webp";
-	import { animatedWater, glassMode, useWebGPU } from "#lib/dev-settings.svelte.js";
+	import { backgroundMode, glassMode } from "#lib/dev-settings.svelte.js";
 	import {
 		commitFrame,
 		createFrameHistory,
@@ -40,12 +40,12 @@
 	const reducedMotion = new MediaQuery("prefers-reduced-motion: reduce");
 
 	/** Water in the page canvas; otherwise the static image shows. */
-	const background = $derived(useWebGPU.current);
+	const background = $derived(backgroundMode.current !== "image");
 	/** Full glass samples the WebGPU water, so without it the closest mode is the rim alone. */
 	const glass: GlassMode = $derived(
 		!background && glassMode.current === "full" ? "rim" : glassMode.current
 	);
-	const animate = $derived(background && animatedWater.current && !reducedMotion.current);
+	const animate = $derived(backgroundMode.current === "animated" && !reducedMotion.current);
 
 	let canvas = $state<HTMLCanvasElement>();
 	/** The first frame has been rendered (fades the page canvas in). */
@@ -128,6 +128,7 @@
 						started = true;
 						// Panes mount their canvases now and ask for the next frame.
 						glassRenderer.mode = mode;
+						glassRenderer.water = bg;
 					}
 				};
 
@@ -172,6 +173,7 @@
 			setGlassRedrawHandler(null);
 			observer?.disconnect();
 			glassRenderer.mode = "css";
+			glassRenderer.water = false;
 			releaseGlassPanes();
 			renderer?.destroy();
 			context?.unconfigure();

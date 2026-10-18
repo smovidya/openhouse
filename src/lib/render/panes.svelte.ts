@@ -18,10 +18,11 @@ export const liquidGlassConfig = $state({
 });
 
 /**
- * The glass mode the water background is actually serving: "css" until its WebGPU renderer is up
- * (and again after teardown or failure). <Glass> panes read it to mount their canvas.
+ * What the water background is actually serving, once its WebGPU renderer is up (reset on teardown
+ * or failure): `mode` is the glass mode ("css" until then; <Glass> panes read it to mount their
+ * canvas), `water` whether the page shows the WebGPU water rather than the static image.
  */
-export const glassRenderer = $state({ mode: "css" as GlassMode });
+export const glassRenderer = $state({ mode: "css" as GlassMode, water: false });
 
 // ── Redraw scheduling ────────────────────────────────────────────────────────────────────────
 // The water background only renders when something changed. Anything that can move or change a

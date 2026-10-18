@@ -25,17 +25,21 @@ export const fakeStaffRole = new PersistedState<StaffRole>(
   "central",
 );
 
-/** Render the water background with WebGPU; false forces the static image fallback. */
-export const useWebGPU = new PersistedState("dev:useWebGPU", true);
+/**
+ * The water background: WebGPU caustics, looping ("animated") or a single frame ("still"), or the
+ * static image ("image", no WebGPU water). Animation also stops with prefers-reduced-motion.
+ */
+export type BackgroundMode = "animated" | "still" | "image";
+export const backgroundMode = new PersistedState<BackgroundMode>(
+  "dev:background",
+  "still",
+);
 
 /**
  * How <Glass> panes render (see GlassMode): "full" needs the WebGPU water, so with the static
  * background it falls back to "rim".
  */
 export const glassMode = new PersistedState<GlassMode>("dev:glassMode", "full");
-
-/** Animate the WebGPU water (ignored with prefers-reduced-motion). */
-export const animatedWater = new PersistedState("dev:animatedWater", false);
 
 /** Mirror settings onto the document. Call once from the root layout. */
 export function syncDevSettings() {
