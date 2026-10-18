@@ -35,7 +35,7 @@
 		},
 		// One round per workshop: the attendee holds another round of this one.
 		"other-round": {
-			label: "ลงทะเบียนรอบอื่นแล้ว",
+			label: "กดเพื่อเปลี่ยนมารอบนี้",
 			icon: checkCircleGreenIcon,
 			class: "border-brand-sky text-brand-navy",
 		},
@@ -66,6 +66,8 @@
 				return "รอบนี้เริ่มไปแล้ว";
 			case "ATTENDEE_NOT_FOUND":
 				return "กรุณาลงทะเบียนเข้าร่วมงานก่อน";
+			case "WORKSHOP_REGISTRATION_NOT_FOUND":
+				return "ไม่พบการลงทะเบียนรอบนี้ อาจถูกยกเลิกไปแล้ว";
 			default:
 				return "ลงทะเบียนไม่สำเร็จ กรุณาลองอีกครั้ง";
 		}
@@ -79,8 +81,17 @@
 	import SignBoard from "#lib/components/sign-board.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { refreshAll } from "$app/navigation";
-	import { registerForWorkshop } from "#lib/features/workshops/workshops.remote.ts";
-	import { sessionsByDay, sessionStatus, type WorkshopSession } from "#lib/workshops.js";
+	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
+	import {
+		registerForWorkshop,
+		unregisterFromWorkshop,
+	} from "#lib/features/workshops/workshops.remote.ts";
+	import {
+		sessionsByDay,
+		sessionStatus,
+		type BookedSession,
+		type WorkshopSession,
+	} from "#lib/workshops.js";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -88,21 +99,29 @@
 	const workshop = $derived(data.workshop);
 	const canBook = $derived(data.attendee === "registered");
 
-	/** The session being booked, while the request runs. */
-	let pending = $state<string | null>(null);
+	/** The session being changed and what is happening to it, while the request runs. */
+	let pending = $state<{ id: string; label: string } | null>(null);
 	let message = $state("");
 
-	async function register(session: WorkshopSession) {
+	/** A cancel or round change waiting for the attendee to confirm. */
+	let confirming = $state<
+		| { kind: "cancel"; session: WorkshopSession }
+		| { kind: "change"; session: WorkshopSession; from: BookedSession }
+		| null
+	>(null);
+
+	const roundTime = (session: { start: string; end: string }) =>
+		`${dayFormat.format(new Date(session.start))} ${timeFormat.format(new Date(session.start))} - ${timeFormat.format(new Date(session.end))} น.`;
+
+	/** Run one booking change, show its error if any, and reload the page data. */
+	async function run(session: WorkshopSession, label: string, action: () => Promise<string | null>) {
 		if (pending) return;
-		pending = session.id;
+		pending = { id: session.id, label };
 		message = "";
 		try {
-			const result = await registerForWorkshop({
-				workshopSlug: session.workshop,
-				workshopRoundNumber: session.round,
-			});
-			if (result.isErr()) message = bookingError(result.error);
-			// Seat counts and the attendee's bookings come from the server load.
+			const error = await action();
+			if (error !== null) message = bookingError(error);
+			// The attendee's bookings come from the server load.
 			await refreshAll();
 		} catch {
 			message = bookingError("");
@@ -110,6 +129,59 @@
 			pending = null;
 		}
 	}
+
+	const round = (session: Pick<WorkshopSession, "workshop" | "round">) => ({
+		workshopSlug: session.workshop,
+		workshopRoundNumber: session.round,
+	});
+
+	function register(session: WorkshopSession) {
+		return run(session, "กำลังลงทะเบียน…", async () => {
+			const result = await registerForWorkshop(round(session));
+			return result.isErr() ? result.error : null;
+		});
+	}
+
+	function cancel(session: WorkshopSession) {
+		return run(session, "กำลังยกเลิก…", async () => {
+			const result = await unregisterFromWorkshop(round(session));
+			return result.isErr() ? result.error : null;
+		});
+	}
+
+	// No change-round API: cancel the old round, book the new one, and rebook the old one if
+	// booking fails (e.g. the new round filled up meanwhile).
+	function change(session: WorkshopSession, from: BookedSession) {
+		return run(session, "กำลังเปลี่ยนรอบ…", async () => {
+			const cancelled = await unregisterFromWorkshop(round(from));
+			if (cancelled.isErr()) return cancelled.error;
+			const booked = await registerForWorkshop(round(session));
+			if (booked.isOk()) return null;
+			await registerForWorkshop(round(from));
+			return booked.error;
+		});
+	}
+
+	function press(session: WorkshopSession, status: SessionStatus) {
+		if (status === "available") return register(session);
+		if (status === "registered") confirming = { kind: "cancel", session };
+		if (status === "other-round") {
+			const from = data.booked.find((other) => other.workshop === session.workshop);
+			if (from) confirming = { kind: "change", session, from };
+		}
+	}
+
+	function confirm() {
+		if (!confirming) return;
+		const { kind, session } = confirming;
+		if (kind === "cancel") cancel(session);
+		else change(session, confirming.from);
+		confirming = null;
+	}
+
+	/** Rows that do something when pressed. */
+	const pressable = (status: SessionStatus) =>
+		status === "available" || status === "registered" || status === "other-round";
 </script>
 
 <svelte:head>
@@ -185,12 +257,12 @@
 								{/if}
 							</span>
 							<span class="flex items-center gap-1">
-								{pending === session.id ? "กำลังลงทะเบียน…" : look.label}
+								{pending?.id === session.id ? pending.label : look.label}
 								<img src={look.icon} alt="" />
 							</span>
 						{/snippet}
 
-						{#if status === "available" && canBook}
+						{#if pressable(status) && canBook}
 							<button
 								type="button"
 								data-session={session.id}
@@ -200,7 +272,7 @@
 									rowClass,
 									"cursor-pointer transition-colors outline-none disabled:cursor-wait disabled:opacity-70 hover:bg-white focus-visible:ring-3 focus-visible:ring-brand-mist active:bg-[color-mix(in_oklab,var(--color-brand-mist),var(--color-brand-blue)_15%)]",
 								]}
-								onclick={() => register(session)}
+								onclick={() => press(session, status)}
 							>
 								{@render row()}
 							</button>
@@ -214,6 +286,39 @@
 					<p role="alert" class="text-sm text-brand-yellow">{message}</p>
 				{/if}
 			</section>
+
+			<AlertDialog.Root
+				open={confirming !== null}
+				onOpenChange={(open) => {
+					if (!open) confirming = null;
+				}}
+			>
+				<AlertDialog.Content
+					class="border border-white/30 bg-brand-navy/80 text-brand-mist ring-0 backdrop-blur-xl backdrop-saturate-125"
+				>
+					{#if confirming}
+						<AlertDialog.Header>
+							<AlertDialog.Title class="text-brand-yellow">
+								{confirming.kind === "cancel" ? "ยกเลิกการลงทะเบียน?" : "เปลี่ยนรอบเวิร์กช็อป?"}
+							</AlertDialog.Title>
+							<AlertDialog.Description class="text-brand-mist">
+								{#if confirming.kind === "cancel"}
+									ยกเลิกรอบ {roundTime(confirming.session)} ของ {workshop.title}
+									ที่นั่งจะถูกปล่อยให้ผู้อื่นจองได้
+								{:else}
+									เปลี่ยนจากรอบ {roundTime(confirming.from)} เป็นรอบ {roundTime(confirming.session)}
+								{/if}
+							</AlertDialog.Description>
+						</AlertDialog.Header>
+						<AlertDialog.Footer>
+							<AlertDialog.Cancel variant="cta-light" size="cta-sm">ไม่ใช่</AlertDialog.Cancel>
+							<AlertDialog.Action variant="cta" size="cta-sm" onclick={confirm}>
+								{confirming.kind === "cancel" ? "ยกเลิกการลงทะเบียน" : "เปลี่ยนรอบ"}
+							</AlertDialog.Action>
+						</AlertDialog.Footer>
+					{/if}
+				</AlertDialog.Content>
+			</AlertDialog.Root>
 		</Glass>
 	</div>
 

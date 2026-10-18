@@ -18,7 +18,7 @@ export type WorkshopSession = {
 /** A session the attendee is booked into (from getWorkshopRegistrationsByAttendeeId). */
 export type BookedSession = Pick<
   WorkshopSession,
-  "id" | "workshop" | "start" | "end"
+  "id" | "workshop" | "round" | "start" | "end"
 >;
 
 export const sessionId = (workshop: string, round: number) =>
@@ -52,16 +52,21 @@ export function sessionStatus(
   booked: BookedSession[],
 ): SessionStatus {
   if (booked.some((other) => other.id === session.id)) return "registered";
-  if (booked.some((other) => other.workshop === session.workshop))
-    return "other-round";
   if (session.registered !== null && session.registered >= session.capacity)
     return "full";
+  // Another round of this workshop is replaced when changing rounds, so it can't clash.
   const start = Date.parse(session.start);
   const end = Date.parse(session.end);
   const overlaps = booked.some(
-    (other) => Date.parse(other.start) < end && start < Date.parse(other.end),
+    (other) =>
+      other.workshop !== session.workshop &&
+      Date.parse(other.start) < end &&
+      start < Date.parse(other.end),
   );
-  return overlaps ? "conflict" : "available";
+  if (overlaps) return "conflict";
+  return booked.some((other) => other.workshop === session.workshop)
+    ? "other-round"
+    : "available";
 }
 
 /** Sessions grouped by Bangkok calendar day (YYYY-MM-DD), in order. */
@@ -132,6 +137,7 @@ export const toBookedSession = (registration: {
 }): BookedSession => ({
   id: sessionId(registration.workshopSlug, registration.workshopRoundNumber),
   workshop: registration.workshopSlug,
+  round: registration.workshopRoundNumber,
   start: toBangkokIso(registration.startsAt),
   end: toBangkokIso(registration.endsAt),
 });

@@ -9,7 +9,8 @@ import {
 } from "./helpers";
 
 // Workshop booking against the local D1: the registration window, booking a round, one round per
-// workshop, time clashes, the advance-booking limit (2), and the bookings on /myid.
+// workshop, time clashes, the advance-booking limit (2), the bookings on /myid, and changing and
+// cancelling a round through the confirmation dialog.
 // Each run registers a fresh attendee; their bookings are removed afterwards so seats don't run out.
 
 test.describe.configure({ mode: "serial" });
@@ -91,4 +92,45 @@ test("an attendee books workshops within the rules", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Little Beads, Big Ideas" }),
   ).toBeVisible();
+
+  // Pressing another round of a booked workshop changes rounds, after confirming.
+  await open(page, "/workshop/perfume");
+  const dialog = page.getByRole("alertdialog");
+  await round(page, "perfume:2").click(); // Sat 16:45
+  await expect(dialog).toContainText("เปลี่ยนรอบเวิร์กช็อป?");
+  await dialog.getByRole("button", { name: "ไม่ใช่" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(round(page, "perfume:1")).toHaveAttribute(
+    "data-status",
+    "registered",
+  );
+  await round(page, "perfume:2").click();
+  await dialog.getByRole("button", { name: "เปลี่ยนรอบ" }).click();
+  await expect(round(page, "perfume:2")).toHaveAttribute(
+    "data-status",
+    "registered",
+  );
+  await expect(round(page, "perfume:1")).toHaveAttribute(
+    "data-status",
+    "other-round",
+  );
+
+  // Pressing the booked round again cancels it, after confirming.
+  await round(page, "perfume:2").click();
+  await expect(dialog).toContainText("ยกเลิกการลงทะเบียน?");
+  await dialog.getByRole("button", { name: "ยกเลิกการลงทะเบียน" }).click();
+  await expect(round(page, "perfume:2")).toHaveAttribute(
+    "data-status",
+    "available",
+  );
+  await expect(round(page, "perfume:1")).toHaveAttribute(
+    "data-status",
+    "available",
+  );
+
+  await open(page, "/myid");
+  await expect(
+    page.getByText("เวิร์กช็อปที่ลงทะเบียนแล้ว (1/2)"),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Perfume" })).toBeHidden();
 });

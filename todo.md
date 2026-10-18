@@ -11,7 +11,6 @@
   - list workshop
   - รายละเอียด workshop + เลือกสล็อตเวลา
 - myid: ต้องมีลิงก์ลงทะเบียน workshop
-- actual qrcode
 
 ## 26 Oct
 
