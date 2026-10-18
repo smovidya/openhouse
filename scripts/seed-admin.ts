@@ -36,7 +36,7 @@ if (values.help) {
     type: values.type,
     department: values.department ?? null,
   });
-  const directory = await mkdtemp(join(tmpdir(), "openhouse26-admin-seed-"));
+  const directory = await mkdtemp(join(tmpdir(), "openhouse-admin-seed-"));
   try {
     const file = join(directory, "seed.sql");
     await writeFile(file, buildSeedAdminStatements(input).join(";\n") + ";\n", {

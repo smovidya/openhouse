@@ -142,8 +142,8 @@ describe("session tokens and cookies", () => {
     );
     const longToken = await new SignJWT({})
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-      .setIssuer("openhouse26")
-      .setAudience("openhouse26:session:production")
+      .setIssuer("openhouse")
+      .setAudience("openhouse:session:production")
       .setSubject("user-1")
       .setIssuedAt()
       .setExpirationTime("2d")
@@ -173,7 +173,7 @@ describe("session tokens and cookies", () => {
       ...settings,
       development: true,
     });
-    assert.equal(cookies.writes[0].name, "openhouse26-session-dev");
+    assert.equal(cookies.writes[0].name, "openhouse-session-dev");
     assert.equal(cookies.writes[0].options.secure, false);
     assert.throws(() => getSessionSettings(undefined, true), isStatus(503));
     assert.throws(
@@ -299,12 +299,12 @@ describe("D1 identity and development fixtures", () => {
   let directory: string;
   let db: Db;
   before(async () => {
-    directory = await mkdtemp(join(tmpdir(), "openhouse26-auth-test-"));
+    directory = await mkdtemp(join(tmpdir(), "openhouse-auth-test-"));
     const configPath = join(directory, "wrangler.json");
     await writeFile(
       configPath,
       JSON.stringify({
-        name: "openhouse26-auth-test",
+        name: "openhouse-auth-test",
         compatibility_date: "2027-10-06",
         d1_databases: [{ binding: "DB", database_name: "auth-test" }],
       }),

@@ -1,7 +1,7 @@
 import type { Cookies } from "@sveltejs/kit";
 import { getTimeGateSnapshot } from "#lib/constants/time.ts";
 
-export const MOCK_NOW_COOKIE = "openhouse26-mock-now";
+export const MOCK_NOW_COOKIE = "openhouse-mock-now";
 
 const mockCookieOptions = {
   path: "/",

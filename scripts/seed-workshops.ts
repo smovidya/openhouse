@@ -52,7 +52,7 @@ async function main() {
     throw new Error("Use --remote and --env together; omit both for local D1");
   }
   const statements = buildWorkshopSeedStatements();
-  const directory = await mkdtemp(join(tmpdir(), "openhouse26-workshop-seed-"));
+  const directory = await mkdtemp(join(tmpdir(), "openhouse-workshop-seed-"));
   try {
     const file = join(directory, "seed.sql");
     await writeFile(file, statements.join(";\n") + ";\n");

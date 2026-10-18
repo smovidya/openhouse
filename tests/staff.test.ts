@@ -122,7 +122,7 @@ describe("staff enrollment and checkpoint authorization on D1", () => {
   }
 
   before(async () => {
-    directory = await mkdtemp(join(tmpdir(), "openhouse26-staff-test-"));
+    directory = await mkdtemp(join(tmpdir(), "openhouse-staff-test-"));
     const configPath = join(directory, "wrangler.json");
     await writeFile(
       configPath,

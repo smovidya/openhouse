@@ -24,7 +24,7 @@ describe("atomic workshop registration on D1", () => {
   let event;
 
   beforeAll(async () => {
-    directory = await mkdtemp(join(tmpdir(), "openhouse26-workshops-"));
+    directory = await mkdtemp(join(tmpdir(), "openhouse-workshops-"));
     const configPath = join(directory, "wrangler.json");
     await writeFile(
       configPath,

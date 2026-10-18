@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "openhouse26",
+      "name": "openhouse",
       "dependencies": {
         "jose": "^6",
         "nanoid": "^6.0.2",
