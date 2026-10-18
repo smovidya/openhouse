@@ -3,7 +3,6 @@ export const BANGKOK_TIME_ZONE = "Asia/Bangkok";
 // Keep the explicit +07:00 offset in these values. They are configuration,
 // documentation, and frontend display data as well as comparison boundaries.
 export const EVENT_SCHEDULE = Object.freeze({
-  generalRegistrationOpensAt: "2026-10-20T12:00:00+07:00",
   workshopRegistrationOpensAt: "2026-10-20T18:00:00+07:00",
   // Exclusive boundary: registration remains open through 31 Oct at 23:59.
   workshopRegistrationClosesAt: "2026-11-01T00:00:00+07:00",
@@ -15,9 +14,6 @@ export type TimeGateSnapshot = ReturnType<typeof getTimeGateSnapshot>;
 
 export function getTimeGateSnapshot(now: Date, mocked = false) {
   const timestamp = now.getTime();
-  const generalRegistrationOpensAt = Date.parse(
-    EVENT_SCHEDULE.generalRegistrationOpensAt,
-  );
   const workshopRegistrationOpensAt = Date.parse(
     EVENT_SCHEDULE.workshopRegistrationOpensAt,
   );
@@ -33,8 +29,9 @@ export function getTimeGateSnapshot(now: Date, mocked = false) {
     mocked,
     schedule: EVENT_SCHEDULE,
     flags: {
-      signInOpen: timestamp >= generalRegistrationOpensAt,
-      generalRegistrationOpen: timestamp >= generalRegistrationOpensAt,
+      // General registration and sign-in have no scheduled opening time.
+      signInOpen: true,
+      generalRegistrationOpen: true,
       workshopRegistrationOpen:
         timestamp >= workshopRegistrationOpensAt &&
         timestamp < workshopRegistrationClosesAt,

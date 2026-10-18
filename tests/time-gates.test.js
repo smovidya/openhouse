@@ -41,15 +41,17 @@ class MemoryCookies {
 }
 
 describe("Bangkok time gates", () => {
-  it("opens general registration and sign-in at 20 Oct 2026 12:00", () => {
-    const before = getTimeGateSnapshot(
-      new Date("2026-10-20T11:59:59.999+07:00"),
-    );
-    const open = getTimeGateSnapshot(new Date("2026-10-20T12:00:00+07:00"));
-    assert.equal(before.flags.signInOpen, false);
-    assert.equal(before.flags.generalRegistrationOpen, false);
-    assert.equal(open.flags.signInOpen, true);
-    assert.equal(open.flags.generalRegistrationOpen, true);
+  it("keeps sign-in and general registration open regardless of the clock", () => {
+    for (const now of [
+      "2026-10-01T00:00:00+07:00",
+      "2026-10-20T12:00:00+07:00",
+      "2026-11-02T00:00:00+07:00",
+    ]) {
+      const gates = getTimeGateSnapshot(new Date(now));
+      assert.equal(gates.flags.signInOpen, true);
+      assert.equal(gates.flags.generalRegistrationOpen, true);
+      assert.equal("generalRegistrationOpensAt" in gates.schedule, false);
+    }
   });
 
   it("opens workshops at 20 Oct 18:00 and closes at 1 Nov 00:00", () => {

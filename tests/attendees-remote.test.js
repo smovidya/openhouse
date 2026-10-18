@@ -6,6 +6,7 @@ import { err, ok } from "neverthrow";
 let user;
 let mockNow;
 const getAttendeeProfile = mock();
+const getActiveAttendeeByUserId = mock();
 const createAttendeeProfile = mock();
 const generateQrCode = mock();
 const command = mock((_schema, handler) => handler);
@@ -26,6 +27,7 @@ mock.module("$app/env", () => ({
 }));
 mock.module("nanoid", () => ({ customAlphabet: () => generateQrCode }));
 mock.module("../src/lib/features/attendees/service.server", () => ({
+  getActiveAttendeeByUserId,
   getAttendeeProfile,
   createAttendeeProfile,
 }));
@@ -80,6 +82,8 @@ beforeEach(() => {
   user = { id: "signed-in-user" };
   mockNow = "2026-10-21T00:00:00.000Z";
   getAttendeeProfile.mockReset();
+  getActiveAttendeeByUserId.mockReset();
+  getActiveAttendeeByUserId.mockResolvedValue(err("ATTENDEE_NOT_FOUND"));
   createAttendeeProfile.mockReset();
   generateQrCode.mockReset();
   generateQrCode.mockReturnValue("ABCDE");
@@ -133,14 +137,13 @@ it("reports an insert error without retrying the write", async () => {
   assert.equal(createAttendeeProfile.mock.calls.length, 1);
 });
 
-it("returns a closed-gate result before accessing profiles", async () => {
-  mockNow = "2026-10-20T04:59:59.999Z";
-
+it("allows general registration before the former opening date", async () => {
+  mockNow = "2026-10-19T00:00:00.000Z";
+  getAttendeeProfile.mockResolvedValue(ok(undefined));
+  createAttendeeProfile.mockResolvedValue(ok({ id: "profile" }));
   const result = await selfRegisterAttendee(input);
-  assert.equal(result.isErr(), true);
-  assert.equal(result._unsafeUnwrapErr(), "GENERAL_REGISTRATION_NOT_OPEN");
-  assert.equal(getAttendeeProfile.mock.calls.length, 0);
-  assert.equal(createAttendeeProfile.mock.calls.length, 0);
+  assert.equal(result.isOk(), true);
+  assert.equal(createAttendeeProfile.mock.calls.length, 1);
 });
 
 it("requires a signed-in user before accessing profiles", async () => {
@@ -150,5 +153,23 @@ it("requires a signed-in user before accessing profiles", async () => {
     isHttpError(cause, 401),
   );
   assert.equal(getAttendeeProfile.mock.calls.length, 0);
+  assert.equal(createAttendeeProfile.mock.calls.length, 0);
+});
+
+it("does not create a second profile for a returning attendee", async () => {
+  getActiveAttendeeByUserId.mockResolvedValue(ok({ id: "existing-profile" }));
+  const result = await selfRegisterAttendee(input);
+  assert.equal(result._unsafeUnwrapErr(), "ALREADY_REGISTERED");
+  assert.deepEqual(getActiveAttendeeByUserId.mock.calls, [[user.id]]);
+  assert.equal(getAttendeeProfile.mock.calls.length, 0);
+  assert.equal(createAttendeeProfile.mock.calls.length, 0);
+});
+
+it("does not create a profile when the existing-profile check fails", async () => {
+  getActiveAttendeeByUserId.mockResolvedValue(
+    err("FETCH_ATTENDEE_PROFILE_FAILED"),
+  );
+  const result = await selfRegisterAttendee(input);
+  assert.equal(result._unsafeUnwrapErr(), "FETCH_ATTENDEE_PROFILE_FAILED");
   assert.equal(createAttendeeProfile.mock.calls.length, 0);
 });

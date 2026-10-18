@@ -2,7 +2,6 @@
 // Pass schemas from ./schemas directly to SvelteKit's query/form/command.
 // Implement identity and access checks before exposing profile operations.
 
-import { dev } from "$app/env";
 import { command, getRequestEvent, query } from "$app/server";
 import { error } from "@sveltejs/kit";
 import z from "zod";
@@ -18,7 +17,6 @@ import {
   requireUser,
 } from "../auth/guards.server";
 import { err, ok, safeTry } from "neverthrow";
-import { getRequestTimeGates } from "../time/time.server";
 import { registrationSchema } from "#lib/registration/schema.ts";
 
 export const getAttendeeProfileByQrCodeId = query(
@@ -43,11 +41,6 @@ export const selfRegisterAttendee = command(
   async (input) => {
     const { locals } = getRequestEvent();
     const user = requireUser(locals.user);
-    if (
-      !getRequestTimeGates(getRequestEvent().cookies, dev).flags
-        .generalRegistrationOpen
-    )
-      return err("GENERAL_REGISTRATION_NOT_OPEN" as const);
 
     // One registration per user: a resubmit (double click, back button) must not create a second
     // attendee with a second QR code.

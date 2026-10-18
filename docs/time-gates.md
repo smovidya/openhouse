@@ -4,13 +4,16 @@ All configured times use `Asia/Bangkok` (`UTC+07:00`). The server evaluates
 the flags, and mutation endpoints enforce them even when the frontend is
 bypassed.
 
-| Gate                                  | Bangkok time              | Behavior                                                                        |
-| ------------------------------------- | ------------------------- | ------------------------------------------------------------------------------- |
-| General registration and sign-in open | 20 Oct 2026, 12:00        | Google sign-in, development sign-in, and attendee registration become available |
-| Workshop registration opens           | 20 Oct 2026, 18:00        | Attendees can register for workshops                                            |
-| Workshop registration closes          | End of 31 Oct 2026, 23:59 | The exclusive code boundary is 1 Nov 2026, 00:00                                |
-| Event starts                          | 31 Oct 2026, 13:00        | `eventInProgress` becomes true                                                  |
-| Event ends                            | 1 Nov 2026, 18:00         | `eventEnded` becomes true                                                       |
+| Gate                         | Bangkok time              | Behavior                                         |
+| ---------------------------- | ------------------------- | ------------------------------------------------ |
+| Workshop registration opens  | 20 Oct 2026, 18:00        | Attendees can register for workshops             |
+| Workshop registration closes | End of 31 Oct 2026, 23:59 | The exclusive code boundary is 1 Nov 2026, 00:00 |
+| Event starts                 | 31 Oct 2026, 13:00        | `eventInProgress` becomes true                   |
+| Event ends                   | 1 Nov 2026, 18:00         | `eventEnded` becomes true                        |
+
+Google sign-in and general registration are open immediately, with no opening
+date. `signInOpen` and `generalRegistrationOpen` remain `true` for existing API
+consumers.
 
 The confirmed workshop deadline falls after the event starts on 31 October.
 
@@ -64,13 +67,10 @@ consumer. Pass an RFC 3339 timestamp with an explicit offset. Reloading the
 page preserves the mocked time. `clearMockTime()` returns the browser to the
 real clock.
 
-When closed, attendee and workshop commands return neverthrow errors:
+When closed, workshop commands return neverthrow errors:
 
-- `GENERAL_REGISTRATION_NOT_OPEN`
 - `WORKSHOP_REGISTRATION_NOT_OPEN`
 - `WORKSHOP_REGISTRATION_CLOSED`
-
-Sign-in commands reject with `SIGN_IN_NOT_OPEN`.
 
 ## Workshop unregistration
 

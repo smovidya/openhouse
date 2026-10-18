@@ -41,7 +41,6 @@
 
 	type Step = "info" | "pdpa";
 	type RegistrationError =
-		| "GENERAL_REGISTRATION_NOT_OPEN"
 		| "FETCH_ATTENDEE_PROFILE_FAILED"
 		| "CREATE_ATTENDEE_PROFILE_FAILED";
 
@@ -99,8 +98,6 @@
 
 	function registrationErrorMessage(code: RegistrationError) {
 		switch (code) {
-			case "GENERAL_REGISTRATION_NOT_OPEN":
-				return "ยังไม่เปิดรับลงทะเบียนทั่วไป";
 			case "FETCH_ATTENDEE_PROFILE_FAILED":
 			case "CREATE_ATTENDEE_PROFILE_FAILED":
 				return "ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง";

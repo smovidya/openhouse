@@ -15,7 +15,6 @@
  let now = $state("");
  let gates = $state<TimeGateSnapshot>();
  const presets = [
-  ["General registration opens", EVENT_SCHEDULE.generalRegistrationOpensAt],
   ["Workshops open", EVENT_SCHEDULE.workshopRegistrationOpensAt],
   ["Workshops close", EVENT_SCHEDULE.workshopRegistrationClosesAt],
   ["Event starts", EVENT_SCHEDULE.eventStartsAt],
@@ -71,9 +70,6 @@
     fakeLoggedIn.current = false;
    }, "Signed out")}>Sign out</button>
   </div>
-  {#if gates && !gates.flags.signInOpen}
-   <p class="hint">Sign-in gate is closed. Set the clock to registration opening before creating a session.</p>
-  {/if}
  </fieldset>
 
  <fieldset disabled={busy}>
