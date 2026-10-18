@@ -252,6 +252,41 @@ duplicate Google IDs, reconcile those accounts before applying it; the migration
 intentionally fails rather than deleting data. No production resources or secrets
 are created by the local setup.
 
+### Cloud previews
+
+Named previews use the separate `openhouse27-dev` cloud D1 database through
+`env.production.previews` in `wrangler.jsonc`. The `DB` binding and Google client
+ID are configured explicitly for previews. Authentication uses a separate
+`AUTH_JWT_SECRET` stored in the Preview base configuration; newly created
+previews receive that secret.
+
+Before the first preview, configure a 64-character hexadecimal signing secret
+with `bun run preview:secret`, then apply the development database migrations:
+
+```sh
+bun run db:migrate:preview
+bun run deploy:preview
+```
+
+The named `dev` preview is served at `https://dev.scichulaopenhouse.com` once the
+existing custom domain's `previews_enabled` setting is applied in Cloudflare.
+Register this exact origin in Google Cloud for Google sign-in. These are
+production builds, so development login fixtures and the developer toolbar
+remain disabled.
+
+For another preview name, build and run
+`bunx wrangler preview --env production --name feature-name`.
+All named previews share the development database. Keep
+`wrangler.preview-migrations.jsonc` pointed at the same database ID as
+`env.production.previews.d1_databases`; its separate configuration is necessary
+because D1 migration commands read top-level bindings.
+
+`bun run preview` continues to serve the production build locally.
+
+References: [Preview configuration](https://developers.cloudflare.com/workers/previews/configuration/),
+[D1 preview migrations](https://developers.cloudflare.com/workers/previews/resources/#d1-migrations),
+and [custom preview domains](https://developers.cloudflare.com/workers/previews/custom-domains/).
+
 ## Staff enrollment and permissions
 
 Staff permissions are a deduplicated JSON array in `staffs.permission`. The five
