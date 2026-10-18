@@ -60,7 +60,7 @@
   <p>{page.data.session?.user.name ?? "Signed out"}</p>
   <p class="hint">{page.data.session?.user.role ?? "Guest"} · server session</p>
   <div class="actions">
-   {#each ["attendee", "staff"] as const as profile (profile)}
+   {#each ["attendee", "newcomer", "staff"] as const as profile (profile)}
     <button type="button" onclick={() => run(async () => {
      await createDevSession({ profile });
      fakeLoggedIn.current = false;

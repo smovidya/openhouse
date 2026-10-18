@@ -6,7 +6,9 @@ export const googleSignInInput = z.strictObject({
 });
 
 export const devSessionInput = z.strictObject({
-  profile: z.enum(["attendee", "staff"]),
+  // attendee: registered (has an attendee profile); newcomer: signed in but not registered yet;
+  // staff: a staff member.
+  profile: z.enum(["attendee", "newcomer", "staff"]),
 });
 
 export type DevProfile = z.infer<typeof devSessionInput>["profile"];

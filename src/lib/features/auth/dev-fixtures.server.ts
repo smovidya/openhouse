@@ -20,9 +20,17 @@ export async function ensureDevFixture(
       googleId: `__development__:${profile}`,
       email: `${profile}@example.invalid`,
       name: `Development ${profile}`,
-      role: profile,
+      role: profile === "staff" ? "staff" : "attendee",
     })
     .onConflictDoNothing();
+
+  // A newcomer is an attendee user who hasn't filled in the registration form yet.
+  if (profile === "newcomer") {
+    await insertUser;
+    const user = await findSessionUser(db, id);
+    if (!user) error(403, "This development account is unavailable");
+    return user;
+  }
 
   const insertProfile =
     profile === "attendee"
