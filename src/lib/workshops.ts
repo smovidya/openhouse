@@ -1,12 +1,8 @@
-/** Room size groups from the schedule; up to one workshop per room at a time. */
-export type WorkshopRoom = "M1" | "M2" | "L1" | "L2";
-
 export type WorkshopSession = {
   id: string;
   /** ISO 8601 with offset, e.g. 2026-10-31T13:00:00+07:00 */
   start: string;
   end: string;
-  room: WorkshopRoom;
   registered: number;
   capacity: number;
 };
@@ -50,35 +46,39 @@ export function sessionsByDay(sessions: WorkshopSession[]) {
   return [...days].map(([day, sessions]) => ({ day, sessions }));
 }
 
-// Source: "[OPH2027] อัปเดตตาราง Workshop.pdf" (organizers' schedule). Every session is one hour.
+// Source: "เนื้อหา Workshop [Science Chula Open House 2027]" (organizers' latest content sheet;
+// it supersedes the earlier "[OPH2027] อัปเดตตาราง Workshop.pdf"). Every session is one hour.
 // TODO: move into D1 (workshops / workshop_time_slots) once the backend reads from it.
 const DAYS = { sat: "2026-10-31", sun: "2026-11-01" } as const;
 
-type Slot = [day: keyof typeof DAYS, start: string, room: WorkshopRoom];
+type Slot = [day: keyof typeof DAYS, start: string];
 
-function workshop(
-  id: string,
-  title: string,
-  hostDepartmentAbbr: string,
-  hostDepartment: string,
-  capacity: number,
-  slots: Slot[],
-): Workshop {
+function workshop({
+  id,
+  title,
+  hostDepartmentAbbr,
+  hostDepartment,
+  description = "",
+  capacity,
+  slots,
+}: Omit<Workshop, "sessions" | "description"> & {
+  description?: string;
+  slots: Slot[];
+}): Workshop {
   return {
     id,
     title,
     hostDepartment,
     hostDepartmentAbbr,
-    description: "",
+    description,
     capacity,
-    sessions: slots.map(([day, start, room]) => {
+    sessions: slots.map(([day, start]) => {
       const [hour, minute] = start.split(":");
       const end = `${String(Number(hour) + 1).padStart(2, "0")}:${minute}`;
       return {
         id: `${id}-${day}-${hour}${minute}`,
         start: `${DAYS[day]}T${start}:00+07:00`,
         end: `${DAYS[day]}T${end}:00+07:00`,
-        room,
         // TODO: live counts from workshop_registrations.
         registered: 0,
         capacity,
@@ -88,100 +88,144 @@ function workshop(
 }
 
 export const workshops: Workshop[] = [
-  workshop("perfume", "น้ำหอม", "BSAC & Chem", "เคมีประยุกต์ และเคมี", 15, [
-    ["sat", "13:00", "M1"],
-    ["sat", "16:45", "M1"],
-    ["sun", "09:00", "M1"],
-    ["sun", "12:45", "M1"],
-  ]),
-  workshop(
-    "cookie-leavening",
-    "อบคุ้กกี้ เทียบความแตกต่างของผงฟู และ baking soda",
-    "FOODTECH",
-    "เทคโนโลยีทางอาหาร",
-    10,
-    [
-      ["sat", "13:00", "M2"],
-      ["sat", "14:15", "M2"],
-      ["sat", "15:30", "M2"],
-      ["sat", "16:45", "M2"],
-      ["sun", "09:00", "M2"],
-      ["sun", "10:15", "M2"],
-      ["sun", "11:30", "M2"],
-      ["sun", "12:45", "M2"],
+  workshop({
+    id: "geologic-map",
+    title: "สำรวจเกาะ เจาะแผนที่",
+    hostDepartmentAbbr: "GEO",
+    hostDepartment: "ธรณีวิทยา",
+    description:
+      "กิจกรรมสร้างแผนที่ธรณีวิทยาจากข้อมูลสำรวจ กิจกรรมนี้รับน้องทั้งหมด 20 คน โดยจะแบ่งออกเป็น 5 กลุ่ม กลุ่มละ 4 คน น้องๆ จะได้สวมบทบาทเป็นนักธรณีวิทยาตัวจิ๋ว จำลองการออกภาคสนาม โดยน้องๆ จะเวียนฐานกันไปสำรวจหรือศึกษาหินที่จัดเตรียมไว้ ใช้เวลาฐานละ 7 นาที พี่ประจำฐานจะสอนการจำแนกหินเบื้องต้น การวางตัวของชั้นหินให้กับน้องๆ และจดข้อมูลไว้ในกระดาษที่แจกให้ จากนั้นนำข้อมูลแต่ละจุดที่ได้มาจัดทำเป็นแผนที่ธรณีวิทยาอย่างง่าย",
+    capacity: 20,
+    slots: [
+      ["sat", "13:00"],
+      ["sat", "14:15"],
+      ["sat", "15:30"],
+      ["sat", "16:45"],
+      ["sun", "09:00"],
+      ["sun", "11:30"],
+      ["sun", "14:00"],
+      ["sun", "15:15"],
     ],
-  ),
-  workshop("geologic-map", "ทำแผนที่ธรณีวิทยา", "GEO", "ธรณีวิทยา", 20, [
-    ["sat", "13:00", "L1"],
-    ["sat", "14:15", "L1"],
-    ["sat", "15:30", "L1"],
-    ["sat", "16:45", "L1"],
-    ["sun", "09:00", "L1"],
-    ["sun", "11:30", "L1"],
-    ["sun", "14:00", "L1"],
-    ["sun", "15:15", "L1"],
-  ]),
-  workshop(
-    "matsci-beads",
-    "เม็ดบีทรีดร้อนผจญภัยแสนสนุก",
-    "MATSCI",
-    "วัสดุศาสตร์",
-    20,
-    [
-      ["sat", "13:00", "L2"],
-      ["sat", "15:30", "L2"],
-      ["sun", "09:00", "L2"],
-      ["sun", "11:30", "L2"],
+  }),
+  workshop({
+    id: "dna-extraction",
+    title: "สกัด DNA",
+    hostDepartmentAbbr: "BIOCHEM",
+    hostDepartment: "ชีวเคมี",
+    // TODO: description not submitted yet ("ยังไม่กรอก").
+    capacity: 15,
+    slots: [
+      ["sat", "15:30"],
+      ["sun", "11:30"],
     ],
-  ),
-  workshop(
-    "codon-code",
-    "กำไล/พวงกุญแจ codon code",
-    "BBTech",
-    "เทคโนโลยีชีวภาพ (นานาชาติ)",
-    15,
-    [
-      ["sat", "14:15", "M1"],
-      ["sat", "18:00", "M1"],
-      ["sun", "10:15", "M1"],
-      ["sun", "14:00", "M1"],
+  }),
+  workshop({
+    id: "little-beads",
+    title: "Little Beads, Big Ideas",
+    hostDepartmentAbbr: "MATSCI",
+    hostDepartment: "วัสดุศาสตร์",
+    description:
+      "เม็ดบีทรีดร้อน (Little Beads, Big Ideas) ใช้ลูกปัดที่เป็นวัสดุพอลิเมอร์มาจัดเรียงให้ได้พวงกุญแจตามรูปร่างที่กำหนดไว้ จากนั้นใช้ความร้อนรีดจนเม็ดลูกปัดหลอมติดกันเป็นรูปที่ต้องการ",
+    capacity: 20,
+    slots: [
+      ["sat", "13:00"],
+      ["sat", "15:30"],
+      ["sun", "09:00"],
+      ["sun", "11:30"],
     ],
-  ),
-  workshop(
-    "stress-ball",
-    "ลูกบอลคลายเครียด (stress ball) & กระดาษหด (shrink plastic)",
-    "BISTECH",
-    "Industrial Science and Technology (International Program)",
-    20,
-    [
-      ["sat", "14:15", "L2"],
-      ["sat", "18:00", "L2"],
-      ["sun", "10:15", "L2"],
-      ["sun", "12:45", "L2"],
+  }),
+  workshop({
+    id: "mushroom-culture",
+    title: "Mushroom culture",
+    hostDepartmentAbbr: "MICRO",
+    hostDepartment: "จุลชีววิทยา",
+    description:
+      "กิจกรรมที่ให้ผู้เข้าร่วมเรียนรู้กระบวนการเพาะเห็ดเบื้องต้น ผู้เข้าร่วมจะได้ศึกษาลักษณะของเห็ดและเส้นใยเห็ดพร้อมลงมือปฏิบัติผ่าเห็ดจริง",
+    capacity: 15,
+    slots: [
+      ["sun", "10:15"],
+      ["sun", "12:45"],
+      ["sun", "14:00"],
+      ["sun", "15:15"],
     ],
-  ),
-  workshop("dna-extraction", "สกัด DNA", "BIOCHEM", "ชีวเคมี", 15, [
-    ["sat", "15:30", "M1"],
-    ["sun", "11:30", "M1"],
-  ]),
-  // The schedule spells it "Muncell".
-  workshop(
-    "munsell-hue-test",
-    "Munsell 100 Hue Test",
-    "Imprint",
-    "เทคโนโลยีทางภาพและการพิมพ์",
-    15,
-    [
-      ["sat", "16:45", "L2"],
-      ["sun", "14:00", "M2"],
+  }),
+  workshop({
+    id: "art-meet-sci",
+    title: "Art Meet Sci",
+    hostDepartmentAbbr: "IMPRINT",
+    hostDepartment: "เทคโนโลยีทางภาพและการพิมพ์",
+    description:
+      "กิจกรรมเรียนรู้เกี่ยวกับเม็ดสีจากธรรมชาติ (Natural Pigment) และแหล่งที่มา เช่น หิน แร่ธาตุ พืช และสัตว์ ที่ถูกนำมาใช้ตั้งแต่อดีตจนถึงปัจจุบัน โดยให้น้อง ๆ เลือก Pigment ที่จัดเตรียมไว้ นำไปผสมกับเรซินตามสัดส่วน แล้วนำมา ผสมกับเม็ดสีที่ผ่านการบดละเอียด ก่อนนำสีที่ได้ไประบายลงบนภาพ เพื่อสร้างสรรค์ผลงาน ตามจินตนาการของตนเอง",
+    capacity: 15,
+    slots: [
+      ["sat", "16:45"],
+      ["sun", "14:00"],
     ],
-  ),
-  workshop("streak-plate", "Streak Plate", "MICRO", "จุลชีววิทยา", 15, [
-    ["sun", "10:15", "L1"],
-    ["sun", "12:45", "L1"],
-    ["sun", "14:00", "L2"],
-    ["sun", "15:15", "L2"],
-  ]),
+  }),
+  workshop({
+    id: "behind-the-cookies",
+    title: "Behide the Cookies!",
+    hostDepartmentAbbr: "FOODTECH",
+    hostDepartment: "เทคโนโลยีทางอาหาร",
+    description:
+      "กิจกรรมนี้มุ่งเน้นให้ผู้เข้าร่วมได้เรียนรู้และเข้าใจถึงความเชื่อมโยงระหว่างกระบวนการทำคุกกี้กับองค์ความรู้ด้านวิทยาศาสตร์และเทคโนโลยีการอาหาร (Food Science and Technology) อย่างเป็นระบบ ผ่านการบูรณาการ 3 สาขาวิชาหลัก ได้แก่ วิศวกรรมและการแปรรูปอาหาร (Food Processing), เคมีอาหาร (Food Chemistry) และจุลชีววิทยาอาหาร (Food Microbiology) เพื่อให้ผู้เข้าร่วมเห็นภาพว่าการอบคุกกี้ไม่ใช่เพียงการทำเบเกอรี่ แต่มียุทธศาสตร์ทางวิทยาศาสตร์แฝงอยู่ในทุกขั้นตอน",
+    capacity: 10,
+    slots: [
+      ["sat", "13:00"],
+      ["sat", "14:15"],
+      ["sat", "15:30"],
+      ["sat", "16:45"],
+      ["sun", "09:00"],
+      ["sun", "10:15"],
+      ["sun", "11:30"],
+      ["sun", "12:45"],
+    ],
+  }),
+  workshop({
+    id: "perfume",
+    title: "Perfume",
+    hostDepartmentAbbr: "BSAC & CHEM",
+    hostDepartment: "หลักสูตรเคมีประยุกต์ และภาควิชาเคมี",
+    description:
+      "กิจกรรมนี้เปิดโอกาสให้น้อง ๆ ได้เรียนรู้เรื่อง โครงสร้างของกลิ่นในน้ำหอม (Top, Middle และ Base note) ผ่านการทดลองดมกลิ่น การทายประเภทของกลิ่น และการผสมกลิ่น เพื่อสร้างน้ำหอมสูตรของตนเอง น้อง ๆ จะได้สังเกตการเปลี่ยนแปลงของกลิ่นตามเวลา พร้อมเชื่อมโยงกับหลักการทางเคมีเรื่องการระเหยและคุณสมบัติของสาร ที่ให้กลิ่น",
+    capacity: 15,
+    slots: [
+      ["sat", "13:00"],
+      ["sat", "16:45"],
+      ["sun", "09:00"],
+      ["sun", "12:45"],
+    ],
+  }),
+  workshop({
+    id: "dna-bracelet",
+    title: "กำไลข้อมือ DNA",
+    hostDepartmentAbbr: "BBTech",
+    hostDepartment: "หลักสูตรเทคโนโลยีชีวภาพ",
+    description:
+      "ผู้เข้าร่วมจะได้สะกดชื่อตัวเองเป็นรหัส DNA โดยใช้ลูกปัด 4 สีแทนเบส A, T, C และ G ซึ่งเบส 3 ตัวเรียงกัน (codon) จะแทนตัวอักษร 1 ตัวตามตารางรหัส (เช่น P = ATG) จากนั้นร้อยลูกปัดตามรหัสของแต่ละตัวอักษรจนครบชื่อ แล้วนำไปทำเป็นสร้อยข้อมือหรือพวงกุญแจ",
+    capacity: 15,
+    slots: [
+      ["sat", "13:00"],
+      ["sat", "18:00"],
+      ["sun", "10:15"],
+      ["sun", "14:00"],
+    ],
+  }),
+  workshop({
+    id: "shrink-plastic",
+    title: "พวงกุญแจ shrink plastic",
+    hostDepartmentAbbr: "BISTECH",
+    hostDepartment: "หลักสูตรวิทยาศาสตร์และเทคโนโลยีอุตสาหการ",
+    description:
+      "กิจกรรมพวงกุญแจ shrink plastic เป็นการวาดรูปลงบนแผ่นพลาสติกและนำไปอบ จากแผ่นพลาสติกบางๆจะหดตัวลง ทำให้หนาและแข็งแรงขึ้น ผู้เข้าร่วมจะได้ทำพวงกุญแจ diy เป็นของตัวเองและนำกลับบ้านได้",
+    capacity: 20,
+    slots: [
+      ["sat", "14:15"],
+      ["sat", "18:00"],
+      ["sun", "10:15"],
+      ["sun", "12:45"],
+    ],
+  }),
 ];
 
 /** Session ids the signed-in attendee booked. TODO: from workshop_registrations. */
