@@ -19,10 +19,10 @@
 ## 28 Oct
 
 - myid (เสร็จ)
+  - prize
 - staff
 - registration: ใส่ invite code
 - qrcode page
-- prize
 - certification
 
 ## 30 Oct
@@ -37,6 +37,7 @@
 - workshop data (เต็ม)
 - รางวัล
 
-# design
+# todo
 
 - background loop static render
+- userId index
