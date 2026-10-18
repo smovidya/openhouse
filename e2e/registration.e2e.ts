@@ -3,15 +3,14 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 // Registration flow: sign-in → registration form → PDPA → /myid, and the registration guard.
-// Runs against the local D1. The dev "staff" fixture user has no attendee profile, so it plays the
-// unregistered visitor; its attendee row is removed before and after so the spec can re-run.
+// Runs against the local D1. The dev "newcomer" fixture is signed in but not registered, so it
+// plays the new visitor; its attendee row is removed before and after so the spec can re-run.
+const NEWCOMER_USER = "dev-user-newcomer";
 
-const STAFF_USER = "dev-user-staff";
-
-function resetStaffRegistration() {
+function resetNewcomerRegistration() {
   const sql = [
-    `DELETE FROM workshop_registrations WHERE attendee_id IN (SELECT id FROM attendees WHERE user_id = '${STAFF_USER}')`,
-    `DELETE FROM attendees WHERE user_id = '${STAFF_USER}'`,
+    `DELETE FROM workshop_registrations WHERE attendee_id IN (SELECT id FROM attendees WHERE user_id = '${NEWCOMER_USER}')`,
+    `DELETE FROM attendees WHERE user_id = '${NEWCOMER_USER}'`,
   ].join("; ");
   // Wrangler's own script under Node, without a shell, so the SQL reaches it as one argument.
   const wrangler = join(
@@ -37,7 +36,10 @@ async function open(page: Page, path: string) {
 }
 
 /** Sign in as a dev fixture via the dev toolbar, with the clock past the registration gate. */
-async function signInAs(page: Page, profile: "attendee" | "staff") {
+async function signInAs(
+  page: Page,
+  profile: "attendee" | "newcomer" | "staff",
+) {
   await open(page, "/");
   const toggle = page.getByRole("button", { name: /DEV/ });
   await toggle.click();
@@ -66,8 +68,8 @@ async function pick(page: Page, placeholder: string, option: string) {
 }
 
 test.describe.configure({ mode: "serial" });
-test.beforeAll(resetStaffRegistration);
-test.afterAll(resetStaffRegistration);
+test.beforeAll(resetNewcomerRegistration);
+test.afterAll(resetNewcomerRegistration);
 
 test("a registered user skips the form for /myid", async ({ page }) => {
   await signInAs(page, "attendee");
@@ -77,7 +79,7 @@ test("a registered user skips the form for /myid", async ({ page }) => {
 });
 
 test("an unregistered user registers and lands on /myid", async ({ page }) => {
-  await signInAs(page, "staff");
+  await signInAs(page, "newcomer");
 
   // Unregistered: every attendee page leads to the form.
   await open(page, "/myid");
