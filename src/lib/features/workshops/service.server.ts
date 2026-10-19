@@ -8,69 +8,96 @@ import { env } from "cloudflare:workers";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { err, ok, ResultAsync } from "neverthrow";
 
-export const listWorkshops = () => {
+/** Read all rounds and their active counts in one query, including empty rounds. */
+const readWorkshops = (slug?: string) => {
   const db = getDb(env.DB);
-  return ResultAsync.fromPromise(
-    db.query.workshops.findMany({
-      columns: {
-        slug: true,
-        title: true,
-        hostDepartment: true,
-        hostDepartimentAbbr: true,
-        description: true,
-        capacity: true,
-      },
-      with: {
-        timeSlots: {
-          columns: {
-            roundNumber: true,
-            startsAt: true,
-            endsAt: true,
-          },
-          orderBy: {
-            roundNumber: "asc",
-          },
-        },
-      },
-    }),
+  const { workshops, workshopTimeSlots, workshopRegistrations } = tables;
+  return db
+    .select({
+      slug: workshops.slug,
+      title: workshops.title,
+      hostDepartment: workshops.hostDepartment,
+      hostDepartimentAbbr: workshops.hostDepartimentAbbr,
+      description: workshops.description,
+      capacity: workshops.capacity,
+      slotId: workshopTimeSlots.id,
+      roundNumber: workshopTimeSlots.roundNumber,
+      startsAt: workshopTimeSlots.startsAt,
+      endsAt: workshopTimeSlots.endsAt,
+      registeredCount: sql<number>`(
+      SELECT count(*) FROM ${workshopRegistrations}
+      WHERE ${workshopRegistrations.workshopTimeSlotId} = ${workshopTimeSlots.id}
+        AND ${workshopRegistrations.deletedAt} IS NULL
+    )`.mapWith(Number),
+    })
+    .from(workshops)
+    .leftJoin(
+      workshopTimeSlots,
+      and(
+        eq(workshopTimeSlots.workshopId, workshops.id),
+        isNull(workshopTimeSlots.deletedAt),
+      ),
+    )
+    .where(
+      and(
+        isNull(workshops.deletedAt),
+        slug === undefined ? undefined : eq(workshops.slug, slug),
+      ),
+    )
+    .orderBy(asc(workshops.slug), asc(workshopTimeSlots.roundNumber));
+};
+
+type WorkshopRow = Awaited<ReturnType<typeof readWorkshops>>[number];
+function groupWorkshops(rows: WorkshopRow[]) {
+  type Round = {
+    roundNumber: number;
+    startsAt: Date;
+    endsAt: Date;
+    registeredCount: number;
+  };
+  const grouped = new Map<
+    string,
+    Omit<
+      WorkshopRow,
+      "slotId" | "roundNumber" | "startsAt" | "endsAt" | "registeredCount"
+    > & { timeSlots: Round[] }
+  >();
+  for (const {
+    slotId,
+    roundNumber,
+    startsAt,
+    endsAt,
+    registeredCount,
+    ...workshop
+  } of rows) {
+    let entry = grouped.get(workshop.slug);
+    if (!entry) {
+      entry = { ...workshop, timeSlots: [] };
+      grouped.set(workshop.slug, entry);
+    }
+    if (slotId && roundNumber !== null && startsAt && endsAt) {
+      entry.timeSlots.push({ roundNumber, startsAt, endsAt, registeredCount });
+    }
+  }
+  return [...grouped.values()];
+}
+
+export const listWorkshops = () =>
+  ResultAsync.fromPromise(
+    readWorkshops(),
     () => "FETCH_WORKSHOPS_FAILED" as const,
-  ).map((workshops) =>
-    workshops.map(({ timeSlots, ...workshop }) => ({
+  ).map((rows) =>
+    groupWorkshops(rows).map(({ timeSlots, ...workshop }) => ({
       ...workshop,
       timeslots: timeSlots,
     })),
   );
-};
 
-export const getWorkshop = (where: { slug: string }) => {
-  const db = getDb(env.DB);
-  return ResultAsync.fromPromise(
-    db.query.workshops.findFirst({
-      columns: {
-        capacity: true,
-        description: true,
-        hostDepartment: true,
-        hostDepartimentAbbr: true,
-        slug: true,
-        title: true,
-      },
-      with: {
-        timeSlots: {
-          columns: {
-            roundNumber: true,
-            startsAt: true,
-            endsAt: true,
-          },
-          orderBy: {
-            roundNumber: "asc",
-          },
-        },
-      },
-      where: { slug: where.slug, deletedAt: { isNull: true } },
-    }),
+export const getWorkshop = (where: { slug: string }) =>
+  ResultAsync.fromPromise(
+    readWorkshops(where.slug),
     () => "FETCH_WORKSHOP_FAILED" as const,
-  );
-};
+  ).map((rows) => groupWorkshops(rows)[0]);
 
 export const getWorkshopRegistrationsByAttendeeId = (attendeeId: string) => {
   const db = getDb(env.DB);
@@ -83,6 +110,9 @@ export const getWorkshopRegistrationsByAttendeeId = (attendeeId: string) => {
         createdAt: workshopRegistrations.createdAt,
         workshopSlug: workshops.slug,
         workshopTitle: workshops.title,
+        department: workshops.hostDepartment,
+        departmentAbbr: workshops.hostDepartimentAbbr,
+        description: workshops.description,
         workshopRoundNumber: workshopTimeSlots.roundNumber,
         startsAt: workshopTimeSlots.startsAt,
         endsAt: workshopTimeSlots.endsAt,

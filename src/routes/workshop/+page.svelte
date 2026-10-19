@@ -1,9 +1,10 @@
 <script lang="ts">
 	import SignBoard from "#lib/components/sign-board.svelte";
 	import WorkshopListCard from "#lib/components/workshop-list-card.svelte";
-	import type { PageProps } from "./$types";
+	import { listWorkshops } from "#lib/features/workshops/workshops.remote.ts";
+	import { toWorkshop } from "#lib/workshops.ts";
 
-	let { data }: PageProps = $props();
+	const workshops = listWorkshops();
 </script>
 
 <svelte:head>
@@ -14,8 +15,16 @@
 	<SignBoard title="WORKSHOP" wide />
 
 	<section class="flex w-full flex-col gap-2">
-		{#each data.workshops as workshop (workshop.id)}
-			<WorkshopListCard {workshop} />
-		{/each}
+		{#if workshops.error || workshops.current?.isErr()}
+			<p class="text-status-red" role="alert">ไม่สามารถโหลดเวิร์กช็อปได้ กรุณาลองอีกครั้ง</p>
+		{:else if workshops.current?.isOk()}
+			{#each workshops.current.value as workshop (workshop.slug)}
+				<WorkshopListCard workshop={toWorkshop({ ...workshop, timeSlots: workshop.timeslots })} />
+			{:else}
+				<p class="text-brand-mist">ยังไม่มีเวิร์กช็อป</p>
+			{/each}
+		{:else}
+			<p class="text-brand-mist" role="status">กำลังโหลดเวิร์กช็อป...</p>
+		{/if}
 	</section>
 </main>

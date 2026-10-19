@@ -24,7 +24,7 @@ export const getWorkshopBySlug = query(
   async (slug: string) => workshopService.getWorkshop({ slug }),
 );
 
-export const getMyWorkshopRegistrations = query(() => {
+export const getMyWorkshopRegistrations = query(async () => {
   const user = requireUser(getRequestEvent().locals.user);
   return getActiveAttendeeByUserId(user.id).andThen((attendee) =>
     workshopService.getWorkshopRegistrationsByAttendeeId(attendee.id),
