@@ -5,6 +5,7 @@ import {
   sessionId,
   toBookedSession,
   toWorkshop,
+  workshopCheckInWindow,
 } from "../src/lib/workshops";
 import { workshopCatalog } from "../src/lib/data/workshops";
 
@@ -92,6 +93,17 @@ describe("workshop attendee rules", () => {
       sessionStatus(workshop.sessions[0], [registration]),
       "same-department",
     );
+  });
+
+  it("shows advance and onsite arrival windows with Bangkok dates", () => {
+    assert.deepEqual(workshopCheckInWindow(booked.start, "advance"), {
+      opensAt: "2026-10-31T12:45:00+07:00",
+      closesAt: "2026-10-31T12:55:00+07:00",
+    });
+    assert.deepEqual(workshopCheckInWindow(booked.start, "walk-in"), {
+      opensAt: "2026-10-31T12:55:00+07:00",
+      closesAt: "2026-10-31T13:00:00+07:00",
+    });
   });
 
   it("keeps the nine workshops inside the supplied daily hours and updates the papaya title", () => {

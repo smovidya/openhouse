@@ -1,4 +1,7 @@
-import { MIN_WORKSHOP_GAP_MINUTES } from "#lib/constants/workshops.ts";
+import {
+  MIN_WORKSHOP_GAP_MINUTES,
+  WORKSHOP_ADVANCE_CHECK_IN_MINUTES,
+} from "#lib/constants/workshops.ts";
 import { workshopCatalog } from "#lib/data/workshops.ts";
 
 export type WorkshopSession = {
@@ -186,3 +189,18 @@ export const toBookedSession = (registration: {
   start: toBangkokIso(registration.startsAt),
   end: toBangkokIso(registration.endsAt),
 });
+
+/** On-site arrival window, separate from online booking hours. */
+export function workshopCheckInWindow(
+  startsAt: string,
+  type: "advance" | "walk-in",
+) {
+  const start = Date.parse(startsAt);
+  const { opensBefore, closesBefore } = WORKSHOP_ADVANCE_CHECK_IN_MINUTES;
+  const opens = type === "advance" ? opensBefore : closesBefore;
+  const closes = type === "advance" ? closesBefore : 0;
+  return {
+    opensAt: toBangkokIso(new Date(start - opens * 60_000)),
+    closesAt: toBangkokIso(new Date(start - closes * 60_000)),
+  };
+}

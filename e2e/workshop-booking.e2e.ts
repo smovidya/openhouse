@@ -129,6 +129,7 @@ test("an attendee books workshops within the rules", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Little Beads, Big Ideas" }),
   ).toBeVisible();
+  await expect(page.getByText("เช็กอินล่วงหน้า 12:45–12:55 น.")).toBeVisible();
   await page.locator('a[href="/workshop/perfume"]').click();
   await expect(page).toHaveURL(/\/workshop\/perfume$/);
 

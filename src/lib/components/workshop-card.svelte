@@ -3,6 +3,7 @@
 		id: string;
 		/** The workshop's slug: the card links to its detail page (to cancel or change the round). */
 		slug: string;
+		type: "advance" | "walk-in";
 		title: string;
 		department: string;
 		description: string;
@@ -23,6 +24,7 @@
 </script>
 
 <script lang="ts">
+	import { workshopCheckInWindow } from "#lib/workshops.ts";
 	import calendarIcon from "#lib/assets/icons/calendar.svg";
 	import clockIcon from "#lib/assets/icons/clock.svg";
 	import Glass from "#lib/render/glass.svelte";
@@ -31,6 +33,7 @@
 
 	const start = $derived(new Date(workshop.start));
 	const end = $derived(new Date(workshop.end));
+	const checkIn = $derived(workshopCheckInWindow(workshop.start, workshop.type));
 </script>
 
 <a
@@ -51,6 +54,8 @@
 				</span>
 			</div>
 		</div>
+		<p class="text-xs text-brand-mist">เช็กอิน{workshop.type === "advance" ? "ล่วงหน้า" : " onsite"} {timeFormat.format(new Date(checkIn.opensAt))}–{timeFormat.format(new Date(checkIn.closesAt))} น.</p>
+		<p class="text-xs text-brand-mist">สแกน Check-In ส่วนกลางก่อน แล้วจึงเช็กอินที่จุด Workshop</p>
 		<p class="text-[10px] text-brand-sky">{workshop.department}</p>
 		<p class="line-clamp-4 text-xs text-brand-mist">{workshop.description}</p>
 	</Glass>

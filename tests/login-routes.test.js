@@ -5,6 +5,11 @@ import { err, ok } from "neverthrow";
 
 const getActiveAttendeeByUserId = mock();
 const getAttendeeProfile = mock();
+const getWorkshopRegistrationsByAttendeeId = mock();
+mock.module("$app/env", () => ({ dev: true }));
+mock.module("../src/lib/features/workshops/service.server.ts", () => ({
+  getWorkshopRegistrationsByAttendeeId,
+}));
 mock.module("../src/lib/features/attendees/service.server.ts", () => ({
   getActiveAttendeeByUserId,
   getAttendeeProfile,
@@ -13,12 +18,17 @@ mock.module("../src/lib/features/attendees/service.server.ts", () => ({
 const { GET: login } = await import("../src/routes/login/+server");
 const { load: register } = await import("../src/routes/register/+page.server");
 const { load: myid } = await import("../src/routes/myid/+page.server");
-const request = (user = null) => ({ locals: { user } });
+const request = (user = null) => ({
+  locals: { user },
+  cookies: { get: () => "2026-10-21T00:00:00.000Z" },
+});
 const redirectsTo = (location) => (cause) =>
   isRedirect(cause) && cause.status === 303 && cause.location === location;
 beforeEach(() => {
   getActiveAttendeeByUserId.mockReset();
   getAttendeeProfile.mockReset();
+  getWorkshopRegistrationsByAttendeeId.mockReset();
+  getWorkshopRegistrationsByAttendeeId.mockResolvedValue(ok([]));
 });
 
 describe("login before registration", () => {
@@ -77,11 +87,42 @@ describe("saved attendee identity", () => {
         deletedAt: null,
       }),
     );
-    assert.deepEqual(await myid(request({ id: "user" })), {
-      profile: { name: "Saved Attendee", code: "QWERT" },
-    });
+    const result = await myid(request({ id: "user" }));
+    assert.deepEqual(result.profile, { name: "Saved Attendee", code: "QWERT" });
+    assert.deepEqual(result.workshops, []);
+    assert.equal(result.advanceCount, 0);
     assert.deepEqual(getActiveAttendeeByUserId.mock.calls, [["user"]]);
     assert.deepEqual(getAttendeeProfile.mock.calls, [[{ id: "profile" }]]);
+  });
+  it("passes booking types and the current catalog description to My ID", async () => {
+    getActiveAttendeeByUserId.mockResolvedValue(ok({ id: "profile" }));
+    getAttendeeProfile.mockResolvedValue(
+      ok({
+        userId: "user",
+        firstname: "Test",
+        lastname: "Attendee",
+        qrCodeId: "QWERT",
+      }),
+    );
+    getWorkshopRegistrationsByAttendeeId.mockResolvedValue(
+      ok(
+        ["advance", "walk-in"].map((type, index) => ({
+          id: `booking-${index}`,
+          workshopSlug: "biochem-dna",
+          workshopTitle: "Papaya POK POK",
+          type,
+          startsAt: new Date("2026-10-31T15:30:00+07:00"),
+          endsAt: new Date("2026-10-31T16:30:00+07:00"),
+        })),
+      ),
+    );
+    const result = await myid(request({ id: "user" }));
+    assert.deepEqual(
+      result.workshops.map((workshop) => workshop.type),
+      ["advance", "walk-in"],
+    );
+    assert.equal(result.advanceCount, 1);
+    assert.ok(result.workshops[0].description.includes("มะละกอ"));
   });
   it("reports database failure instead of redirecting into a registration loop", async () => {
     getActiveAttendeeByUserId.mockResolvedValue(

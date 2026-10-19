@@ -46,6 +46,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       return {
         id: registration.id,
         slug: registration.workshopSlug,
+        type: registration.type,
         title: registration.workshopTitle,
         department: info?.hostDepartmentAbbr ?? "",
         description: info?.description ?? "",
