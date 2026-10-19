@@ -7,7 +7,7 @@ export const EVENT_SCHEDULE = Object.freeze({
   // Exclusive boundary: registration remains open through 31 Oct at 23:59.
   workshopRegistrationClosesAt: "2026-11-01T00:00:00+07:00",
   eventStartsAt: "2026-10-31T13:00:00+07:00",
-  eventEndsAt: "2026-11-01T18:00:00+07:00",
+  eventEndsAt: "2026-11-01T17:00:00+07:00",
 });
 
 export type TimeGateSnapshot = ReturnType<typeof getTimeGateSnapshot>;

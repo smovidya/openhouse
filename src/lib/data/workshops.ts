@@ -57,7 +57,7 @@ export const workshopCatalog: WorkshopInfo[] = [
   },
   {
     slug: "biochem-dna",
-    title: "สกัด DNA",
+    title: "Papaya POK POK",
     hostDepartment: "ชีวเคมี",
     hostDepartmentAbbr: "BIOCHEM",
     description:
@@ -223,7 +223,7 @@ export const workshopCatalog: WorkshopInfo[] = [
     hostDepartment: "หลักสูตรเทคโนโลยีชีวภาพ",
     hostDepartmentAbbr: "BBTech",
     description:
-      "ผู้เข้าร่วมจะได้สะกดชื่อตัวเองเป็นรหัส DNA โดยใช้ลูกปัด 4 สีแทนเบส A, T, C, และ G ซึ่งเบส 3 ตัวเรียงกัน (codon) จะแทนตัวอักษร 1 ตัวตามตารางรหัส (เช่น P = ATG) จากนั้นร้อยลูกปัดตามรหัสของแต่ละตัวอักษรจนครบชื่อ แล้วนำไปทำเป็นสร้อยข้อมือหรือพวงกุญแจ",
+      "ผู้เข้าร่วมจะได้สะกดชื่อตัวเองเป็นรหัส DNA โดยใช้ลูกปัด 4 สีแทนเบส A, T, C และ G ซึ่งเบส 3 ตัวเรียงกัน (codon) จะแทนตัวอักษร 1 ตัวตามตารางรหัส (เช่น P = ATG) จากนั้นร้อยลูกปัดตามรหัสของแต่ละตัวอักษรจนครบชื่อ แล้วนำไปทำเป็นสร้อยข้อมือหรือพวงกุญแจ",
     capacity: 15,
     sessions: [
       {

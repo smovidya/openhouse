@@ -85,7 +85,7 @@ describe("Bangkok time gates", () => {
       new Date("2026-10-31T12:59:59.999+07:00"),
     );
     const started = getTimeGateSnapshot(new Date("2026-10-31T13:00:00+07:00"));
-    const ended = getTimeGateSnapshot(new Date("2026-11-01T18:00:00+07:00"));
+    const ended = getTimeGateSnapshot(new Date("2026-11-01T17:00:00+07:00"));
     assert.equal(before.flags.eventUpcoming, true);
     assert.equal(started.flags.eventInProgress, true);
     assert.equal(ended.flags.eventInProgress, false);
