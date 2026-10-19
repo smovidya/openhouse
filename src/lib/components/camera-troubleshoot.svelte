@@ -30,7 +30,7 @@
 </script>
 
 <script lang="ts">
-	import * as Drawer from "#lib/components/ui/drawer/index.js";
+	import * as Dialog from "#lib/components/ui/dialog/index.js";
 	import { cn } from "#lib/utils.js";
 
 	/** An underlined "how to fix camera problems" link and the instructions it opens. */
@@ -47,39 +47,33 @@
 	วิธีแก้ปัญหากล้อง
 </button>
 
-<!-- Swipe down (or the backdrop, Esc) to dismiss. -->
-<Drawer.Root bind:open shouldScaleBackground={false}>
-	<Drawer.Content
-		overlayClass="bg-black/40 supports-backdrop-filter:backdrop-blur-none"
-		class="mx-auto max-w-[402px] bg-brand-mist text-brand-navy data-[vaul-drawer-direction=bottom]:rounded-t-3xl data-[vaul-drawer-direction=bottom]:border-t-0"
-	>
-		<!-- Scrolls inside the drawer (max 80vh) so long instructions stay reachable. -->
-		<div class="flex flex-col gap-4 overflow-y-auto p-6">
-			<Drawer.Title class="font-heading text-xl font-medium text-black">วิธีแก้ปัญหากล้อง</Drawer.Title>
-			<Drawer.Description class="text-sm text-brand-navy">
-				หากกล้องไม่ทำงานหรือหน้าจอเป็นสีดำ ให้ลองทำตามขั้นตอนตามเบราว์เซอร์ที่ใช้งาน
-			</Drawer.Description>
-			{#each sections as section (section.title)}
-				<section class="flex flex-col gap-1">
-					<h3 class="font-heading font-medium text-black">{section.title}</h3>
-					<ol class="list-decimal ps-5 text-sm">
-						{#each section.steps as step (step)}
-							<li>{step}</li>
-						{/each}
-					</ol>
-					{#if section.note}
-						<p class="text-sm">{section.note}</p>
-					{/if}
-				</section>
-			{/each}
+<Dialog.Root bind:open>
+	<!-- Scrolls when the instructions are taller than the screen. -->
+	<Dialog.Content class="max-h-[80dvh] gap-4 overflow-y-auto bg-brand-mist text-brand-navy">
+		<Dialog.Title class="font-heading text-xl font-medium text-black">วิธีแก้ปัญหากล้อง</Dialog.Title>
+		<Dialog.Description class="text-sm text-brand-navy">
+			หากกล้องไม่ทำงานหรือหน้าจอเป็นสีดำ ให้ลองทำตามขั้นตอนตามเบราว์เซอร์ที่ใช้งาน
+		</Dialog.Description>
+		{#each sections as section (section.title)}
 			<section class="flex flex-col gap-1">
-				<h3 class="font-heading font-medium text-black">วิธีอื่น ๆ</h3>
-				<ul class="list-disc ps-5 text-sm">
-					{#each otherTips as tip (tip)}
-						<li>{tip}</li>
+				<h3 class="font-heading font-medium text-black">{section.title}</h3>
+				<ol class="list-decimal ps-5 text-sm">
+					{#each section.steps as step (step)}
+						<li>{step}</li>
 					{/each}
-				</ul>
+				</ol>
+				{#if section.note}
+					<p class="text-sm">{section.note}</p>
+				{/if}
 			</section>
-		</div>
-	</Drawer.Content>
-</Drawer.Root>
+		{/each}
+		<section class="flex flex-col gap-1">
+			<h3 class="font-heading font-medium text-black">วิธีอื่น ๆ</h3>
+			<ul class="list-disc ps-5 text-sm">
+				{#each otherTips as tip (tip)}
+					<li>{tip}</li>
+				{/each}
+			</ul>
+		</section>
+	</Dialog.Content>
+</Dialog.Root>
