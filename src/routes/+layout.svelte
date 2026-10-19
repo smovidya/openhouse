@@ -4,7 +4,8 @@
 	import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
 	import DevToolbar from '#lib/components/dev-toolbar.svelte';
 	import { page } from '$app/state';
-	import favicon from '#lib/assets/favicon.svg';
+	import appleTouchIcon from '#lib/assets/apple-touch-icon.png';
+	import favicon from '#lib/assets/favicon.png';
 	import MenuBar from '#lib/components/menu-bar.svelte';
 	import WaterBackground from '#lib/render/water-background.svelte';
 	import FpsCounter from '#lib/components/fps-counter.svelte';
@@ -22,7 +23,8 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" type="image/png" href={favicon} />
+	<link rel="apple-touch-icon" href={appleTouchIcon} />
 </svelte:head>
 
 <WaterBackground overlay={page.data.waterOverlay} tint={page.data.waterTint} />
