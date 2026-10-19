@@ -145,12 +145,14 @@ function observers() {
 
 /**
  * Prepare: measure every pane near the viewport and get its canvas ready (sized, configured).
- * The only phase that touches the DOM.
+ * The only phase that touches the DOM. `waterTop`: the water's top edge in the viewport, CSS px
+ * (the background is bottom-anchored, so it's negative while the mobile URL bar shows).
  */
 export function snapshotPanes(
   device: GPUDevice,
   format: GPUTextureFormat,
   dpr: number,
+  waterTop = 0,
 ) {
   const snapshots: PaneSnapshot[] = [];
   const vw = innerWidth;
@@ -181,7 +183,7 @@ export function snapshotPanes(
     snapshots.push({
       id: pane,
       context: pane.context,
-      rect: { x: box.left * dpr, y: box.top * dpr, width, height },
+      rect: { x: box.left * dpr, y: (box.top - waterTop) * dpr, width, height },
       radius: pane.radius * dpr,
       variant: (element.dataset.glass === "light"
         ? "light"

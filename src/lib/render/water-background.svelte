@@ -113,7 +113,10 @@
 						glass: mode,
 						blurSigma: liquidGlassConfig.blur,
 						tint: [...TINTS[tint], overlay],
-						panes: mode === "css" ? [] : snapshotPanes(gpu, format, dpr),
+						panes:
+							mode === "css"
+								? []
+								: snapshotPanes(gpu, format, dpr, page?.getBoundingClientRect().top),
 					};
 					// 2. Plan: which passes this frame needs.
 					const plan = planFrame(inputs, history);
@@ -178,10 +181,12 @@
 </script>
 
 <!-- Layers share one grid cell: static tile, tint, then the WebGPU canvas (fades in once drawn).
-     The canvas draws the tint itself, so it covers the DOM tint and fades in over a tinted tile. -->
+     The canvas draws the tint itself, so it covers the DOM tint and fades in over a tinted tile.
+     100lvh, bottom-anchored, not inset-0: the mobile URL bar showing/hiding would otherwise resize
+     (and re-render) the canvas mid-scroll; it just slides over the top instead. -->
 <div
 	aria-hidden="true"
-	class="pointer-events-none fixed inset-0 -z-10 grid grid-cols-1 grid-rows-1 [container-type:size]"
+	class="pointer-events-none fixed inset-x-0 bottom-0 -z-10 grid h-lvh grid-cols-1 grid-rows-1 [container-type:size]"
 >
 	<!-- The shader tiles a square the size of the shorter side, so the CPU-rendered tile repeats the same way. -->
 	<div

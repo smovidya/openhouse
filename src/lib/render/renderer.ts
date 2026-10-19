@@ -17,7 +17,7 @@ const CAUSTICS: Omit<WaterCausticParams, "playhead"> = {
 
 const WATER_FORMAT: GPUTextureFormat = "rgba8unorm";
 /** Each level downsamples 4x per axis; the result is reconstructed to 1/4 of the water. */
-const BLUR_LEVELS = 1;
+const BLUR_LEVELS = 2;
 
 /**
  * GPU side of the water background: pipelines and render targets, created once per device.

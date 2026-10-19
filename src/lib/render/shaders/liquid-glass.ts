@@ -32,7 +32,7 @@ export type GlassOptions = {
 
 export const DEFAULT_GLASS_OPTIONS: GlassOptions = {
   refractionHeight: 24,
-  refractionAmount: 120,
+  refractionAmount: 112,
   depth: 1,
   dispersion: 1.25,
   vibrancy: 1.5,
