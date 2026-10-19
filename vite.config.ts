@@ -15,6 +15,7 @@ export default defineConfig({
       "neverthrow",
       "runed",
       "tailwind-variants",
+      "vaul-svelte",
       // /register
       "@lucide/svelte/icons/check",
       "@lucide/svelte/icons/chevron-down",
