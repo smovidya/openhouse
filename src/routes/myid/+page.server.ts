@@ -58,6 +58,10 @@ export const load: PageServerLoad = async ({ locals }) => {
       code: result.value.qrCodeId,
     },
     workshops,
+    // The limit is on advance registrations; walk-ins (on the day) don't count toward it.
+    advanceCount: registrations.value.filter(
+      (registration) => registration.type === "advance",
+    ).length,
     workshopLimit: MAX_ADVANCE_WORKSHOP_REGISTRATIONS,
   };
 };

@@ -11,7 +11,7 @@
 
 	let { data }: PageProps = $props();
 
-	const remaining = $derived(Math.max(0, data.workshopLimit - data.workshops.length));
+	const remaining = $derived(Math.max(0, data.workshopLimit - data.advanceCount));
 </script>
 
 <svelte:head>
@@ -39,11 +39,10 @@
 			<div class="flex flex-col text-brand-navy">
 				<h2 class="text-2xl font-medium">My Workshops</h2>
 				<p class="flex items-center gap-1 text-xs">
-					เวิร์กช็อปที่ลงทะเบียนแล้ว ({data.workshops.length}/{data.workshopLimit})
+					เวิร์กช็อปที่ลงทะเบียนแล้ว ({data.advanceCount}/{data.workshopLimit})
 					<img src={checkCircleIcon} alt="" />
 				</p>
 			</div>
-			<!-- TODO: workshop list page doesn't exist yet. -->
 			<Button variant="cta" size="cta-sm" href="/workshop">
 				ดูทั้งหมด
 				<img src={arrowRightIcon} alt="" />
