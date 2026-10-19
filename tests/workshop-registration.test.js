@@ -21,6 +21,7 @@ describe("atomic workshop registration on D1", () => {
   let unregisterRemotely;
   let getMyWorkshopRegistrations;
   let getWorkshopBySlug;
+  let listWorkshops;
   let event;
 
   beforeAll(async () => {
@@ -89,6 +90,7 @@ describe("atomic workshop registration on D1", () => {
       unregisterFromWorkshop: unregisterRemotely,
       getMyWorkshopRegistrations,
       getWorkshopBySlug,
+      listWorkshops,
     } = await import("../src/lib/features/workshops/workshops.remote"));
   });
 
@@ -235,6 +237,65 @@ describe("atomic workshop registration on D1", () => {
     const result = await getWorkshopBySlug(selected.slug);
     assert.ok(result.isOk());
     assert.equal(result.value.slug, selected.slug);
+  });
+
+  it("reads real per-round counts including walk-ins and excluding cancellations", async () => {
+    const target = await workshop(5, [
+      { start: 540, end: 600, date: "2030-01-01" },
+      { start: 660, end: 720, date: "2030-01-01" },
+    ]);
+    const first = await attendee();
+    const second = await attendee();
+    const third = await attendee();
+    const counts = async () => {
+      const detail = await getWorkshopBySlug(target.slug);
+      const list = await listWorkshops();
+      assert.ok(detail.isOk());
+      assert.ok(list.isOk());
+      const listed = list.value.find((entry) => entry.slug === target.slug);
+      assert.ok(listed);
+      assert.deepEqual(listed.timeslots, detail.value.timeSlots);
+      return detail.value.timeSlots.map((round) => round.registeredCount);
+    };
+    assert.deepEqual(await counts(), [0, 0]);
+    assert.ok((await book(first.id, target.slug)).isOk());
+    assert.ok((await book(second.id, target.slug, 1, "walk-in")).isOk());
+    assert.ok((await book(third.id, target.slug, 2)).isOk());
+    assert.deepEqual(await counts(), [2, 1]);
+    assert.ok((await cancel(first.id, target.slug)).isOk());
+    assert.deepEqual(await counts(), [1, 1]);
+    assert.ok((await book(first.id, target.slug)).isOk());
+    assert.deepEqual(await counts(), [2, 1]);
+  });
+
+  it("hides deleted workshops and rounds while retaining workshops without rounds", async () => {
+    const target = await workshop();
+    await db
+      .update(tables.workshopTimeSlots)
+      .set({ deletedAt: new Date() })
+      .where(eq(tables.workshopTimeSlots.id, target.slots[0].id));
+    const detail = await getWorkshopBySlug(target.slug);
+    assert.ok(detail.isOk());
+    assert.deepEqual(detail.value.timeSlots, []);
+    const list = await listWorkshops();
+    assert.ok(list.isOk());
+    assert.deepEqual(
+      list.value.find((entry) => entry.slug === target.slug).timeslots,
+      [],
+    );
+    await db
+      .update(tables.workshops)
+      .set({ deletedAt: new Date() })
+      .where(eq(tables.workshops.id, target.id));
+    const deleted = await getWorkshopBySlug(target.slug);
+    assert.ok(deleted.isOk());
+    assert.equal(deleted.value, undefined);
+    const after = await listWorkshops();
+    assert.ok(after.isOk());
+    assert.equal(
+      after.value.some((entry) => entry.slug === target.slug),
+      false,
+    );
   });
 
   it("keeps the last seat exclusive under simultaneous advance and walk-in requests", async () => {
@@ -554,6 +615,13 @@ describe("atomic workshop registration on D1", () => {
     assert.equal(result.value.length, 1);
     assert.equal(result.value[0].workshopSlug, first.slug);
     assert.equal(result.value[0].workshopRoundNumber, 1);
+    assert.equal(result.value[0].department, first.hostDepartment);
+    assert.equal(result.value[0].departmentAbbr, first.hostDepartimentAbbr);
+    assert.equal(result.value[0].description, first.description);
+    assert.ok((await cancel(person.id, first.slug)).isOk());
+    const cancelled = await getMyWorkshopRegistrations();
+    assert.ok(cancelled.isOk());
+    assert.deepEqual(cancelled.value, []);
   });
 
   it("the remote command rejects caller-supplied identity or registration type and invalid rounds", async () => {

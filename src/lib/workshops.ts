@@ -10,7 +10,7 @@ export type WorkshopSession = {
   /** ISO 8601 in Bangkok time, e.g. 2026-10-31T13:00:00+07:00 */
   start: string;
   end: string;
-  /** Active registrations, or null when unknown (the workshops API doesn't report it yet). */
+  /** Active registrations (advance and walk-in), or null when unknown (the static catalog). */
   registered: number | null;
   capacity: number;
 };
@@ -54,7 +54,7 @@ export function sessionStatus(
   if (booked.some((other) => other.id === session.id)) return "registered";
   if (session.registered !== null && session.registered >= session.capacity)
     return "full";
-  // Another round of this workshop is replaced when changing rounds, so it can't clash.
+  // Another round of this workshop is reported as other-round (cancel it first), not as a clash.
   const start = Date.parse(session.start);
   const end = Date.parse(session.end);
   const overlaps = booked.some(
@@ -106,7 +106,12 @@ export type ApiWorkshop = {
   hostDepartimentAbbr: string;
   description: string;
   capacity: number;
-  timeSlots: { roundNumber: number; startsAt: Date; endsAt: Date }[];
+  timeSlots: {
+    roundNumber: number;
+    startsAt: Date;
+    endsAt: Date;
+    registeredCount: number;
+  }[];
 };
 
 export const toWorkshop = (workshop: ApiWorkshop): Workshop => ({
@@ -122,8 +127,7 @@ export const toWorkshop = (workshop: ApiWorkshop): Workshop => ({
     round: slot.roundNumber,
     start: toBangkokIso(slot.startsAt),
     end: toBangkokIso(slot.endsAt),
-    // Not reported by the API yet; a full round shows up when booking it (WORKSHOP_FULL).
-    registered: null,
+    registered: slot.registeredCount,
     capacity: workshop.capacity,
   })),
 });

@@ -33,10 +33,11 @@
 			icon: checkCircleGreenIcon,
 			class: "border-status-green text-status-green",
 		},
-		// One round per workshop: the attendee holds another round of this one.
+		// One round per workshop: the attendee holds another round of this one. No swapping (it
+		// wouldn't be atomic): they cancel that round first, then pick this one.
 		"other-round": {
-			label: "กดเพื่อเปลี่ยนมารอบนี้",
-			icon: checkCircleGreenIcon,
+			label: "ยกเลิกรอบเดิมก่อน",
+			icon: cancelRedIcon,
 			class: "border-brand-sky text-brand-navy",
 		},
 	};
@@ -86,12 +87,7 @@
 		registerForWorkshop,
 		unregisterFromWorkshop,
 	} from "#lib/features/workshops/workshops.remote.ts";
-	import {
-		sessionsByDay,
-		sessionStatus,
-		type BookedSession,
-		type WorkshopSession,
-	} from "#lib/workshops.js";
+	import { sessionsByDay, sessionStatus, type WorkshopSession } from "#lib/workshops.js";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -103,12 +99,8 @@
 	let pending = $state<{ id: string; label: string } | null>(null);
 	let message = $state("");
 
-	/** A cancel or round change waiting for the attendee to confirm. */
-	let confirming = $state<
-		| { kind: "cancel"; session: WorkshopSession }
-		| { kind: "change"; session: WorkshopSession; from: BookedSession }
-		| null
-	>(null);
+	/** A cancel waiting for the attendee to confirm. */
+	let confirming = $state<WorkshopSession | null>(null);
 
 	const roundTime = (session: { start: string; end: string }) =>
 		`${dayFormat.format(new Date(session.start))} ${timeFormat.format(new Date(session.start))} - ${timeFormat.format(new Date(session.end))} น.`;
@@ -149,39 +141,18 @@
 		});
 	}
 
-	// No change-round API: cancel the old round, book the new one, and rebook the old one if
-	// booking fails (e.g. the new round filled up meanwhile).
-	function change(session: WorkshopSession, from: BookedSession) {
-		return run(session, "กำลังเปลี่ยนรอบ…", async () => {
-			const cancelled = await unregisterFromWorkshop(round(from));
-			if (cancelled.isErr()) return cancelled.error;
-			const booked = await registerForWorkshop(round(session));
-			if (booked.isOk()) return null;
-			await registerForWorkshop(round(from));
-			return booked.error;
-		});
-	}
-
 	function press(session: WorkshopSession, status: SessionStatus) {
 		if (status === "available") return register(session);
-		if (status === "registered") confirming = { kind: "cancel", session };
-		if (status === "other-round") {
-			const from = data.booked.find((other) => other.workshop === session.workshop);
-			if (from) confirming = { kind: "change", session, from };
-		}
+		if (status === "registered") confirming = session;
 	}
 
 	function confirm() {
-		if (!confirming) return;
-		const { kind, session } = confirming;
-		if (kind === "cancel") cancel(session);
-		else change(session, confirming.from);
+		if (confirming) cancel(confirming);
 		confirming = null;
 	}
 
 	/** Rows that do something when pressed. */
-	const pressable = (status: SessionStatus) =>
-		status === "available" || status === "registered" || status === "other-round";
+	const pressable = (status: SessionStatus) => status === "available" || status === "registered";
 </script>
 
 <svelte:head>
@@ -298,22 +269,16 @@
 				>
 					{#if confirming}
 						<AlertDialog.Header>
-							<AlertDialog.Title class="text-brand-yellow">
-								{confirming.kind === "cancel" ? "ยกเลิกการลงทะเบียน?" : "เปลี่ยนรอบเวิร์กช็อป?"}
-							</AlertDialog.Title>
+							<AlertDialog.Title class="text-brand-yellow">ยกเลิกการลงทะเบียน?</AlertDialog.Title>
 							<AlertDialog.Description class="text-brand-mist">
-								{#if confirming.kind === "cancel"}
-									ยกเลิกรอบ {roundTime(confirming.session)} ของ {workshop.title}
-									ที่นั่งจะถูกปล่อยให้ผู้อื่นจองได้
-								{:else}
-									เปลี่ยนจากรอบ {roundTime(confirming.from)} เป็นรอบ {roundTime(confirming.session)}
-								{/if}
+								ยกเลิกรอบ {roundTime(confirming)} ของ {workshop.title}
+								ที่นั่งจะถูกปล่อยให้ผู้อื่นจองได้
 							</AlertDialog.Description>
 						</AlertDialog.Header>
 						<AlertDialog.Footer>
 							<AlertDialog.Cancel variant="cta-light" size="cta-sm">ไม่ใช่</AlertDialog.Cancel>
 							<AlertDialog.Action variant="cta" size="cta-sm" onclick={confirm}>
-								{confirming.kind === "cancel" ? "ยกเลิกการลงทะเบียน" : "เปลี่ยนรอบ"}
+								ยกเลิกการลงทะเบียน
 							</AlertDialog.Action>
 						</AlertDialog.Footer>
 					{/if}
