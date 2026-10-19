@@ -9,6 +9,7 @@
 		planFrame,
 		type FrameInputs,
 		type GlassMode,
+		waterSize,
 	} from "./frame-plan.js";
 	import {
 		glassRenderer,
@@ -85,7 +86,7 @@
 
 				const gpu = device;
 				const format = navigator.gpu.getPreferredCanvasFormat();
-				context?.configure({ device: gpu, format, alphaMode: "premultiplied" });
+				context?.configure({ device: gpu, format, alphaMode: "opaque" });
 				const frameRenderer = createRenderer(gpu, context, format);
 				renderer = frameRenderer;
 				const history = createFrameHistory();
@@ -101,11 +102,11 @@
 					if (anim) schedule();
 
 					// 1. Prepare: the only DOM reads, and every canvas sized and configured.
-					const dpr = page ? page.width / Math.max(1, page.clientWidth) : devicePixelRatio || 1;
+					const dpr = devicePixelRatio || 1;
 					const inputs: FrameInputs = {
 						time,
-						width: page?.width ?? Math.round(innerWidth * dpr),
-						height: page?.height ?? Math.round(innerHeight * dpr),
+						width: Math.round((page?.clientWidth ?? innerWidth) * dpr),
+						height: Math.round((page?.clientHeight ?? innerHeight) * dpr),
 						dpr,
 						background: bg,
 						animate: anim,
@@ -133,24 +134,17 @@
 				};
 
 				if (page) {
+					// The page canvas only shows the (smooth, low-res) water, so its backing store is the
+					// water's size and CSS upscales it: one small pass instead of a full-res one per frame.
 					observer = new ResizeObserver(([entry]) => {
-						const box = entry.devicePixelContentBoxSize?.[0];
-						const ratio = window.devicePixelRatio || 1;
-						// Emulated DPR (DevTools device mode, Playwright) isn't applied to the device-pixel
-						// box, so never go below contentRect × dpr.
-						const cssW = Math.round(entry.contentRect.width * ratio);
-						const cssH = Math.round(entry.contentRect.height * ratio);
-						page.width = Math.max(1, cssW, box?.inlineSize ?? 0);
-						page.height = Math.max(1, cssH, box?.blockSize ?? 0);
+						const dpr = devicePixelRatio || 1;
+						const { width, height } = entry.contentRect;
+						const size = waterSize(width * dpr, height * dpr, dpr);
+						page.width = size.width;
+						page.height = size.height;
 						onResize();
 					});
-					// device-pixel-content-box gives exact device px (otherwise Chromium reports CSS px
-					// there); Safari doesn't support it, so fall back to contentRect × dpr.
-					try {
-						observer.observe(page, { box: "device-pixel-content-box" });
-					} catch {
-						observer.observe(page);
-					}
+					observer.observe(page);
 				} else {
 					addEventListener("resize", onResize);
 				}

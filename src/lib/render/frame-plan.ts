@@ -14,8 +14,25 @@ import type { GlassOptions, GlassPane, Rgba } from "./shaders/liquid-glass.js";
 
 /** Water renders at this fraction of device px per axis; the canvases upscale it (linear). */
 export const WATER_RESOLUTION = 0.5;
+/**
+ * …but at most this many px per CSS px: a dpr 2.75 phone would otherwise render more water than
+ * a desktop, on a far weaker GPU.
+ */
+export const WATER_MAX_PER_CSS_PX = 1;
 /** One full caustic cycle when animated. */
 export const WATER_LOOP_MS = 100_000;
+/** Animated water steps at this rate: the loop is slow enough that 30 fps looks the same as 60+. */
+export const WATER_FPS = 30;
+
+/** Water px per device px. */
+export const waterScale = (dpr: number) =>
+  Math.min(WATER_RESOLUTION, WATER_MAX_PER_CSS_PX / dpr);
+
+/** Water (and page canvas) size for a viewport in device px. */
+export const waterSize = (width: number, height: number, dpr: number) => ({
+  width: Math.max(1, Math.ceil(width * waterScale(dpr))),
+  height: Math.max(1, Math.ceil(height * waterScale(dpr))),
+});
 
 /**
  * How <Glass> panes render:
@@ -102,15 +119,15 @@ export function planFrame(
   const full = inputs.glass === "full";
   const water =
     inputs.background || full
-      ? {
-          width: Math.max(1, Math.ceil(inputs.width * WATER_RESOLUTION)),
-          height: Math.max(1, Math.ceil(inputs.height * WATER_RESOLUTION)),
-        }
+      ? waterSize(inputs.width, inputs.height, inputs.dpr)
       : null;
+  // Quantised to WATER_FPS: frames in between plan nothing and stay idle.
+  const step = 1000 / WATER_FPS;
+  const time = Math.floor(inputs.time / step) * step;
   const playhead = inputs.animate
-    ? ((inputs.time % WATER_LOOP_MS) / WATER_LOOP_MS) * 100
+    ? ((time % WATER_LOOP_MS) / WATER_LOOP_MS) * 100
     : 0;
-  const sigma = inputs.blurSigma * inputs.dpr * WATER_RESOLUTION;
+  const sigma = inputs.blurSigma * inputs.dpr * waterScale(inputs.dpr);
   const tint = inputs.tint.join();
 
   // The target size is part of every key: resizing recreates (clears) the textures and canvas.

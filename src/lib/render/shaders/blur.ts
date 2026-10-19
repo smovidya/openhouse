@@ -12,7 +12,7 @@ export const BLUR_DOWNSCALE = 4;
 export function createBlur(
   device: GPUDevice,
   format: GPUTextureFormat,
-  levels: 2 | 3 | 4 = 4,
+  levels: number = 1,
 ) {
   const module = device.createShaderModule({ code: shaderCode });
   const bindGroupLayout = device.createBindGroupLayout({
