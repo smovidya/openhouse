@@ -43,6 +43,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       );
       return {
         id: registration.id,
+        slug: registration.workshopSlug,
         title: registration.workshopTitle,
         department: info?.hostDepartmentAbbr ?? "",
         description: info?.description ?? "",
