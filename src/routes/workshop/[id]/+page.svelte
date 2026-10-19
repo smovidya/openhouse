@@ -40,6 +40,22 @@
 			icon: cancelRedIcon,
 			class: "border-brand-sky text-brand-navy",
 		},
+		// Time and limit states (BookingWindow): shown as they are, not pressable.
+		closed: {
+			label: "ปิดรับลงทะเบียนแล้ว",
+			icon: cancelRedIcon,
+			class: "border-brand-sky text-brand-navy",
+		},
+		started: {
+			label: "เริ่มไปแล้ว",
+			icon: cancelRedIcon,
+			class: "border-brand-sky text-brand-navy",
+		},
+		limit: {
+			label: `ครบ ${MAX_ADVANCE_WORKSHOP_REGISTRATIONS} เวิร์กช็อปแล้ว`,
+			icon: cancelRedIcon,
+			class: "border-brand-sky text-brand-navy",
+		},
 	};
 
 	const opensAt = new Intl.DateTimeFormat("th-TH", {
@@ -89,13 +105,34 @@
 		registerForWorkshop,
 		unregisterFromWorkshop,
 	} from "#lib/features/workshops/workshops.remote.ts";
-	import { sessionsByDay, sessionStatus, type WorkshopSession } from "#lib/workshops.js";
+	import {
+		canCancel,
+		sessionsByDay,
+		sessionStatus,
+		type BookingWindow,
+		type WorkshopSession,
+	} from "#lib/workshops.js";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
 
 	const workshop = $derived(data.workshop);
 	const canBook = $derived(data.attendee === "registered");
+
+	// The server's clock from the load, kept running here (every 30 s) so a round that starts while
+	// the page is open turns "started". Re-seeded whenever the page data reloads; it never runs
+	// behind the server's time.
+	const loaded = $derived({ server: Date.parse(data.now), local: Date.now() });
+	let clock = $state(Date.now());
+	$effect(() => {
+		const timer = setInterval(() => (clock = Date.now()), 30_000);
+		return () => clearInterval(timer);
+	});
+	const bookingWindow: BookingWindow = $derived({
+		now: loaded.server + Math.max(0, clock - loaded.local),
+		closed: data.registrationClosed,
+		advanceLeft: data.advanceLeft,
+	});
 
 	/** The session being changed and what is happening to it, while the request runs. */
 	let pending = $state<{ id: string; label: string } | null>(null);
@@ -178,8 +215,9 @@
 		confirming = null;
 	}
 
-	/** Rows that do something when pressed. */
-	const pressable = (status: SessionStatus) => status === "available" || status === "registered";
+	/** Rows that do something when pressed: book an open round, or cancel your own while you still can. */
+	const pressable = (session: WorkshopSession, status: SessionStatus) =>
+		status === "available" || (status === "registered" && canCancel(session, bookingWindow));
 </script>
 
 <svelte:head>
@@ -212,7 +250,9 @@
 						<img src={calendarIcon} alt="" />
 						รอบกิจกรรม
 					</h3>
-					<p class="text-xs">(กดที่รอบเวลาว่างเพื่อลงทะเบียน)</p>
+					{#if !data.registrationClosed}
+						<p class="text-xs">(กดที่รอบเวลาว่างเพื่อลงทะเบียน)</p>
+					{/if}
 				</div>
 
 				{#if !canBook}
@@ -238,7 +278,7 @@
 						{dayFormat.format(new Date(sessions[0].start))}
 					</time>
 					{#each sessions as session (session.id)}
-						{@const status = sessionStatus(session, data.booked)}
+						{@const status = sessionStatus(session, data.booked, bookingWindow)}
 						{@const look = statusLook[status]}
 						{@const rowClass = [
 							"flex w-full items-start justify-between rounded-lg border bg-brand-mist px-4 py-2 text-xs",
@@ -260,7 +300,7 @@
 							</span>
 						{/snippet}
 
-						{#if pressable(status) && canBook}
+						{#if pressable(session, status) && canBook}
 							<button
 								type="button"
 								data-session={session.id}

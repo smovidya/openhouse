@@ -42,16 +42,44 @@ export type Workshop = {
   sessions: WorkshopSession[];
 };
 
-/** `other-round`: booked into another round of the same workshop (one round per workshop). */
+/**
+ * - `other-round`: booked into another round of the same workshop (one round per workshop).
+ * - `closed`: workshop registration has closed for good (see BookingWindow).
+ * - `started`: the round has already started.
+ * - `limit`: the attendee has used up their advance bookings.
+ */
 export type SessionStatus =
-  "available" | "full" | "conflict" | "registered" | "other-round";
+  | "available"
+  | "full"
+  | "conflict"
+  | "registered"
+  | "other-round"
+  | "closed"
+  | "started"
+  | "limit";
 
-/** Status of `session` for an attendee already booked into `booked` (sessions of any workshop). */
+/** What the clock and the attendee's advance bookings allow (the server enforces the same rules). */
+export type BookingWindow = {
+  /** Current time (the server's, ms). */
+  now: number;
+  /** Registration and cancellation have closed for good. */
+  closed: boolean;
+  /** Advance bookings left; 0 when the limit is reached. */
+  advanceLeft: number;
+};
+
+/**
+ * Status of `session` for an attendee already booked into `booked` (sessions of any workshop).
+ * Without `window`, only seats and the attendee's own bookings count.
+ */
 export function sessionStatus(
   session: WorkshopSession,
   booked: BookedSession[],
+  window?: BookingWindow,
 ): SessionStatus {
   if (booked.some((other) => other.id === session.id)) return "registered";
+  if (window?.closed) return "closed";
+  if (window && Date.parse(session.start) <= window.now) return "started";
   if (session.registered !== null && session.registered >= session.capacity)
     return "full";
   // Another round of this workshop is reported as other-round (cancel it first), not as a clash.
@@ -64,10 +92,14 @@ export function sessionStatus(
       start < Date.parse(other.end),
   );
   if (overlaps) return "conflict";
-  return booked.some((other) => other.workshop === session.workshop)
-    ? "other-round"
-    : "available";
+  if (booked.some((other) => other.workshop === session.workshop))
+    return "other-round";
+  return window && window.advanceLeft <= 0 ? "limit" : "available";
 }
+
+/** Whether the attendee can still cancel their booking of `session`: before it starts and before registration closes. */
+export const canCancel = (session: WorkshopSession, window: BookingWindow) =>
+  !window.closed && Date.parse(session.start) > window.now;
 
 /** Sessions grouped by Bangkok calendar day (YYYY-MM-DD), in order. */
 export function sessionsByDay(sessions: WorkshopSession[]) {

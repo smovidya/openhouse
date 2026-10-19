@@ -1,3 +1,4 @@
+import { dev } from "$app/env";
 import { error, redirect } from "@sveltejs/kit";
 import {
   getActiveAttendeeByUserId,
@@ -7,10 +8,11 @@ import type { RegisteredWorkshop } from "#lib/components/workshop-card.svelte";
 import { MAX_ADVANCE_WORKSHOP_REGISTRATIONS } from "#lib/constants/workshops.ts";
 import { workshopCatalog } from "#lib/data/workshops.ts";
 import { getWorkshopRegistrationsByAttendeeId } from "#lib/features/workshops/service.server.ts";
+import { getRequestTimeGates } from "#lib/features/time/time.server.ts";
 import { toBangkokIso } from "#lib/workshops.ts";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.user) redirect(303, "/#register");
 
   const active = await getActiveAttendeeByUserId(locals.user.id);
@@ -64,5 +66,17 @@ export const load: PageServerLoad = async ({ locals }) => {
       (registration) => registration.type === "advance",
     ).length,
     workshopLimit: MAX_ADVANCE_WORKSHOP_REGISTRATIONS,
+    // Before it opens, My Workshops shows a "Coming Soon" card; after it closes, no "ลงทะเบียนเพิ่ม".
+    // The server clock (or the dev toolbar's frozen one).
+    ...(() => {
+      const gates = getRequestTimeGates(cookies, dev);
+      const now = Date.parse(gates.now);
+      return {
+        workshopRegistrationOpened:
+          now >= Date.parse(gates.schedule.workshopRegistrationOpensAt),
+        workshopRegistrationClosed:
+          now >= Date.parse(gates.schedule.workshopRegistrationClosesAt),
+      };
+    })(),
   };
 };

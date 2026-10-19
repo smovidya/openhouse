@@ -91,16 +91,14 @@ test("an attendee books workshops within the rules", async ({ page }) => {
     "registered",
   );
 
-  // A third workshop is over the advance-booking limit.
+  // A third workshop is over the advance-booking limit: its rounds say so and can't be pressed.
   await open(page, "/workshop/geo-map");
-  await round(page, "geo-map:2").click(); // Sat 14:15, no clash
-  await expect(page.getByRole("alert")).toContainText(
-    "ลงทะเบียนล่วงหน้าได้สูงสุด 2 เวิร์กช็อป",
-  );
   await expect(round(page, "geo-map:2")).toHaveAttribute(
     "data-status",
-    "available",
-  );
+    "limit",
+  ); // Sat 14:15, no clash
+  await expect(round(page, "geo-map:2")).toContainText("ครบ 2 เวิร์กช็อปแล้ว");
+  await expect(page.locator('button[data-session="geo-map:2"]')).toHaveCount(0);
 
   // The list marks the booked workshops.
   await open(page, "/workshop");

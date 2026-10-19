@@ -1,3 +1,4 @@
+import { getTimeGates } from "#lib/features/time/time.remote.ts";
 import { getMyWorkshopRegistrations } from "#lib/features/workshops/workshops.remote.ts";
 import { workshops } from "#lib/workshops.js";
 import type { PageLoad } from "./$types";
@@ -16,5 +17,10 @@ export const load: PageLoad = async ({ parent }) => {
       );
     }
   }
-  return { waterOverlay: 0.5, workshops, registered };
+  // After registration closes, the cards stop inviting people to register.
+  const gates = await getTimeGates();
+  const registrationClosed =
+    Date.parse(gates.now) >=
+    Date.parse(gates.schedule.workshopRegistrationClosesAt);
+  return { waterOverlay: 0.5, workshops, registered, registrationClosed };
 };

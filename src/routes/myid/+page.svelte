@@ -48,14 +48,23 @@
 			</Button>
 		</div>
 
-		{#each data.workshops as workshop (workshop.id)}
-			<WorkshopCard {workshop} />
-		{/each}
+		{#if data.workshopRegistrationOpened}
+			{#each data.workshops as workshop (workshop.id)}
+				<WorkshopCard {workshop} />
+			{/each}
 
-		{#if remaining > 0}
-			<Glass class="rounded-lg flex flex-col items-center gap-2 p-3">
-				<p class="text-center text-xs text-brand-mist">คุณลงทะเบียนได้อีก {remaining} เวิร์กช็อป</p>
-				<Button variant="cta" size="cta-sm" href="/workshop">ลงทะเบียนเพิ่ม</Button>
+			{#if remaining > 0 && !data.workshopRegistrationClosed}
+				<Glass class="rounded-lg flex flex-col items-center gap-2 p-3">
+					<p class="text-center text-xs text-brand-mist">คุณลงทะเบียนได้อีก {remaining} เวิร์กช็อป</p>
+					<Button variant="cta" size="cta-sm" href="/workshop">ลงทะเบียนเพิ่ม</Button>
+				</Glass>
+			{/if}
+		{:else}
+			<!-- Placeholder until workshop registration opens (like the reward hunt's). -->
+			<Glass class="rounded-lg p-3">
+				<p class="text-center font-heading text-base font-medium text-brand-yellow">
+					เตรียมพบกับการลงทะเบียนเวิร์กช็อป<br />Coming Soon!!
+				</p>
 			</Glass>
 		{/if}
 	</section>
