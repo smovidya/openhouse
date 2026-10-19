@@ -31,7 +31,7 @@
 
 <QueryClientProvider client={queryClient}>
 	<div class="flex min-h-dvh flex-col">
-		<MenuBar loggedIn={Boolean(page.data.session)} />
+		<MenuBar loggedIn={Boolean(page.data.session)} staff={Boolean(page.data.session?.user.staff)} />
 		{@render children()}
 	</div>
 </QueryClientProvider>

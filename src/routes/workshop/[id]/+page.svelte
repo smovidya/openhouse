@@ -260,12 +260,17 @@
 						<img src={calendarIcon} alt="" />
 						รอบกิจกรรม
 					</h3>
-					{#if !data.registrationClosed}
+					{#if data.attendee !== "staff" && !data.registrationClosed}
 						<p class="text-xs">(กดที่รอบเวลาว่างเพื่อลงทะเบียน)</p>
 					{/if}
 				</div>
 
-				{#if !canBook}
+				{#if data.attendee === "staff"}
+					<!-- Staff and attendees are mutually exclusive: staff only see the rounds. -->
+					<p class="rounded-lg bg-black/20 px-3 py-2 text-xs text-brand-mist">
+						บัญชีสตาฟไม่สามารถลงทะเบียนเวิร์กช็อปได้
+					</p>
+				{:else if !canBook}
 					<!-- Booking needs a registered attendee. -->
 					<div class="flex items-center justify-between gap-3 rounded-lg bg-black/20 px-3 py-2 text-xs text-brand-mist">
 						<p>
@@ -305,7 +310,11 @@
 								{/if}
 							</span>
 							<span class="flex items-center gap-1">
-								{pending?.id === session.id ? pending.label : look.label}
+								{pending?.id === session.id
+									? pending.label
+									: data.attendee === "staff" && status === "available"
+										? "ว่าง"
+										: look.label}
 								<img src={look.icon} alt="" />
 							</span>
 						{/snippet}

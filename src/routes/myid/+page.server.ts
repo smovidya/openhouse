@@ -14,6 +14,8 @@ import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.user) redirect(303, "/#register");
+  // Staff and attendees are mutually exclusive.
+  if (locals.user.staff) redirect(303, "/staff");
 
   const active = await getActiveAttendeeByUserId(locals.user.id);
   if (active.isErr()) {

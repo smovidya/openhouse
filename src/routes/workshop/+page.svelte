@@ -22,6 +22,7 @@
 				{workshop}
 				registered={data.registered.includes(workshop.id)}
 				closed={data.registrationClosed}
+				staff={Boolean(data.session?.user.staff)}
 			/>
 		{/each}
 	</section>

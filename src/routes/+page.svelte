@@ -5,6 +5,7 @@
 	import { goto } from "$app/navigation";
 	import { beginGoogleSignIn, createDevSession, signInWithGoogle } from "#lib/features/auth/auth.client.ts";
 	import { loadGoogleIdentity, type GoogleIdentity } from "#lib/features/auth/google.client.ts";
+	import { accountHome } from "#lib/account.ts";
 
 	const session = $derived(page.data.session);
 	let status = $state<"loading" | "ready" | "signing-in" | "error">("loading");
@@ -80,7 +81,7 @@
 			// Wait for credential verification, the session cookie, and session refresh.
 			const signedIn = await signInWithGoogle({ googleIdToken: credential });
 			if (!disposed) {
-				await goto(signedIn.user.attendee ? "/myid" : "/register", {
+				await goto(accountHome(signedIn.user), {
 					invalidateAll: true,
 					replaceState: true,
 				});
@@ -125,11 +126,17 @@
 				{status === "signing-in" ? "กำลังสร้างบัญชีทดสอบ..." : "ลงทะเบียน"}
 			</Button>
 			<p class="mt-2 text-center text-sm text-brand-mist">Development · เริ่มลงทะเบียนด้วยบัญชีทดสอบใหม่ทุกครั้ง</p>
+			<!-- Staff sign in and enroll there; there's no other link to it from the landing page. -->
+			<p class="mt-1 text-center text-sm text-brand-mist">
+				<a href="/staff" class="underline">ไปหน้าสตาฟ (/staff)</a>
+			</p>
 			{#if authError}
 				<p role="alert" class="mt-2 text-center text-sm text-brand-yellow">{authError}</p>
 			{/if}
 		{:else if session}
-			<Button variant="cta" size="cta-lg" href={session.user.attendee ? "/myid" : "/register"} class="w-full">ลงทะเบียน</Button>
+			<Button variant="cta" size="cta-lg" href={accountHome(session.user)} class="w-full">
+				{session.user.staff ? "เมนูสตาฟ" : session.user.attendee ? "MY QR CODE" : "ลงทะเบียน"}
+			</Button>
 		{:else}
 			<div class="flex flex-col items-center gap-3 text-center text-brand-mist" {@attach initializeGoogleSignIn}>
 				<p class="text-sm">ลงทะเบียนด้วยบัญชี Google</p>

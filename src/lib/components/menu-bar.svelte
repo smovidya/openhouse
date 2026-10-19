@@ -15,10 +15,12 @@
 
 	type Props = {
 		loggedIn?: boolean;
+		/** A staff account: staff and attendees are mutually exclusive, so no attendee QR code. */
+		staff?: boolean;
 		class?: string;
 	};
 
-	let { loggedIn = true, class: className }: Props = $props();
+	let { loggedIn = true, staff = false, class: className }: Props = $props();
 
 	type NavLink = { href: string; label: string; icon: string };
 
@@ -27,7 +29,9 @@
 		loggedIn
 			? [
 					{ href: "/", label: "หน้าแรก", icon: homeIcon },
-					{ href: "/myid", label: "MY QR CODE", icon: qrCodeIcon },
+					staff
+						? { href: "/staff", label: "เมนูสตาฟ", icon: qrCodeIcon }
+						: { href: "/myid", label: "MY QR CODE", icon: qrCodeIcon },
 					{ href: "/workshop", label: "Workshop", icon: labPanelIcon },
 					// { href: "/prize", label: "ภารกิจล่าของรางวัล", icon: giftIcon },
 				]
@@ -103,7 +107,7 @@
 					<img src={logo} alt="Science Chula Openhouse" class="size-full object-cover" />
 				</a>
 				<div class="flex items-center gap-3">
-					{#if loggedIn && !open}
+					{#if loggedIn && !staff && !open}
 						<Button
 							href="/myid"
 							aria-label="MY QR CODE"

@@ -22,12 +22,15 @@
 		workshop,
 		registered = false,
 		closed = false,
+		staff = false,
 	}: {
 		workshop: Workshop;
 		/** The attendee holds a round of it: the button reads ลงทะเบียนแล้ว (still to the detail page). */
 		registered?: boolean;
 		/** Workshop registration has closed: the button just opens the rounds. */
 		closed?: boolean;
+		/** A staff account can't book: the button just opens the workshop's rounds. */
+		staff?: boolean;
 	} = $props();
 
 	let expanded = $state(false);
@@ -52,7 +55,7 @@
 			<p class="text-[10px] text-brand-mist">{workshop.hostDepartmentAbbr}</p>
 		</div>
 		<Button variant="cta" size="cta-sm" href="/workshop/{workshop.id}">
-			{registered ? "ลงทะเบียนแล้ว" : closed ? "ดูรอบกิจกรรม" : "ลงทะเบียน"}
+			{staff ? "ดูรอบกิจกรรม" : registered ? "ลงทะเบียนแล้ว" : closed ? "ดูรอบกิจกรรม" : "ลงทะเบียน"}
 		</Button>
 	</div>
 

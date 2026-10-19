@@ -24,12 +24,16 @@ export const load: PageServerLoad = async ({ params, locals, cookies }) => {
   if (result.isErr()) unavailable();
   if (!result.value) error(404, "ไม่พบเวิร์คช็อป");
 
-  // Who is looking: bookings need a registered attendee.
-  let attendee: "signed-out" | "unregistered" | "registered" = "signed-out";
+  // Who is looking: bookings need a registered attendee. Staff can't book (staff and attendees
+  // are mutually exclusive).
+  let attendee: "signed-out" | "staff" | "unregistered" | "registered" =
+    "signed-out";
   // Their sessions across all workshops, for registered/clash/other-round states.
   let booked: BookedSession[] = [];
   let advanceCount = 0;
-  if (locals.user) {
+  if (locals.user?.staff) {
+    attendee = "staff";
+  } else if (locals.user) {
     const active = await getActiveAttendeeByUserId(locals.user.id);
     if (active.isOk()) {
       const registrations = await getWorkshopRegistrationsByAttendeeId(
