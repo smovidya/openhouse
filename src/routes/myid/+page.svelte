@@ -6,9 +6,16 @@
 	import SignBoard from "#lib/components/sign-board.svelte";
 	import WorkshopCard from "#lib/components/workshop-card.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { BANGKOK_TIME_ZONE, EVENT_SCHEDULE } from "#lib/constants/time.ts";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
+
+	const registrationOpensLabel = new Intl.DateTimeFormat("th-TH", {
+		dateStyle: "long",
+		timeStyle: "short",
+		timeZone: BANGKOK_TIME_ZONE,
+	}).format(new Date(EVENT_SCHEDULE.workshopRegistrationOpensAt));
 
 	const remaining = $derived(Math.max(0, data.workshopLimit - data.advanceCount));
 </script>
@@ -64,6 +71,9 @@
 			<Glass class="rounded-lg p-3">
 				<p class="text-center font-heading text-base font-medium text-brand-yellow">
 					เตรียมพบกับการลงทะเบียนเวิร์กช็อป<br />Coming Soon!!
+				</p>
+				<p class="mt-2 text-center text-sm text-brand-mist">
+					เปิดลงทะเบียน <time datetime={EVENT_SCHEDULE.workshopRegistrationOpensAt}>{registrationOpensLabel} น.</time>
 				</p>
 			</Glass>
 		{/if}
