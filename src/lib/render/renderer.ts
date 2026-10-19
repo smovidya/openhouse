@@ -17,11 +17,11 @@ const CAUSTICS: Omit<WaterCausticParams, "playhead"> = {
 
 const WATER_FORMAT: GPUTextureFormat = "rgba8unorm";
 /** Each level downsamples 4x per axis; the result is reconstructed to 1/4 of the water. */
-const BLUR_LEVELS = 2;
+const BLUR_LEVELS = 1;
 
 /**
  * GPU side of the water background: pipelines and render targets, created once per device.
- *   water   — caustics, WATER_RESOLUTION of the viewport
+ *   water   — caustics, waterScale() of the viewport (the page canvas is this size too)
  *   blurred — the water, frosted, 1/BLUR_DOWNSCALE of that (what <Glass> panes see)
  * The page canvas (null with the static background) shows the tinted water; each pane draws into
  * its own canvas. Without water (rim-only glass on the static background), 1×1 placeholders are

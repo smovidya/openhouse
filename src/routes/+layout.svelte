@@ -6,7 +6,8 @@
 	import favicon from '#lib/assets/favicon.svg';
 	import MenuBar from '#lib/components/menu-bar.svelte';
 	import WaterBackground from '#lib/render/water-background.svelte';
-	import { syncDevSettings } from '#lib/dev-settings.svelte.js';
+	import FpsCounter from '#lib/components/fps-counter.svelte';
+	import { showFps, syncDevSettings } from '#lib/dev-settings.svelte.js';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -27,4 +28,7 @@
 
 {#if dev}
 	<DevToolbar />
+	{#if showFps.current}
+		<FpsCounter />
+	{/if}
 {/if}

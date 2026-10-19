@@ -19,6 +19,9 @@ export const toolbarPosition = new PersistedState<
 /** When false, every backdrop-filter is disabled via `data-blur="off"` (see layout.css). */
 export const blurEnabled = new PersistedState("dev:blur", true);
 
+/** Show the FPS counter overlay (see fps-counter.svelte). */
+export const showFps = new PersistedState("dev:showFps", false);
+
 /** TODO: placeholder for the staff role (/staff menu) until auth exists. */
 export const fakeStaffRole = new PersistedState<StaffRole>(
   "dev:staffRole",

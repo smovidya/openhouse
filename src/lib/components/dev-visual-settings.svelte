@@ -5,6 +5,7 @@
 		blurEnabled,
 		fakeStaffRole,
 		glassMode,
+		showFps,
 		type BackgroundMode,
 	} from "#lib/dev-settings.svelte.js";
 	import type { GlassMode } from "#lib/render/frame-plan.js";
@@ -98,6 +99,10 @@
 				class="mt-1"
 			/>
 			<span>Turn off all backdrop blur <span class="opacity-60">· e.g. to test low-end GPUs</span></span>
+		</label>
+		<label class="flex items-start gap-2">
+			<input type="checkbox" bind:checked={showFps.current} class="mt-1" />
+			<span>Show FPS counter</span>
 		</label>
 	</fieldset>
 
