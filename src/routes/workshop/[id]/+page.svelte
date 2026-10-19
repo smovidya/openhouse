@@ -212,7 +212,7 @@
 								</span>
 								<span>จำนวน {session.registered}/{session.capacity}</span>
 							</span>
-							<span class="flex items-center gap-1">
+							<span class="flex items-center gap-1 text-white">
 								{blocked && status === "available" ? "ไม่สามารถลงทะเบียนได้" : look.label}
 								<img src={blocked && status === "available" ? cancelRedIcon : look.icon} alt="" />
 							</span>
@@ -221,7 +221,7 @@
 							<p class="text-xs text-brand-mist">กดที่รอบเพื่อยกเลิกการลงทะเบียน</p>
 						{/if}
 						{#if rowErrors[session.id] || blocked}
-							<p id={`error-${session.id}`} role="alert" class="text-xs text-status-red">{rowErrors[session.id] || blocked}</p>
+							<p id={`error-${session.id}`} role="alert" class="text-xs text-white">{rowErrors[session.id] || blocked}</p>
 						{/if}
 					{:else}
 						<p class="text-xs text-brand-mist">ยังไม่มีรอบเวิร์กช็อป</p>
