@@ -83,7 +83,9 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { refreshAll } from "$app/navigation";
 	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
+	import { createQuery, useQueryClient } from "@tanstack/svelte-query";
 	import {
+		getWorkshopBySlug,
 		registerForWorkshop,
 		unregisterFromWorkshop,
 	} from "#lib/features/workshops/workshops.remote.ts";
@@ -102,6 +104,30 @@
 	/** A cancel waiting for the attendee to confirm. */
 	let confirming = $state<WorkshopSession | null>(null);
 
+	// Seats fill as others book: poll the seat counts alone (not the whole page load) every 15 s.
+	// TanStack pauses it in background tabs, refetches on focus, and keeps the last counts if a
+	// poll fails. The rows overlay them on the server load's counts.
+	const queryClient = useQueryClient();
+	const seatsKey = $derived(["workshop-seats", data.workshop.id]);
+	const seats = createQuery(() => ({
+		queryKey: seatsKey,
+		queryFn: async () => {
+			const query = getWorkshopBySlug(data.workshop.id);
+			// A fresh request: awaiting the query alone can return its cached value.
+			await query.refresh();
+			const result = await query;
+			if (result.isErr() || !result.value) throw new Error("FETCH_WORKSHOP_FAILED");
+			return new Map(result.value.timeSlots.map((slot) => [slot.roundNumber, slot.registeredCount]));
+		},
+		refetchInterval: 15_000,
+	}));
+	const liveSessions = $derived(
+		workshop.sessions.map((session) => ({
+			...session,
+			registered: seats.data?.get(session.round) ?? session.registered,
+		})),
+	);
+
 	const roundTime = (session: { start: string; end: string }) =>
 		`${dayFormat.format(new Date(session.start))} ${timeFormat.format(new Date(session.start))} - ${timeFormat.format(new Date(session.end))} น.`;
 
@@ -113,8 +139,9 @@
 		try {
 			const error = await action();
 			if (error !== null) message = bookingError(error);
-			// The attendee's bookings come from the server load.
-			await refreshAll();
+			// The attendee's bookings come from the server load. Refetching the seats cancels a poll
+			// in flight, so a response from before the booking can't overwrite the new count.
+			await Promise.all([refreshAll(), queryClient.refetchQueries({ queryKey: seatsKey })]);
 		} catch {
 			message = bookingError("");
 		} finally {
@@ -206,7 +233,7 @@
 					</div>
 				{/if}
 
-				{#each sessionsByDay(workshop.sessions) as { day, sessions } (day)}
+				{#each sessionsByDay(liveSessions) as { day, sessions } (day)}
 					<time datetime={day} class="text-xs text-brand-mist">
 						{dayFormat.format(new Date(sessions[0].start))}
 					</time>

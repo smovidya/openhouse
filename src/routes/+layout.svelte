@@ -1,6 +1,7 @@
 <script lang="ts">
 	import './layout.css';
-	import { dev } from '$app/env';
+	import { browser, dev } from '$app/env';
+	import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
 	import DevToolbar from '#lib/components/dev-toolbar.svelte';
 	import { page } from '$app/state';
 	import favicon from '#lib/assets/favicon.svg';
@@ -13,6 +14,11 @@
 	let { children }: LayoutProps = $props();
 
 	syncDevSettings();
+
+	// Client-side polling only (seat counts); nothing is fetched while server rendering.
+	const queryClient = new QueryClient({
+		defaultOptions: { queries: { enabled: browser } },
+	});
 </script>
 
 <svelte:head>
@@ -21,10 +27,12 @@
 
 <WaterBackground overlay={page.data.waterOverlay} tint={page.data.waterTint} />
 
-<div class="flex min-h-dvh flex-col">
-	<MenuBar loggedIn={Boolean(page.data.session)} />
-	{@render children()}
-</div>
+<QueryClientProvider client={queryClient}>
+	<div class="flex min-h-dvh flex-col">
+		<MenuBar loggedIn={Boolean(page.data.session)} />
+		{@render children()}
+	</div>
+</QueryClientProvider>
 
 {#if dev}
 	<DevToolbar />

@@ -70,6 +70,7 @@
     "#db/*": "./src/lib/server/db/*"
   },
   "dependencies": {
+    "@tanstack/svelte-query": "^6.3.4",
     "jose": "^6",
     "nanoid": "^6.0.2",
     "neverthrow": "^8.2.0",
