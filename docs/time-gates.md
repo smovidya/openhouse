@@ -9,7 +9,7 @@ bypassed.
 | Workshop registration opens  | 20 Oct 2026, 18:00        | Attendees can register for workshops             |
 | Workshop registration closes | End of 31 Oct 2026, 23:59 | The exclusive code boundary is 1 Nov 2026, 00:00 |
 | Event starts                 | 31 Oct 2026, 13:00        | `eventInProgress` becomes true                   |
-| Event ends                   | 1 Nov 2026, 18:00         | `eventEnded` becomes true                        |
+| Event ends                   | 1 Nov 2026, 17:00         | `eventEnded` becomes true                        |
 
 Google sign-in and general registration are open immediately, with no opening
 date. `signInOpen` and `generalRegistrationOpen` remain `true` for existing API
@@ -94,3 +94,20 @@ these neverthrow error codes when it cannot unregister:
 - `WORKSHOP_REGISTRATION_NOT_FOUND`
 - `WORKSHOP_REGISTRATION_CLOSED`
 - `UNREGISTER_FROM_WORKSHOP_FAILED`
+
+## Workshop attendance rules
+
+Workshops run 31 October 2026, 13:00–19:00, and 1 November 2026, 09:00–17:00 (Bangkok).
+Attendees may hold two advance bookings in different departments. The same department cannot
+be booked twice, even for different workshops or days. Staff walk-ins remain outside the advance
+booking quota, but still obey department and timing restrictions.
+
+There must be at least 60 minutes from one round's end to the next round's start. For example,
+13:00–14:00 permits the next round at 15:00, not 14:00. Both the UI and the atomic D1 insert enforce
+this rule in either booking order. Cancelled bookings do not block a replacement.
+
+Attendees scan at central Check-In first, then at their workshop. Advance arrivals check in from
+15 to 5 minutes before the round; onsite arrivals use the final 5 minutes. Thus a 13:00 round has
+advance check-in 12:45–12:55 and onsite check-in 12:55–13:00. The website displays these instructions
+and personal arrival windows. The current staff scanner does not enforce round-specific windows.
+Booths M1, M2, L1, and L2 have Workshop staff and one representative per department.

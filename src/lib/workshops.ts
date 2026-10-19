@@ -1,3 +1,4 @@
+import { MIN_WORKSHOP_GAP_MINUTES } from "#lib/constants/workshops.ts";
 import { workshopCatalog } from "#lib/data/workshops.ts";
 
 export type WorkshopSession = {
@@ -5,6 +6,8 @@ export type WorkshopSession = {
   id: string;
   /** The workshop's slug. */
   workshop: string;
+  /** Canonical department abbreviation used by the registration service. */
+  department: string;
   /** Round number within the workshop (what the booking API takes). */
   round: number;
   /** ISO 8601 in Bangkok time, e.g. 2026-10-31T13:00:00+07:00 */
@@ -18,7 +21,7 @@ export type WorkshopSession = {
 /** A session the attendee is booked into (from getWorkshopRegistrationsByAttendeeId). */
 export type BookedSession = Pick<
   WorkshopSession,
-  "id" | "workshop" | "round" | "start" | "end"
+  "id" | "workshop" | "department" | "round" | "start" | "end"
 >;
 
 export const sessionId = (workshop: string, round: number) =>
@@ -54,6 +57,7 @@ export type SessionStatus =
   | "conflict"
   | "registered"
   | "other-round"
+  | "same-department"
   | "closed"
   | "started"
   | "limit";
@@ -82,18 +86,19 @@ export function sessionStatus(
   if (window && Date.parse(session.start) <= window.now) return "started";
   if (session.registered !== null && session.registered >= session.capacity)
     return "full";
-  // Another round of this workshop is reported as other-round (cancel it first), not as a clash.
-  const start = Date.parse(session.start);
-  const end = Date.parse(session.end);
-  const overlaps = booked.some(
-    (other) =>
-      other.workshop !== session.workshop &&
-      Date.parse(other.start) < end &&
-      start < Date.parse(other.end),
-  );
-  if (overlaps) return "conflict";
   if (booked.some((other) => other.workshop === session.workshop))
     return "other-round";
+  if (booked.some((other) => other.department === session.department))
+    return "same-department";
+  const start = Date.parse(session.start);
+  const end = Date.parse(session.end);
+  const gap = MIN_WORKSHOP_GAP_MINUTES * 60_000;
+  const conflicts = booked.some(
+    (other) =>
+      Date.parse(other.start) < end + gap &&
+      start < Date.parse(other.end) + gap,
+  );
+  if (conflicts) return "conflict";
   return window && window.advanceLeft <= 0 ? "limit" : "available";
 }
 
@@ -124,6 +129,7 @@ export const workshops: Workshop[] = workshopCatalog.map((workshop) => ({
     ...session,
     id: sessionId(workshop.slug, index + 1),
     workshop: workshop.slug,
+    department: workshop.hostDepartmentAbbr,
     round: index + 1,
     registered: null,
     capacity: workshop.capacity,
@@ -156,6 +162,7 @@ export const toWorkshop = (workshop: ApiWorkshop): Workshop => ({
   sessions: workshop.timeSlots.map((slot) => ({
     id: sessionId(workshop.slug, slot.roundNumber),
     workshop: workshop.slug,
+    department: workshop.hostDepartimentAbbr,
     round: slot.roundNumber,
     start: toBangkokIso(slot.startsAt),
     end: toBangkokIso(slot.endsAt),
@@ -168,11 +175,13 @@ export const toWorkshop = (workshop: ApiWorkshop): Workshop => ({
 export const toBookedSession = (registration: {
   workshopSlug: string;
   workshopRoundNumber: number;
+  departmentAbbr: string;
   startsAt: Date;
   endsAt: Date;
 }): BookedSession => ({
   id: sessionId(registration.workshopSlug, registration.workshopRoundNumber),
   workshop: registration.workshopSlug,
+  department: registration.departmentAbbr,
   round: registration.workshopRoundNumber,
   start: toBangkokIso(registration.startsAt),
   end: toBangkokIso(registration.endsAt),

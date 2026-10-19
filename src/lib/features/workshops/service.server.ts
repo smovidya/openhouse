@@ -3,7 +3,10 @@
 // and duplicate-registration rules atomically using operations supported by D1.
 
 import { getDb, tables } from "#lib/server/db/index.ts";
-import { MAX_ADVANCE_WORKSHOP_REGISTRATIONS } from "#lib/constants/workshops.ts";
+import {
+  MAX_ADVANCE_WORKSHOP_REGISTRATIONS,
+  MIN_WORKSHOP_GAP_MINUTES,
+} from "#lib/constants/workshops.ts";
 import { env } from "cloudflare:workers";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { err, ok, ResultAsync } from "neverthrow";
@@ -169,6 +172,7 @@ export type WorkshopRegistrationError =
   | "ATTENDEE_NOT_FOUND"
   | "WORKSHOP_TIME_SLOT_NOT_FOUND"
   | "ALREADY_REGISTERED_FOR_WORKSHOP"
+  | "ALREADY_REGISTERED_FOR_DEPARTMENT"
   | "WORKSHOP_TIME_CONFLICT"
   | "WORKSHOP_ADVANCE_REGISTRATION_LIMIT_REACHED"
   | "WORKSHOP_FULL"
@@ -177,7 +181,7 @@ export type WorkshopRegistrationError =
 
 /**
  * Registers a trusted attendee ID. Capacity is per round, shared by both types.
- * An attendee may attend a workshop once; sessions use [startsAt, endsAt).
+ * An attendee may attend a department once, with a 60-minute gap between rounds.
  */
 export const registerForWorkshop = (input: {
   attendeeId: string;
@@ -222,10 +226,20 @@ export const registerForWorkshop = (input: {
           SELECT 1 FROM ${workshopRegistrations} AS registration
           INNER JOIN ${workshopTimeSlots} AS registered_slot
             ON registered_slot.id = registration.workshop_time_slot_id
+          INNER JOIN ${workshops} AS registered_workshop
+            ON registered_workshop.id = registered_slot.workshop_id
           WHERE registration.attendee_id = ${input.attendeeId}
             AND registration.deleted_at IS NULL
-            AND registered_slot.starts_at < ${workshopTimeSlots.endsAt}
-            AND registered_slot.ends_at > ${workshopTimeSlots.startsAt}
+            AND registered_workshop.host_department_abbr = ${workshops.hostDepartimentAbbr}
+        ) THEN 'ALREADY_REGISTERED_FOR_DEPARTMENT'
+        WHEN EXISTS (
+          SELECT 1 FROM ${workshopRegistrations} AS registration
+          INNER JOIN ${workshopTimeSlots} AS registered_slot
+            ON registered_slot.id = registration.workshop_time_slot_id
+          WHERE registration.attendee_id = ${input.attendeeId}
+            AND registration.deleted_at IS NULL
+            AND registered_slot.starts_at < ${workshopTimeSlots.endsAt} + ${MIN_WORKSHOP_GAP_MINUTES * 60}
+            AND registered_slot.ends_at + ${MIN_WORKSHOP_GAP_MINUTES * 60} > ${workshopTimeSlots.startsAt}
         ) THEN 'WORKSHOP_TIME_CONFLICT'
         WHEN ${input.type} = 'advance' AND (
           SELECT count(*) FROM ${workshopRegistrations}

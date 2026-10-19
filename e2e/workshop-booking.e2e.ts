@@ -79,6 +79,14 @@ test("an attendee books workshops within the rules", async ({ page }) => {
   await expect(round(page, "perfume:2")).toContainText("ยกเลิกรอบเดิมก่อน");
   await expect(page.locator('button[data-session="perfume:2"]')).toHaveCount(0);
 
+  // Fifteen minutes after Perfume ends is too soon, despite no overlap.
+  await open(page, "/workshop/shrink-plastic");
+  await expect(round(page, "shrink-plastic:1")).toHaveAttribute(
+    "data-status",
+    "conflict",
+  );
+  await expect(round(page, "shrink-plastic:1")).toContainText("60 นาที");
+
   // Little Beads round 1 is also Sat 13:00: a clash. Round 2 (Sat 15:30) is free.
   await open(page, "/workshop/little-beads-big-ideas");
   await expect(round(page, "little-beads-big-ideas:1")).toHaveAttribute(
@@ -93,12 +101,12 @@ test("an attendee books workshops within the rules", async ({ page }) => {
 
   // A third workshop is over the advance-booking limit: its rounds say so and can't be pressed.
   await open(page, "/workshop/geo-map");
-  await expect(round(page, "geo-map:2")).toHaveAttribute(
+  await expect(round(page, "geo-map:5")).toHaveAttribute(
     "data-status",
     "limit",
-  ); // Sat 14:15, no clash
-  await expect(round(page, "geo-map:2")).toContainText("ครบ 2 เวิร์กช็อปแล้ว");
-  await expect(page.locator('button[data-session="geo-map:2"]')).toHaveCount(0);
+  ); // Sun 09:00, enough separation from both bookings
+  await expect(round(page, "geo-map:5")).toContainText("ครบ 2 เวิร์กช็อปแล้ว");
+  await expect(page.locator('button[data-session="geo-map:5"]')).toHaveCount(0);
 
   // The list marks the booked workshops.
   await open(page, "/workshop");
@@ -141,8 +149,8 @@ test("an attendee books workshops within the rules", async ({ page }) => {
     "available",
   );
   expect(await seats(page, "perfume:1")).toBe(before);
-  await round(page, "perfume:2").click(); // Sat 16:45
-  await expect(round(page, "perfume:2")).toHaveAttribute(
+  await round(page, "perfume:3").click(); // Sun 09:00, at least 60 minutes after Little Beads
+  await expect(round(page, "perfume:3")).toHaveAttribute(
     "data-status",
     "registered",
   );
@@ -152,10 +160,10 @@ test("an attendee books workshops within the rules", async ({ page }) => {
   );
 
   // Pressing the booked round again cancels it, after confirming.
-  await round(page, "perfume:2").click();
+  await round(page, "perfume:3").click();
   await expect(dialog).toContainText("ยกเลิกการลงทะเบียน?");
   await dialog.getByRole("button", { name: "ยกเลิกการลงทะเบียน" }).click();
-  await expect(round(page, "perfume:2")).toHaveAttribute(
+  await expect(round(page, "perfume:3")).toHaveAttribute(
     "data-status",
     "available",
   );

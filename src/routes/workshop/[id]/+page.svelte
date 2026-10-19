@@ -24,7 +24,7 @@
 		},
 		full: { label: "เต็ม", icon: cancelRedIcon, class: "border-status-red text-status-red" },
 		conflict: {
-			label: "เวลาชนกับกิจกรรมอื่น",
+			label: "ต้องเว้นระยะอย่างน้อย 60 นาที",
 			icon: cancelRedIcon,
 			class: "border-status-red text-status-red",
 		},
@@ -37,6 +37,11 @@
 		// wouldn't be atomic): they cancel that round first, then pick this one.
 		"other-round": {
 			label: "ยกเลิกรอบเดิมก่อน",
+			icon: cancelRedIcon,
+			class: "border-brand-sky text-brand-navy",
+		},
+		"same-department": {
+			label: "ลงทะเบียนภาควิชานี้แล้ว",
 			icon: cancelRedIcon,
 			class: "border-brand-sky text-brand-navy",
 		},
@@ -74,7 +79,9 @@
 			case "WORKSHOP_FULL":
 				return "รอบนี้เต็มแล้ว";
 			case "WORKSHOP_TIME_CONFLICT":
-				return "เวลาชนกับเวิร์กช็อปที่ลงทะเบียนไว้แล้ว";
+				return "ต้องเว้นระยะอย่างน้อย 60 นาทีหลังจบเวิร์กช็อปเดิม กรุณายกเลิกรอบเดิมก่อนเลือกรอบใหม่";
+			case "ALREADY_REGISTERED_FOR_DEPARTMENT":
+				return "ลงทะเบียนภาควิชานี้แล้ว กรุณาเลือกภาควิชาอื่น หรือยกเลิกรอบเดิมก่อน";
 			case "ALREADY_REGISTERED_FOR_WORKSHOP":
 				return "ลงทะเบียนเวิร์กช็อปนี้ไว้แล้ว";
 			case "WORKSHOP_ADVANCE_REGISTRATION_LIMIT_REACHED":
@@ -92,6 +99,7 @@
 </script>
 
 <script lang="ts">
+	import WorkshopRules from "#lib/components/workshop-rules.svelte";
 	import calendarIcon from "#lib/assets/icons/calendar-lg.svg";
 	import infoIcon from "#lib/assets/icons/info.svg";
 	import Glass from "#lib/render/glass.svelte";
@@ -227,6 +235,8 @@
 <main class="mx-auto flex w-full max-w-[402px] flex-1 flex-col justify-between gap-6 px-3 pt-6 pb-4">
 	<div class="flex flex-col items-center gap-6">
 		<SignBoard title="WORKSHOP" wide />
+
+		<WorkshopRules />
 
 		<Glass as="article" class="flex w-full flex-col gap-3 rounded-lg p-3">
 			<header class="text-center">

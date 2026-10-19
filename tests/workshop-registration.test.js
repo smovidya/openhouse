@@ -128,14 +128,15 @@ describe("atomic workshop registration on D1", () => {
   async function workshop(
     capacity = 10,
     intervals = [{ start: 540, end: 600, date: "2030-01-01" }],
+    department = crypto.randomUUID(),
   ) {
     const [workshop] = await db
       .insert(tables.workshops)
       .values({
         slug: crypto.randomUUID(),
         title: "Workshop",
-        hostDepartment: "physics",
-        hostDepartimentAbbr: "PHYS",
+        hostDepartment: department,
+        hostDepartimentAbbr: department,
         description: "Test workshop",
         capacity,
       })
@@ -369,18 +370,69 @@ describe("atomic workshop registration on D1", () => {
     }
   });
 
-  it("allows back-to-back workshops and the same clock times on another day", async () => {
+  it("allows exactly 60 minutes between workshops and the same clock times on another day", async () => {
     const person = await attendee();
     const existing = await workshop();
     assert.ok((await book(person.id, existing.slug)).isOk());
     for (const interval of [
-      { start: 480, end: 540, date: "2030-01-01" },
-      { start: 600, end: 660, date: "2030-01-01" },
+      { start: 420, end: 480, date: "2030-01-01" },
+      { start: 660, end: 720, date: "2030-01-01" },
       { start: 540, end: 600, date: "2030-01-02" },
     ]) {
       const target = await workshop(10, [interval]);
       assert.ok((await book(person.id, target.slug, 1, "walk-in")).isOk());
     }
+  });
+
+  it("rejects less than 60 minutes of free time in either booking order", async () => {
+    const person = await attendee();
+    const existing = await workshop();
+    assert.ok((await book(person.id, existing.slug)).isOk());
+    for (const [start, end] of [
+      [480, 540],
+      [600, 660],
+      [421, 481],
+      [659, 719],
+    ]) {
+      const target = await workshop(10, [{ start, end, date: "2030-01-01" }]);
+      expectError(await book(person.id, target.slug), "WORKSHOP_TIME_CONFLICT");
+    }
+  });
+
+  it("rejects different workshops of the same department, even on different days", async () => {
+    const person = await attendee();
+    const first = await workshop(10, undefined, "GEO");
+    const second = await workshop(
+      10,
+      [{ start: 540, end: 600, date: "2030-01-02" }],
+      "GEO",
+    );
+    assert.ok((await book(person.id, first.slug)).isOk());
+    expectError(
+      await book(person.id, second.slug),
+      "ALREADY_REGISTERED_FOR_DEPARTMENT",
+    );
+    assert.ok((await cancel(person.id, first.slug)).isOk());
+    assert.ok((await book(person.id, second.slug)).isOk());
+  });
+
+  it("atomically rejects simultaneous bookings in the same department", async () => {
+    const person = await attendee();
+    const first = await workshop(10, undefined, "MICRO");
+    const second = await workshop(
+      10,
+      [{ start: 540, end: 600, date: "2030-01-02" }],
+      "MICRO",
+    );
+    const results = await Promise.all([
+      book(person.id, first.slug),
+      book(person.id, second.slug),
+    ]);
+    assert.equal(results.filter((result) => result.isOk()).length, 1);
+    expectError(
+      results.find((result) => result.isErr()),
+      "ALREADY_REGISTERED_FOR_DEPARTMENT",
+    );
   });
 
   it("rejects an overlap across midnight even when the slot dates differ", async () => {
