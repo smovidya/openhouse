@@ -56,7 +56,10 @@ export class GlassPaneState {
   device: GPUDevice | null = null;
   /** Cached corner radius (CSS px); cleared on resize. */
   radius: number | null = null;
-  /** Within half a viewport of the screen (IntersectionObserver); only these are measured. */
+  /**
+   * Within half a viewport of the screen (IntersectionObserver); only these are measured and keep
+   * GPU state. Others are released and show the CSS look.
+   */
   near = false;
   /** The canvas must be redrawn regardless of keys (new, resized); cleared once drawn. */
   dirty = true;
@@ -115,7 +118,10 @@ function observers() {
     (entries) => {
       for (const entry of entries) {
         const pane = paneByElement.get(entry.target);
-        if (pane) pane.near = entry.isIntersecting;
+        if (!pane) continue;
+        pane.near = entry.isIntersecting;
+        // Far away: free its canvas's GPU textures and fall back to the CSS look until it's near again.
+        if (!pane.near) pane.release();
       }
       requestGlassRedraw();
     },

@@ -53,9 +53,9 @@ export type PaneSnapshot = {
   radius: number;
   variant: GlassPane["variant"];
   options: GlassOptions;
-  /** Intersects the viewport; panes off screen are never drawn. */
+  /** Intersects the viewport; panes off screen are only drawn when cleared. */
   onScreen: boolean;
-  /** Its canvas was cleared (new, resized, reconfigured): draw it as soon as it is on screen. */
+  /** Its canvas was cleared (new, resized, reconfigured, released): draw it now, even off screen. */
   cleared: boolean;
 };
 
@@ -147,9 +147,11 @@ export function planFrame(
       ? // Full glass shows the fixed water behind it, so it also depends on where it is.
         [blurKey, tint, x, y, ...shape, ...Object.values(pane.options)].join()
       : [...shape, highlightWidth, highlightAlpha, highlightAngle].join();
-    // Only what is on screen is drawn. A pane that scrolls in gets drawn in that same frame: full
-    // glass because it moved (its key has its position), the rim if it changed meanwhile.
-    if (pane.onScreen && (pane.cleared || history.panes.get(pane.id) !== key)) {
+    // A cleared canvas is drawn as soon as its pane is near, so it has crossfaded from the CSS look
+    // before it scrolls in. After that, only what is on screen is redrawn. A pane that scrolls in
+    // gets drawn in that same frame: full glass because it moved (its key has its position), the
+    // rim if it changed meanwhile.
+    if (pane.cleared || (pane.onScreen && history.panes.get(pane.id) !== key)) {
       panes.push(pane);
       paneKeys.set(pane.id, key);
     }
