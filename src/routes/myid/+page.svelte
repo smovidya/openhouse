@@ -3,7 +3,6 @@
 	import checkCircleIcon from "#lib/assets/icons/check-circle.svg";
 	import Glass from "#lib/render/glass.svelte";
 	import QrCode from "#lib/components/qr-code.svelte";
-	import RewardTierCard from "#lib/components/reward-tier-card.svelte";
 	import SignBoard from "#lib/components/sign-board.svelte";
 	import WorkshopCard from "#lib/components/workshop-card.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -66,8 +65,11 @@
 			<h2 class="text-2xl font-medium">ภารกิจล่าของรางวัล</h2>
 			<p class="text-xs">*เมื่อเลื่อนขั้นแล้วจะไม่สามารถแลกของรางวัลขั้นที่ต่ำกว่าได้</p>
 		</div>
-		{#each data.rewardTiers as tier (tier.title)}
-			<RewardTierCard {tier} />
-		{/each}
+		<!-- Placeholder until the reward hunt opens (RewardTierCard shows the tiers then). -->
+		<Glass class="rounded-lg p-3">
+			<p class="text-center font-heading text-base font-medium text-brand-yellow">
+				เตรียมพบกับกิจกรรมแลกของรางวัลสุดพิเศษ<br />Coming Soon!!
+			</p>
+		</Glass>
 	</section>
 </main>
