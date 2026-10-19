@@ -52,6 +52,16 @@ export async function freezeClock(
   });
 }
 
+/** Freeze the server's clock for this browser at a Bangkok local time, e.g. "2026-10-20T17:00". */
+export async function freezeClockAt(page: Page, bangkokTime: string) {
+  await open(page, "/");
+  await inDevToolbar(page, async (panel) => {
+    await panel.getByLabel("Bangkok time (UTC+07:00)").fill(bangkokTime);
+    await panel.getByRole("button", { name: "Freeze time" }).click();
+    await expect(panel.getByRole("status")).toHaveText("Clock frozen");
+  });
+}
+
 /** Choose an option in one of the form's pickers, found by its placeholder. */
 async function pick(page: Page, placeholder: string, option: string) {
   const picker = page.locator("[data-slot=picker]", {
