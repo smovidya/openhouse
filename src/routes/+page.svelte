@@ -106,8 +106,7 @@
 	import Countdown from "#lib/components/countdown.svelte";
 	import Glass from "#lib/render/glass.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
-
-	const EVENT_START = "2026-10-31T13:00:00+07:00";
+	import { EVENT_SCHEDULE } from "#lib/constants/time.ts";
 </script>
 
 <svelte:head>
@@ -118,7 +117,7 @@
 <main class="flex w-full flex-col items-center gap-6 pt-6 pb-4">
 	<img src={logo} alt="Sci CU Open House 2027" class="size-62.75 object-cover" />
 
-	<Countdown target={EVENT_START} />
+	<Countdown target={EVENT_SCHEDULE.eventStartsAt} />
 
 	<div id="register" class="w-full max-w-100.5 scroll-mt-24 px-3">
 		{#if dev}
