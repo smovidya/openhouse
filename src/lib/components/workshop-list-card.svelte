@@ -18,7 +18,14 @@
 	import { sessionsByDay, type Workshop } from "#lib/workshops.js";
 	import Glass from "#lib/render/glass.svelte";
 
-	let { workshop }: { workshop: Workshop } = $props();
+	let {
+		workshop,
+		registered = false,
+	}: {
+		workshop: Workshop;
+		/** The attendee holds a round of it: the button reads ลงทะเบียนแล้ว (still to the detail page). */
+		registered?: boolean;
+	} = $props();
 
 	let expanded = $state(false);
 
@@ -41,7 +48,9 @@
 			<h3 class="text-base font-medium text-brand-yellow">{workshop.title}</h3>
 			<p class="text-[10px] text-brand-mist">{workshop.hostDepartmentAbbr}</p>
 		</div>
-		<Button variant="cta" size="cta-sm" href="/workshop/{workshop.id}">ลงทะเบียน</Button>
+		<Button variant="cta" size="cta-sm" href="/workshop/{workshop.id}">
+			{registered ? "ลงทะเบียนแล้ว" : "ลงทะเบียน"}
+		</Button>
 	</div>
 
 	<!-- One row per day: the date, then that day's sessions in two columns (filled top to bottom).

@@ -15,7 +15,7 @@
 
 	<section class="flex w-full flex-col gap-2">
 		{#each data.workshops as workshop (workshop.id)}
-			<WorkshopListCard {workshop} />
+			<WorkshopListCard {workshop} registered={data.registered.includes(workshop.id)} />
 		{/each}
 	</section>
 </main>
