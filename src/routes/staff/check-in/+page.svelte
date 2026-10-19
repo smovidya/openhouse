@@ -15,7 +15,7 @@
 	import QrScanner from "#lib/components/qr-scanner.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
-	import * as Sheet from "#lib/components/ui/sheet/index.js";
+	import * as Drawer from "#lib/components/ui/drawer/index.js";
 	import { getAttendeeProfileByQrCodeId } from "#lib/features/attendees/attendees.remote.ts";
 	import { checkInAttendee } from "#lib/features/checkpoints/checkpoints.remote.ts";
 	import type { PageProps } from "./$types";
@@ -26,15 +26,15 @@
 	let mode = $state<"scan" | "code">("scan");
 
 	type Attendee = Awaited<ReturnType<typeof getAttendeeProfileByQrCodeId>>;
-	/** The attendee being confirmed in the sheet. */
+	/** The attendee being confirmed in the drawer. */
 	let attendee = $state<Attendee | null>(null);
-	let sheetOpen = $state(false);
+	let drawerOpen = $state(false);
 	let checkingIn = $state(false);
 	/** Result of the last scan or check-in. */
 	let message = $state<{ text: string; ok: boolean } | null>(null);
 	let code = $state("");
-	/** Resolves when the sheet closes: the scanner waits for it before reading the next code. */
-	let sheetClosed: (() => void) | null = null;
+	/** Resolves when the drawer closes: the scanner waits for it before reading the next code. */
+	let drawerClosed: (() => void) | null = null;
 
 	async function lookUp(qrCodeId: string) {
 		message = null;
@@ -47,21 +47,21 @@
 			};
 			return;
 		}
-		sheetOpen = true;
-		return new Promise<void>((resolve) => (sheetClosed = resolve));
+		drawerOpen = true;
+		return new Promise<void>((resolve) => (drawerClosed = resolve));
 	}
 
-	function closeSheet() {
-		sheetOpen = false;
-		sheetClosed?.();
-		sheetClosed = null;
+	function closeDrawer() {
+		drawerOpen = false;
+		drawerClosed?.();
+		drawerClosed = null;
 	}
 
 	async function confirm() {
 		if (!attendee || checkingIn) return;
 		if (!data.entry) {
 			message = { text: "ไม่พบจุดลงทะเบียน", ok: false };
-			closeSheet();
+			closeDrawer();
 			return;
 		}
 		checkingIn = true;
@@ -79,7 +79,7 @@
 			};
 		} finally {
 			checkingIn = false;
-			closeSheet();
+			closeDrawer();
 		}
 	}
 
@@ -152,30 +152,30 @@
 	<Button variant="cta" size="cta-lg" href="/staff" class="w-full">ย้อนกลับ</Button>
 </main>
 
-<Sheet.Root
-	open={sheetOpen}
+<!-- Swipe down (or ✕, the backdrop, Esc) to dismiss. -->
+<Drawer.Root
+	open={drawerOpen}
+	shouldScaleBackground={false}
 	onOpenChange={(open) => {
-		if (!open) closeSheet();
+		if (!open) closeDrawer();
 	}}
 >
-	<Sheet.Content
-		side="bottom"
-		showCloseButton={false}
+	<Drawer.Content
 		overlayClass="bg-black/40 supports-backdrop-filter:backdrop-blur-none"
-		class="mx-auto max-w-[402px] gap-0 rounded-t-3xl border-0 bg-brand-mist px-2 pt-2 pb-6 data-[side=bottom]:h-[500px]"
+		class="mx-auto h-[500px] max-w-[402px] bg-brand-mist px-2 pt-2 pb-6 data-[vaul-drawer-direction=bottom]:rounded-t-3xl data-[vaul-drawer-direction=bottom]:border-t-0"
 	>
-		<Sheet.Close
+		<Drawer.Close
 			class="relative ml-auto size-[30px] shrink-0 rounded-full bg-black/8 backdrop-blur-[4.583px]"
 			aria-label="ปิด"
 		>
 			<img src={closeIcon} alt="" class="absolute top-[5px] left-[5px]" />
-		</Sheet.Close>
+		</Drawer.Close>
 		{#if attendee}
 			<div class="flex flex-1 flex-col items-center justify-between">
 				<div class="flex w-full flex-col gap-6 px-4">
-					<Sheet.Title class="text-center font-heading text-[28px] font-medium text-black">
+					<Drawer.Title class="text-center font-heading text-[28px] font-medium text-black">
 						เช็คอินผู้เข้าร่วมงาน
-					</Sheet.Title>
+					</Drawer.Title>
 					<dl class="flex flex-col gap-1 text-xl">
 						{#each [
 							["ชื่อ", `${attendee.firstname} ${attendee.lastname}`],
@@ -190,12 +190,12 @@
 					</dl>
 				</div>
 				<div class="flex w-full flex-col gap-2">
-					<Button variant="cta-light" size="cta-lg" class="w-full" onclick={closeSheet}>ยกเลิก</Button>
+					<Button variant="cta-light" size="cta-lg" class="w-full" onclick={closeDrawer}>ยกเลิก</Button>
 					<Button variant="cta" size="cta-lg" class="w-full" disabled={checkingIn} onclick={confirm}>
 						{checkingIn ? "กำลังเช็คอิน…" : "ตกลง"}
 					</Button>
 				</div>
 			</div>
 		{/if}
-	</Sheet.Content>
-</Sheet.Root>
+	</Drawer.Content>
+</Drawer.Root>

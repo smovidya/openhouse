@@ -35,6 +35,7 @@
 
 <script lang="ts">
 	import { onMount } from "svelte";
+	import CameraTroubleshoot from "#lib/components/camera-troubleshoot.svelte";
 	import { cn } from "#lib/utils.js";
 	import cornerBottomLeft from "#lib/assets/icons/scanner-corner-bottom-left.svg";
 	import cornerBottomRight from "#lib/assets/icons/scanner-corner-bottom-right.svg";
@@ -105,31 +106,35 @@
 	});
 </script>
 
-<!-- Viewfinder (Figma): the camera in a 268px square, framed by four corner brackets. -->
-<div class={cn("relative h-[298.8px] w-[300px] shrink-0", className)}>
-	<div class="absolute top-[12.03px] left-[14.43px] size-[268.06px] overflow-hidden bg-black">
-		<video bind:this={video} class="size-full object-cover" muted playsinline aria-label="กล้องสแกน QR code"></video>
-		{#if status !== "scanning"}
-			<p class="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-brand-mist">
-				{#if status === "starting"}
-					กำลังเปิดกล้อง…
-				{:else if status === "denied"}
-					กรุณาอนุญาตให้เว็บไซต์ใช้กล้อง แล้วโหลดหน้าใหม่
-				{:else}
-					ไม่สามารถเปิดกล้องได้ ใช้ “กรอกรหัส” แทน
-				{/if}
-			</p>
-		{/if}
-	</div>
-	<!-- Each corner is its own asset, rotated into place as in Figma. -->
-	{#each [
-		{ src: cornerTopLeft, position: "top-0 left-[3.61px]", rotate: "" },
-		{ src: cornerTopRight, position: "top-0 left-[216.47px]", rotate: "rotate-90" },
-		{ src: cornerBottomLeft, position: "top-[222.49px] left-0", rotate: "-rotate-90" },
-		{ src: cornerBottomRight, position: "top-[222.49px] left-[223.69px]", rotate: "rotate-180" },
-	] as corner (corner.src)}
-		<div class={["pointer-events-none absolute size-[76.31px]", corner.position, corner.rotate]}>
-			<img src={corner.src} alt="" class="absolute inset-[-0.75%_0_0_-0.82%] block size-auto max-w-none" />
+<div class={cn("flex flex-col items-center gap-3", className)}>
+	<!-- Viewfinder (Figma): the camera in a 268px square, framed by four corner brackets. -->
+	<div class="relative h-[298.8px] w-[300px] shrink-0">
+		<div class="absolute top-[12.03px] left-[14.43px] size-[268.06px] overflow-hidden bg-black">
+			<video bind:this={video} class="size-full object-cover" muted playsinline aria-label="กล้องสแกน QR code"></video>
+			{#if status !== "scanning"}
+				<p class="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-brand-mist">
+					{#if status === "starting"}
+						กำลังเปิดกล้อง…
+					{:else if status === "denied"}
+						กรุณาอนุญาตให้เว็บไซต์ใช้กล้อง แล้วโหลดหน้าใหม่
+					{:else}
+						ไม่สามารถเปิดกล้องได้ ใช้ “กรอกรหัส” แทน
+					{/if}
+				</p>
+			{/if}
 		</div>
-	{/each}
+		<!-- Each corner is its own asset, rotated into place as in Figma. -->
+		{#each [
+			{ src: cornerTopLeft, position: "top-0 left-[3.61px]", rotate: "" },
+			{ src: cornerTopRight, position: "top-0 left-[216.47px]", rotate: "rotate-90" },
+			{ src: cornerBottomLeft, position: "top-[222.49px] left-0", rotate: "-rotate-90" },
+			{ src: cornerBottomRight, position: "top-[222.49px] left-[223.69px]", rotate: "rotate-180" },
+		] as corner (corner.src)}
+			<div class={["pointer-events-none absolute size-[76.31px]", corner.position, corner.rotate]}>
+				<img src={corner.src} alt="" class="absolute inset-[-0.75%_0_0_-0.82%] block size-auto max-w-none" />
+			</div>
+		{/each}
+	</div>
+	<!-- Help for a black or blocked camera, wherever the scanner is used. -->
+	<CameraTroubleshoot />
 </div>
