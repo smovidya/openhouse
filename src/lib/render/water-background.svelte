@@ -116,7 +116,7 @@
 						panes:
 							mode === "css"
 								? []
-								: snapshotPanes(gpu, format, dpr, page?.getBoundingClientRect().top),
+								: snapshotPanes(gpu, format, dpr),
 					};
 					// 2. Plan: which passes this frame needs.
 					const plan = planFrame(inputs, history);
@@ -182,11 +182,14 @@
 
 <!-- Layers share one grid cell: static tile, tint, then the WebGPU canvas (fades in once drawn).
      The canvas draws the tint itself, so it covers the DOM tint and fades in over a tinted tile.
-     100lvh, bottom-anchored, not inset-0: the mobile URL bar showing/hiding would otherwise resize
-     (and re-render) the canvas mid-scroll; it just slides over the top instead. -->
+     100lvh, not inset-0: the mobile URL bar showing/hiding would otherwise resize (and re-render)
+     the canvas mid-scroll. Top-anchored, not bottom: while the URL bar animates, Chrome's compositor
+     shifts bottom-anchored fixed layers without the main thread knowing, so the glass panes would
+     sample the water at the wrong offset (and snap back: flicker). Top-anchored layers move with
+     the content, so the water's top is the viewport's top. -->
 <div
 	aria-hidden="true"
-	class="pointer-events-none fixed inset-x-0 bottom-0 -z-10 grid h-lvh grid-cols-1 grid-rows-1 [container-type:size]"
+	class="pointer-events-none fixed inset-x-0 top-0 -z-10 grid h-lvh grid-cols-1 grid-rows-1 [container-type:size]"
 >
 	<!-- The shader tiles a square the size of the shorter side, so the CPU-rendered tile repeats the same way. -->
 	<div

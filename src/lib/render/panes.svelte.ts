@@ -145,23 +145,36 @@ function observers() {
 
 /**
  * Prepare: measure every pane near the viewport and get its canvas ready (sized, configured).
- * The only phase that touches the DOM. `waterTop`: the water's top edge in the viewport, CSS px
- * (the background is bottom-anchored, so it's negative while the mobile URL bar shows).
+ * The only phase that touches the DOM: all reads first, then all writes, so sizing a canvas never
+ * forces a layout for the next pane's measurement.
  */
 export function snapshotPanes(
   device: GPUDevice,
   format: GPUTextureFormat,
   dpr: number,
-  waterTop = 0,
 ) {
-  const snapshots: PaneSnapshot[] = [];
+  // Reads. Far panes (beyond one viewport of margin) aren't measured.
   const vw = innerWidth;
   const vh = innerHeight;
+  const measured: {
+    pane: GlassPaneState;
+    element: HTMLElement;
+    canvas: HTMLCanvasElement;
+    box: DOMRect;
+    radius: number;
+  }[] = [];
   for (const pane of panes) {
     const { element, canvas } = pane;
-    // Far panes (beyond one viewport of margin) aren't even measured.
     if (!pane.near || !element || !canvas) continue;
     const box = element.getBoundingClientRect();
+    pane.radius ??=
+      parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0;
+    measured.push({ pane, element, canvas, box, radius: pane.radius });
+  }
+
+  // Writes.
+  const snapshots: PaneSnapshot[] = [];
+  for (const { pane, element, canvas, box, radius } of measured) {
     const width = Math.max(1, Math.round(box.width * dpr));
     const height = Math.max(1, Math.round(box.height * dpr));
     let cleared = pane.dirty;
@@ -177,14 +190,12 @@ export function snapshotPanes(
       pane.device = device;
       cleared = true;
     }
-    pane.radius ??=
-      parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0;
     const overrides = pane.getOptions();
     snapshots.push({
       id: pane,
       context: pane.context,
-      rect: { x: box.left * dpr, y: (box.top - waterTop) * dpr, width, height },
-      radius: pane.radius * dpr,
+      rect: { x: box.left * dpr, y: box.top * dpr, width, height },
+      radius: radius * dpr,
       variant: (element.dataset.glass === "light"
         ? "light"
         : "dark") satisfies GlassVariant,
