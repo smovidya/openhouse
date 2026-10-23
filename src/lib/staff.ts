@@ -2,6 +2,7 @@ import calendarCheckIcon from "#lib/assets/icons/calendar-check.svg";
 import giftIcon from "#lib/assets/icons/gift-brown.svg";
 import labPanelIcon from "#lib/assets/icons/lab-panel-brown.svg";
 import storefrontIcon from "#lib/assets/icons/storefront.svg";
+import { httpStatus } from "#lib/utils.js";
 
 export type StaffRole = "central" | "booth";
 
@@ -43,10 +44,7 @@ export const staffMenus: Record<
 
 /** Thai message for a failed enrollStaff / redeemInviteCode call (the server's HTTP status). */
 export function inviteCodeError(error: unknown) {
-  const status =
-    typeof error === "object" && error !== null && "status" in error
-      ? error.status
-      : null;
+  const status = httpStatus(error);
   // 400 also covers a code too short to be valid (input validation).
   if (status === 400) return "รหัสเชิญไม่ถูกต้อง หรือถูกปิดใช้งานแล้ว";
   if (status === 401) return "กรุณาเข้าสู่ระบบอีกครั้ง";

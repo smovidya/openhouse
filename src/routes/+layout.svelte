@@ -3,6 +3,7 @@
 	import { browser, dev } from '$app/env';
 	import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
 	import DevToolbar from '#lib/components/dev-toolbar.svelte';
+	import ErrorDialogHost from '#lib/components/error-dialog-host.svelte';
 	import { page } from '$app/state';
 	import appleTouchIcon from '#lib/assets/apple-touch-icon.png';
 	import favicon from '#lib/assets/favicon.png';
@@ -35,6 +36,9 @@
 		{@render children()}
 	</div>
 </QueryClientProvider>
+
+<!-- showError() (#lib/error-dialog.svelte.ts). -->
+<ErrorDialogHost />
 
 {#if dev}
 	<DevToolbar />

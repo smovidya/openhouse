@@ -27,6 +27,15 @@
 		return new BarcodeDetector({ formats: ["qr_code"] });
 	}
 
+	type CameraStatus = "starting" | "scanning" | "denied" | "unavailable";
+
+	/** Shown over the video until the camera is scanning. */
+	const statusMessages = {
+		starting: "กำลังเปิดกล้อง…",
+		denied: "กรุณาอนุญาตให้เว็บไซต์ใช้กล้อง แล้วโหลดหน้าใหม่",
+		unavailable: "ไม่สามารถเปิดกล้องได้ ใช้ “กรอกรหัส” แทน",
+	} satisfies Record<Exclude<CameraStatus, "scanning">, string>;
+
 	/** How often to look for a code in the video (ms). */
 	const SCAN_INTERVAL = 150;
 	/** The same code is ignored this long after it was handled, while it's still in front of the camera. */
@@ -37,24 +46,20 @@
 	import { onMount } from "svelte";
 	import CameraTroubleshoot from "#lib/components/camera-troubleshoot.svelte";
 	import { cn } from "#lib/utils.js";
-	import cornerBottomLeft from "#lib/assets/icons/scanner-corner-bottom-left.svg";
-	import cornerBottomRight from "#lib/assets/icons/scanner-corner-bottom-right.svg";
-	import cornerTopLeft from "#lib/assets/icons/scanner-corner-top-left.svg";
-	import cornerTopRight from "#lib/assets/icons/scanner-corner-top-right.svg";
+	import cornerIcon from "#lib/assets/icons/scanner-corner-top-left.svg";
 
 	type Props = {
-		/**
-		 * Called with each QR code's contents. If it returns a promise, scanning pauses until it
-		 * settles (e.g. while a confirmation sheet is open).
-		 */
+		/** Called with each QR code's contents. If it returns a promise, the camera freezes until it settles. */
 		onScan: (contents: string) => unknown;
+		/** Freezes the camera and stops reading codes, e.g. while a sheet or error dialog is open. */
+		paused?: boolean;
 		class?: string;
 	};
 
-	let { onScan, class: className }: Props = $props();
+	let { onScan, paused = false, class: className }: Props = $props();
 
 	let video = $state<HTMLVideoElement>();
-	let status = $state<"starting" | "scanning" | "denied" | "unavailable">("starting");
+	let status = $state<CameraStatus>("starting");
 
 	onMount(() => {
 		let stopped = false;
@@ -64,15 +69,23 @@
 
 		async function tick(detector: Detector) {
 			if (stopped || !video) return;
-			if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+			if (paused) {
+				// Restart the cooldown on resume, so the code still in front of the camera isn't read again.
+				last.at = Date.now();
+			} else if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
 				const [code] = await detector.detect(video).catch(() => []);
 				const value = code?.rawValue;
 				const repeat = value === last.value && Date.now() - last.at < SAME_CODE_COOLDOWN;
 				if (value && !repeat && !stopped) {
+					const pending = onScan(value);
+					// Freeze on the scanned frame while the caller handles it.
+					const waiting = pending instanceof Promise;
+					if (waiting) video.pause();
 					try {
-						await onScan(value);
+						await pending;
 					} finally {
 						last = { value, at: Date.now() };
+						if (waiting && !paused && !stopped) await video.play().catch(() => {});
 					}
 				}
 			}
@@ -104,35 +117,28 @@
 			for (const track of stream?.getTracks() ?? []) track.stop();
 		};
 	});
+
+	$effect(() => {
+		if (!video || status !== "scanning") return;
+		if (paused) video.pause();
+		else void video.play().catch(() => {});
+	});
 </script>
 
 <div class={cn("flex flex-col items-center gap-3", className)}>
-	<!-- Viewfinder (Figma): the camera in a 268px square, framed by four corner brackets. -->
-	<div class="relative h-[298.8px] w-[300px] shrink-0">
-		<div class="absolute top-[12.03px] left-[14.43px] size-[268.06px] overflow-hidden bg-black">
+	<!-- Viewfinder (Figma): the camera in a 268px square, centered between four corner brackets. -->
+	<div class="relative size-[300px] shrink-0">
+		<div class="absolute inset-4 overflow-hidden bg-black">
 			<video bind:this={video} class="size-full object-cover" muted playsinline aria-label="กล้องสแกน QR code"></video>
 			{#if status !== "scanning"}
 				<p class="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-brand-mist">
-					{#if status === "starting"}
-						กำลังเปิดกล้อง…
-					{:else if status === "denied"}
-						กรุณาอนุญาตให้เว็บไซต์ใช้กล้อง แล้วโหลดหน้าใหม่
-					{:else}
-						ไม่สามารถเปิดกล้องได้ ใช้ “กรอกรหัส” แทน
-					{/if}
+					{statusMessages[status]}
 				</p>
 			{/if}
 		</div>
-		<!-- Each corner is its own asset, rotated into place as in Figma. -->
-		{#each [
-			{ src: cornerTopLeft, position: "top-0 left-[3.61px]", rotate: "" },
-			{ src: cornerTopRight, position: "top-0 left-[216.47px]", rotate: "rotate-90" },
-			{ src: cornerBottomLeft, position: "top-[222.49px] left-0", rotate: "-rotate-90" },
-			{ src: cornerBottomRight, position: "top-[222.49px] left-[223.69px]", rotate: "rotate-180" },
-		] as corner (corner.src)}
-			<div class={["pointer-events-none absolute size-[76.31px]", corner.position, corner.rotate]}>
-				<img src={corner.src} alt="" class="absolute inset-[-0.75%_0_0_-0.82%] block size-auto max-w-none" />
-			</div>
+		<!-- One bracket, rotated into each corner. -->
+		{#each ["top-0 left-0", "top-0 right-0 rotate-90", "bottom-0 right-0 rotate-180", "bottom-0 left-0 -rotate-90"] as corner (corner)}
+			<img src={cornerIcon} alt="" class={["pointer-events-none absolute size-[77px]", corner]} />
 		{/each}
 	</div>
 	<!-- Help for a black or blocked camera, wherever the scanner is used. -->
