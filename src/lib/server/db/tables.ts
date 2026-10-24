@@ -158,27 +158,41 @@ export const workshopRegistrations = t.sqliteTable("workshop_registrations", {
   ...timestamps,
 });
 
-export const checkpoints = t.sqliteTable("checkpoints", {
-  ...id,
-  name: t.text("name"),
-  note: t.text("note"),
-  // Required for booth checkpoints when granting department-scoped access.
-  department: t.text("department"),
-  type: t
-    .text("type", {
-      enum: [
-        "entry",
-        "booth",
-        "tcas",
-        "central_activity",
-        "reward",
-        "stage",
-        "workshop",
-      ],
-    })
-    .notNull(),
-  ...timestamps,
-});
+export const checkpoints = t.sqliteTable(
+  "checkpoints",
+  {
+    ...id,
+    name: t.text("name"),
+    note: t.text("note"),
+    // Required for booth checkpoints when granting department-scoped access.
+    department: t.text("department"),
+    type: t
+      .text("type", {
+        enum: [
+          "entry",
+          "booth",
+          "tcas",
+          "central_activity",
+          "reward",
+          "stage",
+          "workshop",
+        ],
+      })
+      .notNull(),
+    workshopTimeSlotId: t
+      .text("workshop_time_slot_id")
+      .references(() => workshopTimeSlots.id),
+    ...timestamps,
+  },
+  (table) => [
+    t
+      .uniqueIndex("checkpoints_active_workshop_time_slot_unique")
+      .on(table.workshopTimeSlotId)
+      .where(
+        sql`${table.deletedAt} IS NULL AND ${table.workshopTimeSlotId} IS NOT NULL`,
+      ),
+  ],
+);
 
 export const checkpointLogs = t.sqliteTable(
   "checkpoint_logs",
@@ -193,6 +207,10 @@ export const checkpointLogs = t.sqliteTable(
       .notNull()
       .references(() => checkpoints.id),
     checkerId: t.text("checker_id").references(() => staffs.id),
+    workshopId: t.text("workshop_id").references(() => workshops.id),
+    attendanceType: t.text("attendance_type", { enum: ["advance", "walk-in"] }),
+    removedById: t.text("removed_by_id").references(() => staffs.id),
+    removalReason: t.text("removal_reason"),
     ...timestamps,
   },
   (table) => [
@@ -200,22 +218,68 @@ export const checkpointLogs = t.sqliteTable(
       .uniqueIndex("checkpoint_logs_active_attendee_checkpoint_unique")
       .on(table.attendeeId, table.checkpointId)
       .where(sql`${table.deletedAt} IS NULL`),
+    t
+      .uniqueIndex("checkpoint_logs_active_attendee_workshop_unique")
+      .on(table.attendeeId, table.workshopId)
+      .where(
+        sql`${table.deletedAt} IS NULL AND ${table.workshopId} IS NOT NULL`,
+      ),
   ],
 );
 
-export const rewardRedemptions = t.sqliteTable("reward_redemptions", {
-  ...id,
-  attendeeId: t
-    .text("attendee_id")
-    .notNull()
-    .references(() => attendees.id),
-  checkpointId: t
-    .text("checkpoint_id")
-    .notNull()
-    .references(() => checkpoints.id),
-  checkerId: t.text("checker_id").references(() => staffs.id),
-  ...timestamps,
-});
+export type RewardProgressSnapshot = {
+  departmentCount: number;
+  workshopCount: number;
+  hasTcas: boolean;
+  hasCentralActivity: boolean;
+  hasStage: boolean;
+};
+
+export const rewardGifts = t.sqliteTable(
+  "reward_gifts",
+  {
+    ...id,
+    name: t.text("name").notNull(),
+    tier: t.integer("tier").$type<1 | 2 | 3>().notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    t.check("reward_gifts_tier_check", sql`${table.tier} IN (1, 2, 3)`),
+  ],
+);
+
+export const rewardRedemptions = t.sqliteTable(
+  "reward_redemptions",
+  {
+    ...id,
+    attendeeId: t
+      .text("attendee_id")
+      .notNull()
+      .references(() => attendees.id),
+    checkpointId: t
+      .text("checkpoint_id")
+      .notNull()
+      .references(() => checkpoints.id),
+    checkerId: t.text("checker_id").references(() => staffs.id),
+    giftId: t.text("gift_id").references(() => rewardGifts.id),
+    tier: t.integer("tier").$type<1 | 2 | 3>(),
+    giftName: t.text("gift_name"),
+    progressSnapshot: t
+      .text("progress_snapshot", { mode: "json" })
+      .$type<RewardProgressSnapshot>(),
+    ...timestamps,
+  },
+  (table) => [
+    t
+      .uniqueIndex("reward_redemptions_active_attendee_unique")
+      .on(table.attendeeId)
+      .where(sql`${table.deletedAt} IS NULL`),
+    t.check(
+      "reward_redemptions_tier_check",
+      sql`${table.tier} IS NULL OR ${table.tier} IN (1, 2, 3)`,
+    ),
+  ],
+);
 
 export const surveyResponses = t.sqliteTable("survey_responses", {
   ...id,
@@ -237,6 +301,7 @@ export const tables = {
   workshopRegistrations,
   checkpoints,
   checkpointLogs,
+  rewardGifts,
   rewardRedemptions,
   surveyResponses,
 };

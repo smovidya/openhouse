@@ -17,14 +17,16 @@ export function buildBoothSeedStatements() {
       department: value,
       type: "booth",
     })),
-    { id: "tcas", name: "TCAS", department: null, type: "booth" },
+    { id: "entry", name: "ลงทะเบียนเข้างาน", department: null, type: "entry" },
+    { id: "tcas", name: "TCAS", department: null, type: "tcas" },
     {
       id: "central-activity",
       name: "กิจกรรมส่วนกลาง",
       department: null,
-      type: "booth",
+      type: "central_activity",
     },
     { id: "stage", name: "เวที", department: null, type: "stage" },
+    { id: "reward", name: "แลกรางวัล", department: null, type: "reward" },
   ];
   return checkpoints.map(
     (checkpoint) =>

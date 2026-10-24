@@ -29,9 +29,11 @@ export function hasPermission(
   return (
     granted.includes("admin") ||
     granted.includes(required) ||
-    (required.startsWith("boothStaff:") &&
-      !specialBoothScopes.some((scope) => scope.permission === required) &&
-      granted.includes("boothStaff:all"))
+    (granted.includes("activityStaff") &&
+      (required === "workshopStaff" ||
+        required === "boothStaff:all" ||
+        required.startsWith("boothStaff:"))) ||
+    (required.startsWith("boothStaff:") && granted.includes("boothStaff:all"))
   );
 }
 
@@ -65,7 +67,8 @@ export function canScanCheckpoint(
   if (checkpoint.type === "workshop")
     return hasPermission(granted, "workshopStaff");
   return (
-    ["entry", "stage", "reward"].includes(checkpoint.type) &&
-    hasPermission(granted, "activityStaff")
+    ["entry", "stage", "reward", "tcas", "central_activity"].includes(
+      checkpoint.type,
+    ) && hasPermission(granted, "activityStaff")
   );
 }

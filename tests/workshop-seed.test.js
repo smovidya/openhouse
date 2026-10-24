@@ -19,6 +19,13 @@ describe("workshop catalog seed", () => {
         db.query("SELECT count(*) AS count FROM workshop_time_slots").get(),
       ).toEqual({ count: 40 });
       expect(
+        db
+          .query(
+            "SELECT count(*) AS count FROM checkpoints WHERE type = 'workshop'",
+          )
+          .get(),
+      ).toEqual({ count: 40 });
+      expect(
         db.query("SELECT capacity FROM workshops WHERE slug = 'geo-map'").get(),
       ).toEqual({ capacity: 20 });
       expect(
@@ -29,6 +36,9 @@ describe("workshop catalog seed", () => {
 
       // Simulate records already created with database-generated IDs and a booking.
       db.exec("PRAGMA foreign_keys = ON");
+      db.exec(
+        "DELETE FROM checkpoints WHERE id = 'checkpoint-workshop-geo-map-1'",
+      );
       db.exec(
         "UPDATE workshop_time_slots SET id = 'existing-slot' WHERE id = 'workshop-geo-map-1'",
       );
@@ -44,7 +54,24 @@ describe("workshop catalog seed", () => {
       db.exec(
         "UPDATE workshops SET title = 'Old title' WHERE slug = 'geo-map'",
       );
+      db.exec(
+        "UPDATE checkpoints SET id = 'existing-checkpoint' WHERE id = 'checkpoint-workshop-geo-map-2'",
+      );
       for (const statement of buildWorkshopSeedStatements()) db.exec(statement);
+      expect(
+        db
+          .query(
+            "SELECT id FROM checkpoints WHERE workshop_time_slot_id = 'workshop-geo-map-2'",
+          )
+          .get(),
+      ).toEqual({ id: "existing-checkpoint" });
+      expect(
+        db
+          .query(
+            "SELECT count(*) AS count FROM checkpoints WHERE type = 'workshop'",
+          )
+          .get(),
+      ).toEqual({ count: 40 });
 
       expect(
         db.query("SELECT title FROM workshops WHERE slug = 'geo-map'").get(),

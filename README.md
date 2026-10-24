@@ -85,10 +85,10 @@ Each feature contains:
 | `<feature>.remote.ts` | Frontend-facing queries, forms, and commands         |
 | `service.server.ts`   | Business rules, permissions, and database operations |
 
-Attendees, workshops, rewards, and surveys remain service/remote scaffolds.
-Attendees, workshops, and rewards include initial input schemas. Survey validation
-is intentionally left for when the questionnaire is defined. Review input constraints
-alongside each feature's requirements before implementing its operations.
+Attendee registration, workshop bookings and attendance, checkpoint progress, and
+reward redemption have backend APIs. Surveys remain a scaffold until the
+questionnaire is defined. Staff attendance and reward screens can consume the
+operations documented below; this backend change does not wire new UI screens.
 
 ### Adding an operation
 
@@ -345,15 +345,13 @@ and [custom preview domains](https://developers.cloudflare.com/workers/previews/
 Staff permissions are a deduplicated JSON array in `staffs.permission`. The
 access categories are:
 
-| Permission                                        | Access                                                                                           |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `admin`                                           | Every staff module, every checkpoint, and invite-code management                                 |
-| `boothStaff:all`                                  | View and scan every configured department's booth checkpoints                                    |
-| `boothStaff:physics` (or another department slug) | View and scan only that department's booth checkpoints                                           |
-| `boothStaff:tcas`                                 | View and scan TCAS checkpoints only                                                              |
-| `boothStaff:central-activity`                     | View and scan central activity checkpoints only                                                  |
-| `workshopStaff`                                   | View and scan all workshop checkpoints; use this permission for future workshop staff operations |
-| `activityStaff`                                   | View and scan entry, stage, and reward checkpoints                                               |
+| Permission                                        | Access                                                                              |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `admin`                                           | Every staff module, every checkpoint, and invite-code management                    |
+| `boothStaff:all`                                  | View and scan every configured department's booth checkpoints                       |
+| `boothStaff:physics` (or another department slug) | View and scan only that department's booth checkpoints                              |
+| `workshopStaff`                                   | Workshop attendance, rosters, and statistics only                                   |
+| `activityStaff`                                   | All department booths, workshops, entry, TCAS, central activity, stage, and rewards |
 
 Permissions combine: a staff member can hold both `boothStaff:physics` and
 `workshopStaff`. `boothStaff:all` does not grant TCAS, central activity, workshop,
@@ -408,27 +406,127 @@ Promotion retains the session's original expiry. The raw remote commands refresh
 refresh layout data themselves. Refresh invite listings after creating/disabling
 a code.
 
-### Checkpoint scanning
+### Event journey APIs
+
+Progress and redemption are shared across both event days. The entry scan records
+entry and the entry souvenir once. It is required before every other attendance
+operation. Checkpoint type `booth` means a department booth; `tcas` and
+`central_activity` are separate types and never increase department counts.
 
 `#lib/features/checkpoints/checkpoints.remote.ts` exports:
 
-- `listScannableCheckpoints({ offset?, limit? })`: only active checkpoints allowed
-  by the current user's permissions. Lists default to 50, with a maximum of 100.
-- `checkInAttendee({ qrCodeId, checkpointId })`: verifies access against the stored
-  checkpoint, resolves the active attendee, and records the authenticated staff
-  ID as checker. Returns `{ attendee, checkpointId, log, alreadyCheckedIn }`.
+| Operation                    | Input                           | Result / access                                                                                         |
+| ---------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `listScannableCheckpoints`   | `{ offset?, limit? }`           | Active staff; only checkpoints their permissions allow                                                  |
+| `checkInAttendee`            | `{ qrCodeId, checkpointId }`    | Authorized staff; entry, booth, TCAS, central activity, or stage attendance                             |
+| `getMyProgress`              | None                            | Signed-in attendee's own progress; no client-supplied attendee ID                                       |
+| `getStaffAttendeeProgress`   | `{ qrCodeId }`                  | Any active staff; brief name, current tier, requirements, completed/pending checkpoints, and redemption |
+| `listAttendeeCheckpointLogs` | `{ qrCodeId, offset?, limit? }` | Any active staff; successful attendance and handovers, including soft-deleted history                   |
+| `removeStageAttendance`      | `{ logId, reason }`             | Activity staff/admin; audited soft deletion before redemption                                           |
 
-The database permits one active log per attendee/checkpoint. Repeated or concurrent
-scans return the same log, so they cannot inflate the attendance count used for
-prize eligibility. Scanning a reward checkpoint records attendance only; it does
-not create a reward redemption or determine prize eligibility. Those business
-rules remain in the rewards feature. Booths without a configured department are
-not accessible to booth staff until configured; admins can still access them.
+Lists default to 50 records, at most 100. Check-in returns
+`{ attendee, checkpointId, log, alreadyCheckedIn: false, progress }`.
+Duplicate scans return HTTP 409 `ALREADY_CHECKED_IN` and never add credit.
+Other conflict codes include `ENTRY_REQUIRED` and `JOURNEY_REDEEMED`.
+Workshop and reward checkpoints reject generic check-in with HTTP 400
+`SPECIALIZED_CHECK_IN_REQUIRED`; use their dedicated operations below.
 
-Shared UI helpers `hasPermission` and `canScanCheckpoint` live in
-`staff/permissions.ts`. They can control module visibility, but server guards and
-services remain authoritative. Permissions are reloaded from D1 on each request;
-removing a grant or soft-deleting a staff record takes effect on subsequent requests.
+The database permits one active log per attendee/checkpoint and one active
+workshop attendance per attendee/workshop, across all rounds and both days.
+Progress counts distinct departments and workshops. Bookings give no attendance
+credit. Removed attendance stops counting. Logs store the checking staff, and
+removals also store the removing staff and reason. Failed and duplicate scan
+attempts are not attendance logs. Entry and booth attendance have no removal API.
+
+Shared helpers `hasPermission` and `canScanCheckpoint` control UI visibility;
+server guards and services remain authoritative. `activityStaff` includes
+workshop and department-booth access. `workshopStaff` remains workshop-only.
+TCAS and central activity require `activityStaff` or `admin`. Booths without a
+configured department can only be scanned by admins. Each request reloads staff
+permissions from D1.
+
+### Workshop attendance
+
+`#lib/features/workshops/attendance.remote.ts` exposes staff attendance operations.
+Use the database time-slot ID, not a catalog display ID. Every round has its own
+workshop checkpoint; run the workshop seed after applying migrations.
+
+- `checkInWorkshop({ workshopTimeSlotId, qrCodeId, mode })` scans an attendee.
+- `setWorkshopAttendance({ workshopTimeSlotId, attendeeId, present, mode, reason? })`
+  uses the same rules for manual roster changes.
+- `listWorkshopAttendance({ workshopTimeSlotId })` returns booked attendees and
+  walk-ins with their current attendance state.
+- `getWorkshopAttendanceStats({ workshopTimeSlotId })` reports that round's
+  capacity, active advance bookings, advance arrivals, pending advance arrivals,
+  walk-in arrivals, total attendance, and attendance above capacity. It also returns
+  `workshopTotals` and `eventTotals`, each with attendance records and unique attendees.
+
+Mode `advance` requires an active advance booking for that exact round and respects
+attendance capacity. Mode
+`open` accepts any entered attendee, including booked attendees, and permits
+attendance above the configured capacity. Absent bookings do not reserve seats
+in open mode. Staff select the mode explicitly. The suggested 15-minute advance
+and 5-minute open-admission times are not enforced by the backend.
+
+Staff admission has no department limit or gap rule. A person can attend each
+workshop once, even if it has multiple rounds. Removing attendance soft-deletes
+its log and permits a corrected check-in. An advance booking remains intact;
+a walk-in occupies a place only through their active attendance record. Existing
+advance registration limits, time gates, and booking capacity remain unchanged.
+Workshop attendance and removal remain available after reward redemption.
+
+After migrating, seed the complete checkpoint catalog:
+
+```sh
+bun run booths:seed
+bun run workshops:seed
+```
+
+The booth seed also creates entry, TCAS, central activity, stage, and reward
+checkpoints. Seeds preserve existing logs and bookings. Historical workshop logs
+without a round/workshop link remain in history but do not earn workshop reward
+credit; reconcile their round mapping before relying on legacy progress.
+The new migration preserves old redemption rows with unknown tier/gift fields as
+`null`; it does not invent a gift or reopen those journeys. Duplicate active
+redemptions must be reconciled before the unique index can be applied.
+
+### Rewards
+
+All tiers require TCAS and central activity attendance:
+
+| Tier | Distinct departments | Distinct workshops | Stage attendance |
+| ---- | -------------------: | -----------------: | ---------------- |
+| 3    |                    6 |                  0 | No               |
+| 2    |                   12 |                  1 | No               |
+| 1    |                   17 |                  2 | Yes              |
+
+`#lib/features/rewards/rewards.remote.ts` exports:
+
+- `previewReward({ qrCodeId })`: activity staff/admin; read-only attendee progress
+  and available gifts for the highest eligible tier.
+- `redeemReward({ qrCodeId, checkpointId, giftId, expectedTier })`: confirm a gift
+  handover at a reward checkpoint. `expectedTier` comes from the preview. A changed
+  tier returns `PROGRESS_CHANGED`; a lower-tier gift returns `GIFT_TIER_MISMATCH`.
+- `listRewardGifts()`: activity staff/admin; configured gifts, including disabled ones.
+- `saveRewardGift({ id?, name, tier, enabled? })`: admin; create or update a gift.
+  No gifts are invented by the seed. Configure real gifts before redemption opens.
+
+Redemption checks eligibility and saves the gift ID, gift name, tier, progress
+snapshot, staff, and time atomically with its handover log. It permits only one
+active redemption per attendee across both days. Staff must confirm the handover;
+scanning for a preview never ends the journey. Failed confirmation adds no log.
+
+After redemption, entry/booth/TCAS/central/stage collection and stage removal are
+closed. Workshops stay open. Later workshop visits change current progress but
+never change the saved gift or permit a second redemption. The UI should show
+both current progress and the separate tier at redemption. There is no redemption
+reversal, journey reopening, or lower-tier gift selection API.
+
+Commands validate origin and inputs. Writes use database predicates and D1
+batches so simultaneous scans, removals, and handovers cannot bypass entry,
+duplicate, or redemption rules. Scan commands return fresh progress. Clients
+should refetch progress and history after manual changes and when returning to
+`/myid`; this is not a push/live subscription across staff and attendee devices.
 
 ### First-admin seed and migration
 

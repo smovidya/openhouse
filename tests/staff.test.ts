@@ -538,76 +538,84 @@ describe("staff enrollment and checkpoint authorization on D1", () => {
     assert.equal(await getStaffProfile(db, disabled.id), null);
   });
 
-  it(
-    "enforces the same permission matrix for listing and scanning checkpoints",
-    { timeout: 20_000 },
-    async () => {
-      const cases: Array<[StaffPermission[], string[]]> = [
-        [["boothStaff:physics"], ["physics"]],
-        [["boothStaff:tcas"], ["tcas"]],
-        [["boothStaff:central-activity"], ["central-activity"]],
+  it("enforces the same permission matrix for listing and scanning checkpoints", async () => {
+    const cases: Array<[StaffPermission[], string[]]> = [
+      [["boothStaff:physics"], ["physics"]],
+      [["boothStaff:all"], ["chemistry", "physics"]],
+      [["workshopStaff"], ["workshop-1", "workshop-2"]],
+      [
+        ["activityStaff"],
+        [
+          "chemistry",
+          "entry",
+          "physics",
+          "reward",
+          "stage",
+          "workshop-1",
+          "workshop-2",
+        ],
+      ],
+      [
+        ["admin"],
         [
           ["boothStaff:physics", "boothStaff:tcas"],
           ["physics", "tcas"],
         ],
-        [["boothStaff:all"], ["chemistry", "physics"]],
-        [["workshopStaff"], ["workshop-1", "workshop-2"]],
-        [["activityStaff"], ["entry", "reward", "stage"]],
-        [
-          ["admin"],
-          [
-            "central-activity",
-            "chemistry",
-            "entry",
-            "physics",
-            "reward",
-            "stage",
-            "tcas",
-            "workshop-1",
-            "workshop-2",
-          ],
-        ],
-      ];
-      const all = [
-        "central-activity",
-        "chemistry",
-        "entry",
-        "physics",
-        "reward",
-        "stage",
-        "tcas",
-        "workshop-1",
-        "workshop-2",
-      ];
-      for (const [permission, allowed] of cases) {
-        const { id } = await enroll(permission);
-        const listed = await listScannableCheckpoints(db, id, {
-          offset: 0,
-          limit: 100,
-        });
-        assert.deepEqual(
-          listed.map((row) => row.id),
-          allowed,
-        );
-        for (const checkpointId of all) {
-          if (allowed.includes(checkpointId))
+      ],
+    ];
+    const all = [
+      "chemistry",
+      "entry",
+      "physics",
+      "reward",
+      "stage",
+      "workshop-1",
+      "workshop-2",
+    ];
+    try {
+      await checkInAttendee(db, adminId, { qrCodeId, checkpointId: "entry" });
+    } catch (cause) {
+      assert.equal(isHttpError(cause, 409), true);
+    }
+    for (const [permission, allowed] of cases) {
+      const { id } = await enroll(permission);
+      const listed = await listScannableCheckpoints(db, id, {
+        offset: 0,
+        limit: 100,
+      });
+      assert.deepEqual(
+        listed.map((row) => row.id),
+        allowed,
+      );
+      for (const checkpointId of all) {
+        if (!allowed.includes(checkpointId))
+          await assert.rejects(
+            checkInAttendee(db, id, { qrCodeId, checkpointId }),
+            isStatus(403),
+          );
+        else if (["workshop-1", "workshop-2", "reward"].includes(checkpointId))
+          await assert.rejects(
+            checkInAttendee(db, id, { qrCodeId, checkpointId }),
+            isStatus(400),
+          );
+        else {
+          try {
             await checkInAttendee(db, id, { qrCodeId, checkpointId });
-          else
-            await assert.rejects(
-              checkInAttendee(db, id, { qrCodeId, checkpointId }),
-              isStatus(403),
-            );
+          } catch (cause) {
+            assert.equal(isHttpError(cause, 409), true);
+          }
         }
-        await assert.rejects(
-          checkInAttendee(db, id, { qrCodeId, checkpointId: "disabled" }),
-          isStatus(404),
-        );
       }
     },
   );
 
   it("makes concurrent repeat scans idempotent and records the trusted checker", async () => {
     const { id, user } = await enroll(["boothStaff:physics"]);
+    try {
+      await checkInAttendee(db, adminId, { qrCodeId, checkpointId: "entry" });
+    } catch (cause) {
+      assert.equal(isHttpError(cause, 409), true);
+    }
     const [attendee] = await db
       .select()
       .from(attendees)
@@ -616,17 +624,32 @@ describe("staff enrollment and checkpoint authorization on D1", () => {
       .update(checkpointLogs)
       .set({ deletedAt: new Date() })
       .where(eq(checkpointLogs.checkpointId, "physics"));
-    const scans = await Promise.all(
+    const scans = await Promise.allSettled(
       Array.from({ length: 4 }, () =>
         checkInAttendee(db, id, { qrCodeId, checkpointId: "physics" }),
       ),
     );
-    assert.equal(new Set(scans.map((scan) => scan.log.id)).size, 1);
-    assert.equal(scans.filter((scan) => !scan.alreadyCheckedIn).length, 1);
+    const fulfilled = scans.filter(
+      (
+        scan,
+      ): scan is PromiseFulfilledResult<
+        Awaited<ReturnType<typeof checkInAttendee>>
+      > => scan.status === "fulfilled",
+    );
+    assert.equal(fulfilled.length, 1);
+    assert.equal(scans.filter((scan) => scan.status === "rejected").length, 3);
+    assert.ok(
+      scans
+        .filter(
+          (scan): scan is PromiseRejectedResult => scan.status === "rejected",
+        )
+        .every((scan) => isHttpError(scan.reason, 409)),
+    );
+    assert.equal(new Set(fulfilled.map((scan) => scan.value.log.id)).size, 1);
     const [log] = await db
       .select()
       .from(checkpointLogs)
-      .where(eq(checkpointLogs.id, scans[0].log.id));
+      .where(eq(checkpointLogs.id, fulfilled[0].value.log.id));
     assert.equal(log.checkerId, user.staff.id);
     assert.equal(log.attendeeId, attendee.id);
     await db

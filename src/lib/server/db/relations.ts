@@ -71,6 +71,10 @@ export const relations = defineRelations(tables, (is) => ({
       from: is.checkpoints.id,
       to: is.rewardRedemptions.checkpointId,
     }),
+    workshopTimeSlot: is.one.workshopTimeSlots({
+      from: is.checkpoints.workshopTimeSlotId,
+      to: is.workshopTimeSlots.id,
+    }),
   },
   checkpointLogs: {
     attendee: is.one.attendees({
@@ -84,6 +88,20 @@ export const relations = defineRelations(tables, (is) => ({
     checker: is.one.staffs({
       from: is.checkpointLogs.checkerId,
       to: is.staffs.id,
+    }),
+    workshop: is.one.workshops({
+      from: is.checkpointLogs.workshopId,
+      to: is.workshops.id,
+    }),
+    removedBy: is.one.staffs({
+      from: is.checkpointLogs.removedById,
+      to: is.staffs.id,
+    }),
+  },
+  rewardGifts: {
+    redemptions: is.many.rewardRedemptions({
+      from: is.rewardGifts.id,
+      to: is.rewardRedemptions.giftId,
     }),
   },
   rewardRedemptions: {
