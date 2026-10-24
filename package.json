@@ -9,6 +9,7 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:preview": "wrangler d1 migrations apply DB --remote --config wrangler.preview-migrations.jsonc",
     "staff:seed-admin": "bun scripts/seed-admin.ts",
+    "booths:seed": "bun scripts/seed-booths.ts",
     "workshops:seed": "bun scripts/seed-workshops.ts",
     "dev": "vite dev",
     "build": "vite build",
