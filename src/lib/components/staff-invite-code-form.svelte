@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { refreshAll } from "$app/navigation";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { Label } from "#lib/components/ui/label/index.js";
-	import { redeemInviteCode } from "#lib/features/staff/staff.remote.ts";
+	import { redeemInviteCode } from "#lib/features/staff/staff.client.ts";
 	import type { StaffPermission } from "#lib/features/staff/permissions.ts";
 	import Glass from "#lib/render/glass.svelte";
 	import { inviteCodeError } from "#lib/staff.js";
@@ -26,8 +25,6 @@
 		message = "";
 		try {
 			await redeemInviteCode({ code });
-			// The session has the merged permissions now.
-			await refreshAll();
 			code = "";
 			failed = false;
 			message = "เพิ่มสิทธิ์แล้ว";
@@ -63,5 +60,5 @@
 	{#if message}
 		<p role={failed ? "alert" : "status"} class="text-sm text-brand-yellow">{message}</p>
 	{/if}
-	<p class="text-xs text-brand-mist">สิทธิ์ปัจจุบัน: {permissions.join(", ")}</p>
+	<p class="text-xs text-brand-mist">สิทธิ์ปัจจุบัน: {permissions.length ? permissions.join(", ") : "ยังไม่มีสิทธิ์"}</p>
 </Glass>

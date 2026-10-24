@@ -44,6 +44,7 @@ import {
   checkInAttendee,
   listScannableCheckpoints,
 } from "../src/lib/features/checkpoints/service.server";
+import { getStaffActions } from "../src/lib/staff";
 import { buildSeedAdminStatements } from "../scripts/seed-admin-sql";
 
 const isStatus = (status: number) => (cause: unknown) =>
@@ -108,6 +109,35 @@ it("validates permission names and handles wildcard/admin access without prefix 
   );
 });
 
+it("shows only staff actions allowed by the combined permissions", () => {
+  const all = [
+    "/staff/booth-check-in",
+    "/staff/check-in",
+    "/staff/rewards",
+    "/staff/workshop-check-in",
+  ];
+  const cases: Array<[StaffPermission[], string[]]> = [
+    [[], []],
+    [["boothStaff:physics"], ["/staff/booth-check-in"]],
+    [["boothStaff:all"], ["/staff/booth-check-in"]],
+    [["workshopStaff"], ["/staff/workshop-check-in"]],
+    [
+      ["boothStaff:physics", "workshopStaff"],
+      ["/staff/booth-check-in", "/staff/workshop-check-in"],
+    ],
+    [["activityStaff"], all],
+    [["admin"], all],
+  ];
+  for (const [permissions, expected] of cases) {
+    assert.deepEqual(
+      getStaffActions(permissions)
+        .map((action) => action.href)
+        .sort(),
+      expected,
+    );
+  }
+});
+
 describe("staff enrollment and checkpoint authorization on D1", () => {
   let proxy: Awaited<ReturnType<typeof getPlatformProxy<{ DB: D1Database }>>>;
   let directory: string;
@@ -130,7 +160,9 @@ describe("staff enrollment and checkpoint authorization on D1", () => {
   async function enroll(permission: StaffPermission[]) {
     const id = await createUser();
     const invite = await createInviteCode(db, adminId, permission);
-    const user = await enrollStaff(db, id, { ...profile, code: invite.code });
+    const user = requireStaff(
+      await enrollStaff(db, id, { ...profile, code: invite.code }),
+    );
     return { id, user, invite };
   }
 
@@ -239,164 +271,128 @@ describe("staff enrollment and checkpoint authorization on D1", () => {
     assert.equal((await findSessionUser(db, other))?.role, "attendee");
   });
 
-  it("validates custom codes and keeps blank codes automatic", async () => {
+  it("accepts optional invite inputs but rejects client-controlled access fields", () => {
     for (const code of [undefined, "", "   "]) {
-      assert.equal(
-        createInviteInput.parse({ permission: ["admin"], code }).code,
-        undefined,
-      );
-      const invite = await createInviteCode(db, adminId, ["admin"], code);
-      assert.match(invite.code, /^[a-f0-9]{48}$/);
+      const parsed = enrollStaffInput.parse({ ...profile, code });
+      assert.equal(parsed.code, undefined);
     }
     assert.equal(
-      createInviteInput.parse({ permission: ["admin"], code: "  Team-2026  " })
-        .code,
-      "Team-2026",
+      enrollStaffInput.safeParse({ ...profile, code: "short" }).success,
+      false,
     );
-    for (const code of ["short", "a".repeat(129)]) {
+    for (const extra of [
+      { permission: ["admin"] },
+      { role: "staff" },
+      { userId: adminId },
+    ]) {
       assert.equal(
-        createInviteInput.safeParse({ permission: ["admin"], code }).success,
+        enrollStaffInput.safeParse({ ...profile, ...extra }).success,
         false,
       );
-      await assert.rejects(
-        createInviteCode(db, adminId, ["admin"], code),
-        isStatus(400),
-      );
-    }
-    for (const length of [8, 128]) {
-      const code = "a".repeat(length);
-      assert.equal(
-        (await createInviteCode(db, adminId, ["workshopStaff"], code)).code,
-        code,
-      );
     }
   });
 
-  it("redeems a trimmed custom code, stores only its hash, and never reuses disabled codes", async () => {
-    const code = "TCAS-Team-2026";
-    const invite = await createInviteCode(
-      db,
-      adminId,
-      ["boothStaff:tcas"],
-      `  ${code}  `,
-    );
-    assert.equal(invite.code, code);
-    const [stored] = await db
-      .select()
-      .from(inviteCodes)
-      .where(eq(inviteCodes.id, invite.id));
-    const digest = await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(code),
-    );
-    assert.equal(stored.codeHash, Buffer.from(digest).toString("hex"));
-    assert.equal("code" in stored, false);
-    const user = await createUser();
+  it("saves a pending profile without granting any staff access", async () => {
+    const id = await createUser();
+    const [attendee] = await db
+      .insert(attendees)
+      .values({
+        userId: id,
+        qrCodeId: crypto.randomUUID(),
+        title: "Mx",
+        firstname: "Existing",
+        lastname: "Attendee",
+        age: 18,
+        residentProvince: "Bangkok",
+        type: "student",
+      })
+      .returning();
+    const result = await enrollStaff(db, id, profile);
+    assert.equal(result.role, "attendee");
+    assert.equal(result.staff, null);
+    assert.equal(result.attendee?.id, attendee.id);
+    const saved = await getStaffProfile(db, id);
+    assert.equal(saved?.name, profile.name);
+    assert.deepEqual(saved?.permission, []);
+    assert.throws(() => requireStaff(result), isStatus(403));
     await assert.rejects(
-      enrollStaff(db, user, { ...profile, code: code.toLowerCase() }),
-      isStatus(400),
-    );
-    const enrolled = await enrollStaff(db, user, {
-      ...profile,
-      code: ` ${code} `,
-    });
-    assert.deepEqual(enrolled.staff?.permission, ["boothStaff:tcas"]);
-    await assert.rejects(
-      createInviteCode(db, adminId, ["admin"], code),
-      isStatus(409),
-    );
-    await disableInviteCode(db, adminId, invite.id);
-    await assert.rejects(
-      createInviteCode(db, adminId, ["admin"], code),
-      isStatus(409),
+      listScannableCheckpoints(db, id, { offset: 0, limit: 50 }),
+      isStatus(403),
     );
     await assert.rejects(
-      enrollStaff(db, await createUser(), { ...profile, code }),
-      isStatus(400),
+      listInviteCodes(db, id, { offset: 0, limit: 50 }),
+      isStatus(403),
+    );
+    await assert.rejects(
+      enrollStaff(db, "missing-user", profile),
+      isStatus(401),
     );
   });
 
-  it("allows only one creation when custom codes collide concurrently", async () => {
-    const results = await Promise.allSettled([
-      createInviteCode(db, adminId, ["workshopStaff"], "Shared-code-2026"),
-      createInviteCode(db, adminId, ["admin"], " Shared-code-2026 "),
+  it("activates a pending profile with a later invite and stacks later permissions", async () => {
+    const id = await createUser();
+    await enrollStaff(db, id, profile);
+    await assert.rejects(
+      redeemInviteCode(db, id, "not-valid-invite"),
+      isStatus(400),
+    );
+    assert.equal((await findSessionUser(db, id))?.staff, null);
+    const booth = await createInviteCode(db, adminId, ["boothStaff:physics"]);
+    const workshop = await createInviteCode(db, adminId, ["workshopStaff"]);
+    const activity = await createInviteCode(db, adminId, ["activityStaff"]);
+    const activated = await redeemInviteCode(db, id, booth.code);
+    assert.deepEqual(activated.staff.permission, ["boothStaff:physics"]);
+    await Promise.all([
+      redeemInviteCode(db, id, workshop.code),
+      redeemInviteCode(db, id, activity.code),
     ]);
+    await redeemInviteCode(db, id, booth.code);
+    assert.deepEqual(
+      (await getStaffProfile(db, id))?.permission.slice().sort(),
+      ["activityStaff", "boothStaff:physics", "workshopStaff"],
+    );
+    await assert.rejects(
+      redeemInviteCode(db, await createUser(), booth.code),
+      isStatus(403),
+    );
+  });
+
+  it("keeps pending signup retries and concurrent activation from losing permissions", async () => {
+    const id = await createUser();
+    const invite = await createInviteCode(db, adminId, ["boothStaff:physics"]);
+    await Promise.all([
+      enrollStaff(db, id, profile),
+      enrollStaff(db, id, { ...profile, code: invite.code }),
+      enrollStaff(db, id, profile),
+    ]);
+    const result = await enrollStaff(db, id, {
+      ...profile,
+      name: "Retry must preserve original",
+    });
+    assert.deepEqual(result.staff?.permission, ["boothStaff:physics"]);
+    assert.equal((await getStaffProfile(db, id))?.name, profile.name);
     assert.equal(
-      results.filter((result) => result.status === "fulfilled").length,
+      (await db.select().from(staffs).where(eq(staffs.userId, id))).length,
       1,
     );
-    const rejected = results.find((result) => result.status === "rejected");
-    assert.ok(
-      rejected?.status === "rejected" && isHttpError(rejected.reason, 409),
-    );
   });
 
-  it("offers named department and event booth scopes, plus configured extra departments", async () => {
-    await db.insert(checkpoints).values({
-      id: "extra-booth",
-      type: "booth",
-      department: "extra-department",
-    });
-    try {
-      const scopes = await listBoothScopes(db, adminId);
-      for (const value of [
-        "physics",
-        "biology",
-        "tcas",
-        "central-activity",
-        "extra-department",
-      ])
-        assert.ok(
-          scopes.some((scope) => scope.value === `boothStaff:${value}`),
-        );
-      assert.equal(
-        scopes.find((scope) => scope.value === "boothStaff:physics")?.label,
-        "บูธ ฟิสิกส์",
-      );
-      for (const value of [
-        "disabled",
-        "all",
-        "entry",
-        "stage",
-        "reward",
-        "unknown",
-      ])
-        assert.equal(
-          scopes.some((scope) => scope.value === `boothStaff:${value}`),
-          false,
-        );
-      for (const permission of [
-        "boothStaff:biology",
-        "boothStaff:tcas",
-        "boothStaff:central-activity",
-        "boothStaff:extra-department",
-      ] as const)
-        assert.deepEqual(
-          (await createInviteCode(db, adminId, [permission])).permission,
-          [permission],
-        );
-      for (const permission of [
-        "boothStaff:entry",
-        "boothStaff:stage",
-        "boothStaff:reward",
-        "boothStaff:disabled",
-      ] as const)
-        await assert.rejects(
-          createInviteCode(db, adminId, [permission]),
-          isStatus(400),
-        );
-      await assert.rejects(
-        createInviteCode(
-          db,
-          await createUser(),
-          ["boothStaff:tcas"],
-          "Custom-code-2026",
-        ),
-        isStatus(403),
-      );
-    } finally {
-      await db.delete(checkpoints).where(eq(checkpoints.id, "extra-booth"));
-    }
+  it("never revives disabled pending profiles or users through signup without a code", async () => {
+    const id = await createUser();
+    await enrollStaff(db, id, profile);
+    await db
+      .update(staffs)
+      .set({ deletedAt: new Date() })
+      .where(eq(staffs.userId, id));
+    await assert.rejects(enrollStaff(db, id, profile), isStatus(403));
+    const invite = await createInviteCode(db, adminId, ["workshopStaff"]);
+    await assert.rejects(redeemInviteCode(db, id, invite.code), isStatus(403));
+    const userId = await createUser();
+    await db
+      .update(users)
+      .set({ deletedAt: new Date() })
+      .where(eq(users.id, userId));
+    await assert.rejects(enrollStaff(db, userId, profile), isStatus(401));
   });
 
   it("reuses an invite across accounts, preserves attendee records, and exposes safe permissions", async () => {
@@ -406,7 +402,9 @@ describe("staff enrollment and checkpoint authorization on D1", () => {
       .from(attendees)
       .where(eq(attendees.qrCodeId, qrCodeId));
     for (const id of [attendee.userId, await createUser()]) {
-      const user = await enrollStaff(db, id, { ...profile, code: invite.code });
+      const user = requireStaff(
+        await enrollStaff(db, id, { ...profile, code: invite.code }),
+      );
       assert.equal(user.role, "staff");
       assert.deepEqual(user.staff.permission, ["boothStaff:physics"]);
       assert.equal("code" in user.staff, false);
