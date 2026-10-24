@@ -174,7 +174,7 @@ describe("session tokens and cookies", () => {
       ...settings,
       development: true,
     });
-    assert.equal(cookies.writes[0].name, "openhouse-session-dev");
+    assert.equal(cookies.writes[0].name, "vidyachula-session-dev");
     assert.equal(cookies.writes[0].options.secure, false);
     assert.throws(() => getSessionSettings(undefined, true), isStatus(503));
     assert.throws(
