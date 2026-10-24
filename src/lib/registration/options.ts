@@ -49,14 +49,15 @@ export const majorOptions: PickerOption[] = [
   { value: "chemical-technology", label: "เคมีเทคนิค" },
   { value: "environmental-science", label: "วิทยาศาสตร์สิ่งแวดล้อม" },
   { value: "materials-science", label: "วัสดุศาสตร์" },
-  { value: "bbtech", label: "เทคโนโลยีชีวภาพ (นานาชาติ)" },
   { value: "microbiology", label: "จุลชีววิทยา" },
   { value: "marine-science", label: "วิทยาศาสตร์ทางทะเล" },
-  { value: "bsac", label: "เคมีประยุกต์" },
   { value: "food-technology", label: "เทคโนโลยีทางอาหาร" },
   { value: "geology", label: "ธรณีวิทยา" },
   { value: "biochemistry", label: "ชีวเคมี" },
   { value: "imaging-printing", label: "เทคโนโลยีทางภาพและการพิมพ์" },
+  { value: "bbtech", label: "เทคโนโลยีชีวภาพ (นานาชาติ)" },
+  { value: "bsac", label: "เคมีประยุกต์ (นานาชาติ)" },
+  { value: "bistech", label: "วิทยาศาสตร์และเทคโนโลยีอุตสาหการ (นานาชาติ)" },
 ];
 
 export const isOption = (options: PickerOption[], value: string) =>
