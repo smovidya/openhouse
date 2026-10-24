@@ -115,6 +115,42 @@ export async function enrollStaff(
   input: EnrollStaffInput,
 ) {
   requireUser(await findSessionUser(db, actorId));
+  if (!input.code) {
+    const now = Math.floor(Date.now() / 1000);
+    const [profile] = await db
+      .insert(staffs)
+      .select(
+        db
+          .select({
+            id: sql<string>`${crypto.randomUUID()}`.as("id"),
+            userId: users.id,
+            type: sql<string>`${input.type}`.as("type"),
+            name: sql<string>`${input.name}`.as("name"),
+            department: sql<string | null>`${input.department}`.as(
+              "department",
+            ),
+            phone: sql<string>`${input.phone}`.as("phone"),
+            permission: sql<StaffPermission[]>`'[]'`.as("permission"),
+            createdAt: sql<Date>`${now}`.as("created_at"),
+            updatedAt: sql<Date>`${now}`.as("updated_at"),
+            deletedAt: sql<null>`null`.as("deleted_at"),
+          })
+          .from(users)
+          .where(and(eq(users.id, actorId), isNull(users.deletedAt))),
+      )
+      .onConflictDoUpdate({
+        target: staffs.userId,
+        // Registration retries must preserve both the saved profile and any
+        // permissions granted by a concurrent invite redemption.
+        set: { updatedAt: new Date() },
+        setWhere: isNull(staffs.deletedAt),
+      })
+      .returning({ id: staffs.id });
+    if (!profile)
+      error(403, "Staff registration is unavailable for this account");
+    // A pending profile is not staff access. Only an invite promotes the user.
+    return requireUser(await findSessionUser(db, actorId));
+  }
   const codeHash = await hashCode(input.code);
   const [invite] = await db
     .select({ permission: inviteCodes.permission })
@@ -187,14 +223,16 @@ export async function enrollStaff(
 }
 
 export async function redeemInviteCode(db: Db, actorId: string, code: string) {
-  requireStaff(await findSessionUser(db, actorId));
+  requireUser(await findSessionUser(db, actorId));
   const staff = await getStaffProfile(db, actorId);
-  if (!staff) error(403, "Staff access required");
-  return enrollStaff(db, actorId, {
-    code,
-    name: staff.name,
-    phone: staff.phone,
-    type: staff.type,
-    department: staff.department,
-  });
+  if (!staff) error(403, "Register a staff profile before redeeming an invite");
+  return requireStaff(
+    await enrollStaff(db, actorId, {
+      code,
+      name: staff.name,
+      phone: staff.phone,
+      type: staff.type,
+      department: staff.department,
+    }),
+  );
 }

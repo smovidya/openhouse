@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { refreshAll } from "$app/navigation";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { Label } from "#lib/components/ui/label/index.js";
-	import { enrollStaff } from "#lib/features/staff/staff.remote.ts";
+	import { enrollStaff } from "#lib/features/staff/staff.client.ts";
 	import Glass from "#lib/render/glass.svelte";
 	import { inviteCodeError } from "#lib/staff.js";
 
@@ -27,8 +26,6 @@
 		message = "";
 		try {
 			await enrollStaff({ name, phone, type: STAFF_TYPE, code });
-			// The session now has the staff record: reload the layout data, and /staff shows the menu.
-			await refreshAll();
 		} catch (error) {
 			message = inviteCodeError(error);
 		} finally {
@@ -56,7 +53,7 @@
 		/>
 	</div>
 	<div class="flex flex-col gap-1">
-		<Label for="staff-code" class="text-base font-normal text-brand-mist">รหัสเชิญ (invite code)</Label>
+		<Label for="staff-code" class="text-base font-normal text-brand-mist">รหัสเชิญ (ไม่บังคับ)</Label>
 		<Input
 			class={inputClass}
 			id="staff-code"
@@ -64,10 +61,10 @@
 			autocomplete="off"
 			autocapitalize="off"
 			spellcheck={false}
-			required
 			minlength={8}
 			maxlength={128}
 		/>
+		<p class="text-xs text-brand-mist">ยังไม่มีรหัสเชิญ? ลงทะเบียนก่อนได้ แล้วเพิ่มสิทธิ์ภายหลัง</p>
 	</div>
 	{#if message}
 		<p role="alert" class="text-sm text-brand-yellow">{message}</p>

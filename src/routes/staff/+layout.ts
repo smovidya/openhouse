@@ -2,7 +2,7 @@ import { error, redirect } from "@sveltejs/kit";
 import type { LayoutLoad } from "./$types";
 
 export const load: LayoutLoad = async ({ parent, route }) => {
-  // /staff itself signs people in and enrolls them with an invite code (see +page.svelte).
+  // /staff accepts signup before an invite; pending profiles have no staff access.
   // Every page under it is staff only: signed out → sign in on /staff; not staff → 403.
   if (route.id !== "/staff") {
     const { session } = await parent();

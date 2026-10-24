@@ -23,8 +23,8 @@ Append `--remote --env production` to target production explicitly.
 ## Backend organization
 
 Backend code is grouped by feature. Authentication, staff enrollment/permissions,
-and checkpoint scanning have backend APIs. The home page includes a login demo;
-enrollment UI is not yet included.
+and checkpoint scanning have backend APIs. Staff self-registration and invite
+redemption are available at `/staff`.
 
 ```text
 src/lib/
@@ -335,23 +335,34 @@ The staff profile's optional department is descriptive and never grants access.
 
 `#lib/features/staff/staff.remote.ts` exports:
 
-| Operation                | Input                                      | Access/result                                                                           |
-| ------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------- |
-| `getMyStaffProfile()`    | None                                       | Signed-in user's active profile or `null`                                               |
-| `listBoothDepartments()` | None                                       | Signed-in user; active booth department slugs                                           |
-| `enrollStaff(...)`       | `{ name, phone, type, department?, code }` | Signed-in user; creates staff profile, adds invite permissions, returns updated session |
-| `redeemInviteCode(...)`  | `{ code }`                                 | Existing active staff; adds invite permissions and returns updated session              |
-| `createInviteCode(...)`  | `{ permission: StaffPermission[] }`        | Admin; returns invite metadata and generated reusable code                              |
-| `listInviteCodes(...)`   | `{ offset?: number, limit?: number }`      | Admin; active/disabled invite metadata, never codes or hashes                           |
-| `disableInviteCode(...)` | `{ id }`                                   | Admin; sets the invite's `deletedAt`                                                    |
+| Operation                | Input                                       | Access/result                                                                                  |
+| ------------------------ | ------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `getMyStaffProfile()`    | None                                        | Signed-in user's active profile or `null`                                                      |
+| `listBoothDepartments()` | None                                        | Signed-in user; active booth department slugs                                                  |
+| `enrollStaff(...)`       | `{ name, phone, type, department?, code? }` | Signed-in user; saves a profile, optionally grants invite permissions, returns updated session |
+| `redeemInviteCode(...)`  | `{ code }`                                  | Signed-in user with a saved staff profile; adds invite permissions and returns updated session |
+| `createInviteCode(...)`  | `{ permission: StaffPermission[] }`         | Admin; returns invite metadata and generated reusable code                                     |
+| `listInviteCodes(...)`   | `{ offset?: number, limit?: number }`       | Admin; active/disabled invite metadata, never codes or hashes                                  |
+| `disableInviteCode(...)` | `{ id }`                                    | Admin; sets the invite's `deletedAt`                                                           |
 
 Enrollment collects `name`, `phone`, and descriptive `type` (for example `student`
 or `organizer`), plus optional `department`. It takes the user ID from the current
 session and permissions from the invite. Supplying `role`, `permission`, or another
 user ID in the enrollment input is rejected. Existing attendee records are kept
-when the user's account role changes to `staff`. A signed-in attendee without a
-completed attendee profile can enroll too; there is no extra `roleless` account
-role. Re-enrollment preserves existing staff profile details and adds permissions.
+when the user's account role changes to `staff`. Any signed-in user can register
+at `/staff`, including users who already have an attendee profile.
+
+An omitted or blank `code` saves a pending staff profile with no permissions.
+It does not promote the user or grant any staff-only access. `getMyStaffProfile`
+returns the saved pending profile, while `session.user.staff` remains `null` until
+a valid invite activates the account. The page shows an invite-entry form for
+pending profiles and only permitted module links for activated staff.
+
+A valid code can be supplied during signup or later through `redeemInviteCode`.
+Invalid/disabled codes grant nothing. Later codes add to the existing permission
+set; retries and concurrent grants never remove earlier permissions. Signup
+retries preserve saved profile details and cannot revive a disabled staff record.
+No new database migration is needed for this signup flow.
 
 Codes are case-sensitive, reusable across people, and have no expiry or usage
 limit. A code can grant multiple permissions, including `admin`. Creation returns
@@ -361,7 +372,7 @@ permissions already granted. Soft-deleted staff/users cannot use codes to restor
 their access. Repeated redemptions do not duplicate permissions, and simultaneous
 redemptions merge safely.
 
-Future UI handlers should import `enrollStaff` and `redeemInviteCode` from
+UI handlers import `enrollStaff` and `redeemInviteCode` from
 `#lib/features/staff/staff.client.ts`. These helpers await `refreshAll()` after a
 successful command, keeping `page.data.session.user.staff.permission` up to date.
 Promotion retains the session's original expiry. The raw remote commands refresh

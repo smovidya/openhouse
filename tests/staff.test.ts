@@ -40,6 +40,7 @@ import {
   checkInAttendee,
   listScannableCheckpoints,
 } from "../src/lib/features/checkpoints/service.server";
+import { getStaffActions } from "../src/lib/staff";
 import { buildSeedAdminStatements } from "../scripts/seed-admin-sql";
 
 const isStatus = (status: number) => (cause: unknown) =>
@@ -95,6 +96,35 @@ it("validates permission names and handles wildcard/admin access without prefix 
   );
 });
 
+it("shows only staff actions allowed by the combined permissions", () => {
+  const all = [
+    "/staff/booth-check-in",
+    "/staff/check-in",
+    "/staff/rewards",
+    "/staff/workshop-check-in",
+  ];
+  const cases: Array<[StaffPermission[], string[]]> = [
+    [[], []],
+    [["boothStaff:physics"], ["/staff/booth-check-in"]],
+    [["boothStaff:all"], ["/staff/booth-check-in"]],
+    [["workshopStaff"], ["/staff/workshop-check-in"]],
+    [
+      ["boothStaff:physics", "workshopStaff"],
+      ["/staff/booth-check-in", "/staff/workshop-check-in"],
+    ],
+    [["activityStaff"], all],
+    [["admin"], all],
+  ];
+  for (const [permissions, expected] of cases) {
+    assert.deepEqual(
+      getStaffActions(permissions)
+        .map((action) => action.href)
+        .sort(),
+      expected,
+    );
+  }
+});
+
 describe("staff enrollment and checkpoint authorization on D1", () => {
   let proxy: Awaited<ReturnType<typeof getPlatformProxy<{ DB: D1Database }>>>;
   let directory: string;
@@ -117,7 +147,9 @@ describe("staff enrollment and checkpoint authorization on D1", () => {
   async function enroll(permission: StaffPermission[]) {
     const id = await createUser();
     const invite = await createInviteCode(db, adminId, permission);
-    const user = await enrollStaff(db, id, { ...profile, code: invite.code });
+    const user = requireStaff(
+      await enrollStaff(db, id, { ...profile, code: invite.code }),
+    );
     return { id, user, invite };
   }
 
@@ -220,6 +252,130 @@ describe("staff enrollment and checkpoint authorization on D1", () => {
     assert.equal((await findSessionUser(db, other))?.role, "attendee");
   });
 
+  it("accepts optional invite inputs but rejects client-controlled access fields", () => {
+    for (const code of [undefined, "", "   "]) {
+      const parsed = enrollStaffInput.parse({ ...profile, code });
+      assert.equal(parsed.code, undefined);
+    }
+    assert.equal(
+      enrollStaffInput.safeParse({ ...profile, code: "short" }).success,
+      false,
+    );
+    for (const extra of [
+      { permission: ["admin"] },
+      { role: "staff" },
+      { userId: adminId },
+    ]) {
+      assert.equal(
+        enrollStaffInput.safeParse({ ...profile, ...extra }).success,
+        false,
+      );
+    }
+  });
+
+  it("saves a pending profile without granting any staff access", async () => {
+    const id = await createUser();
+    const [attendee] = await db
+      .insert(attendees)
+      .values({
+        userId: id,
+        qrCodeId: crypto.randomUUID(),
+        title: "Mx",
+        firstname: "Existing",
+        lastname: "Attendee",
+        age: 18,
+        residentProvince: "Bangkok",
+        type: "student",
+      })
+      .returning();
+    const result = await enrollStaff(db, id, profile);
+    assert.equal(result.role, "attendee");
+    assert.equal(result.staff, null);
+    assert.equal(result.attendee?.id, attendee.id);
+    const saved = await getStaffProfile(db, id);
+    assert.equal(saved?.name, profile.name);
+    assert.deepEqual(saved?.permission, []);
+    assert.throws(() => requireStaff(result), isStatus(403));
+    await assert.rejects(
+      listScannableCheckpoints(db, id, { offset: 0, limit: 50 }),
+      isStatus(403),
+    );
+    await assert.rejects(
+      listInviteCodes(db, id, { offset: 0, limit: 50 }),
+      isStatus(403),
+    );
+    await assert.rejects(
+      enrollStaff(db, "missing-user", profile),
+      isStatus(401),
+    );
+  });
+
+  it("activates a pending profile with a later invite and stacks later permissions", async () => {
+    const id = await createUser();
+    await enrollStaff(db, id, profile);
+    await assert.rejects(
+      redeemInviteCode(db, id, "not-valid-invite"),
+      isStatus(400),
+    );
+    assert.equal((await findSessionUser(db, id))?.staff, null);
+    const booth = await createInviteCode(db, adminId, ["boothStaff:physics"]);
+    const workshop = await createInviteCode(db, adminId, ["workshopStaff"]);
+    const activity = await createInviteCode(db, adminId, ["activityStaff"]);
+    const activated = await redeemInviteCode(db, id, booth.code);
+    assert.deepEqual(activated.staff.permission, ["boothStaff:physics"]);
+    await Promise.all([
+      redeemInviteCode(db, id, workshop.code),
+      redeemInviteCode(db, id, activity.code),
+    ]);
+    await redeemInviteCode(db, id, booth.code);
+    assert.deepEqual(
+      (await getStaffProfile(db, id))?.permission.slice().sort(),
+      ["activityStaff", "boothStaff:physics", "workshopStaff"],
+    );
+    await assert.rejects(
+      redeemInviteCode(db, await createUser(), booth.code),
+      isStatus(403),
+    );
+  });
+
+  it("keeps pending signup retries and concurrent activation from losing permissions", async () => {
+    const id = await createUser();
+    const invite = await createInviteCode(db, adminId, ["boothStaff:physics"]);
+    await Promise.all([
+      enrollStaff(db, id, profile),
+      enrollStaff(db, id, { ...profile, code: invite.code }),
+      enrollStaff(db, id, profile),
+    ]);
+    const result = await enrollStaff(db, id, {
+      ...profile,
+      name: "Retry must preserve original",
+    });
+    assert.deepEqual(result.staff?.permission, ["boothStaff:physics"]);
+    assert.equal((await getStaffProfile(db, id))?.name, profile.name);
+    assert.equal(
+      (await db.select().from(staffs).where(eq(staffs.userId, id))).length,
+      1,
+    );
+  });
+
+  it("never revives disabled pending profiles or users through signup without a code", async () => {
+    const id = await createUser();
+    await enrollStaff(db, id, profile);
+    await db
+      .update(staffs)
+      .set({ deletedAt: new Date() })
+      .where(eq(staffs.userId, id));
+    await assert.rejects(enrollStaff(db, id, profile), isStatus(403));
+    const invite = await createInviteCode(db, adminId, ["workshopStaff"]);
+    await assert.rejects(redeemInviteCode(db, id, invite.code), isStatus(403));
+    const userId = await createUser();
+    await db
+      .update(users)
+      .set({ deletedAt: new Date() })
+      .where(eq(users.id, userId));
+    await assert.rejects(enrollStaff(db, userId, profile), isStatus(401));
+  });
+
   it("reuses an invite across accounts, preserves attendee records, and exposes safe permissions", async () => {
     const invite = await createInviteCode(db, adminId, ["boothStaff:physics"]);
     const [attendee] = await db
@@ -227,7 +383,9 @@ describe("staff enrollment and checkpoint authorization on D1", () => {
       .from(attendees)
       .where(eq(attendees.qrCodeId, qrCodeId));
     for (const id of [attendee.userId, await createUser()]) {
-      const user = await enrollStaff(db, id, { ...profile, code: invite.code });
+      const user = requireStaff(
+        await enrollStaff(db, id, { ...profile, code: invite.code }),
+      );
       assert.equal(user.role, "staff");
       assert.deepEqual(user.staff.permission, ["boothStaff:physics"]);
       assert.equal("code" in user.staff, false);
