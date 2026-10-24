@@ -19,12 +19,23 @@ export function hasPermission(
   return (
     granted.includes("admin") ||
     granted.includes(required) ||
+    (granted.includes("activityStaff") &&
+      (required === "workshopStaff" ||
+        required === "boothStaff:all" ||
+        required.startsWith("boothStaff:"))) ||
     (required.startsWith("boothStaff:") && granted.includes("boothStaff:all"))
   );
 }
 
 export interface CheckpointAccess {
-  type: "entry" | "booth" | "reward" | "stage" | "workshop";
+  type:
+    | "entry"
+    | "booth"
+    | "tcas"
+    | "central_activity"
+    | "reward"
+    | "stage"
+    | "workshop";
   department: string | null;
 }
 
@@ -42,7 +53,8 @@ export function canScanCheckpoint(
   if (checkpoint.type === "workshop")
     return hasPermission(granted, "workshopStaff");
   return (
-    ["entry", "stage", "reward"].includes(checkpoint.type) &&
-    hasPermission(granted, "activityStaff")
+    ["entry", "stage", "reward", "tcas", "central_activity"].includes(
+      checkpoint.type,
+    ) && hasPermission(granted, "activityStaff")
   );
 }

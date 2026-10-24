@@ -19,15 +19,27 @@ export function buildWorkshopSeedStatements() {
        ON CONFLICT (slug) DO UPDATE SET title = excluded.title,
          host_department = excluded.host_department, host_department_abbr = excluded.host_department_abbr,
          description = excluded.description, capacity = excluded.capacity, updated_at = excluded.updated_at`,
-      ...workshop.sessions.map((session, index) => {
+      ...workshop.sessions.flatMap((session, index) => {
         const round = index + 1;
         const start = Date.parse(session.start) / 1000;
         const end = Date.parse(session.end) / 1000;
-        return `INSERT INTO workshop_time_slots (id, workshop_id, round_number, starts_at, ends_at, created_at, updated_at)
-          SELECT ${literal(`workshop-${workshop.slug}-${round}`)}, id, ${round}, ${start}, ${end}, ${now}, ${now}
-          FROM workshops WHERE slug = ${slug}
-          ON CONFLICT (workshop_id, round_number) DO UPDATE SET starts_at = excluded.starts_at,
-            ends_at = excluded.ends_at, updated_at = excluded.updated_at`;
+        const slotId = `workshop-${workshop.slug}-${round}`;
+        return [
+          `INSERT INTO workshop_time_slots (id, workshop_id, round_number, starts_at, ends_at, created_at, updated_at)
+            SELECT ${literal(slotId)}, id, ${round}, ${start}, ${end}, ${now}, ${now}
+            FROM workshops WHERE slug = ${slug}
+            ON CONFLICT (workshop_id, round_number) DO UPDATE SET starts_at = excluded.starts_at,
+              ends_at = excluded.ends_at, updated_at = excluded.updated_at`,
+          `INSERT INTO checkpoints (id, name, type, workshop_time_slot_id, created_at, updated_at)
+            SELECT ${literal(`checkpoint-${slotId}`)}, ${literal(`${workshop.title} รอบ ${round}`)}, 'workshop', workshop_time_slots.id, ${now}, ${now}
+            FROM workshop_time_slots
+            INNER JOIN workshops ON workshops.id = workshop_time_slots.workshop_id
+            WHERE workshops.slug = ${slug} AND workshop_time_slots.round_number = ${round}
+            ON CONFLICT (workshop_time_slot_id) WHERE deleted_at IS NULL AND workshop_time_slot_id IS NOT NULL
+              DO UPDATE SET name = excluded.name, type = excluded.type, updated_at = excluded.updated_at
+            ON CONFLICT (id) DO UPDATE SET name = excluded.name, type = excluded.type,
+              workshop_time_slot_id = excluded.workshop_time_slot_id, updated_at = excluded.updated_at`,
+        ];
       }),
     ];
   });

@@ -6,6 +6,8 @@ import "#lib/features/auth/dev.remote.ts";
 import "#lib/features/attendees/attendees.remote.ts";
 import "#lib/features/staff/staff.remote.ts";
 import "#lib/features/checkpoints/checkpoints.remote.ts";
+import "#lib/features/rewards/rewards.remote.ts";
+import "#lib/features/workshops/attendance.remote.ts";
 import "#lib/features/time/time.remote.ts";
 import "#lib/features/workshops/workshops.remote.ts";
 import type { Handle } from "@sveltejs/kit/hooks";
