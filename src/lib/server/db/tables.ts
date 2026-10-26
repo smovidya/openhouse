@@ -166,7 +166,15 @@ export const checkpoints = t.sqliteTable("checkpoints", {
   department: t.text("department"),
   type: t
     .text("type", {
-      enum: ["entry", "booth", "reward", "stage", "workshop"],
+      enum: [
+        "entry",
+        "booth",
+        "tcas",
+        "central_activity",
+        "reward",
+        "stage",
+        "workshop",
+      ],
     })
     .notNull(),
   ...timestamps,

@@ -3,6 +3,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { Label } from "#lib/components/ui/label/index.js";
+	import { MultiPicker } from "#lib/components/ui/picker/index.js";
 	import type { StaffPermission } from "#lib/features/staff/permissions.ts";
 	import { createInviteCode, disableInviteCode } from "#lib/features/staff/staff.remote.ts";
 	import Glass from "#lib/render/glass.svelte";
@@ -11,6 +12,8 @@
 
 	let { data }: PageProps = $props();
 	let permissions = $state<StaffPermission[]>([]);
+	let selectedBooths = $state<string[]>([]);
+	let customCode = $state("");
 	let created = $state<Awaited<ReturnType<typeof createInviteCode>> | null>(null);
 	let busy = $state(false);
 	let message = $state("");
@@ -20,16 +23,17 @@
 
 	const basePermissions: { value: StaffPermission; label: string }[] = [
 		{ value: "workshopStaff", label: "เวิร์คช็อป" },
-		{ value: "boothStaff:all", label: "บูธทั้งหมด" },
-		{ value: "activityStaff", label: "ส่วนกลาง (รวมบูธและเวิร์คช็อป)" },
+		{ value: "boothStaff:all", label: "ทุกบูธภาควิชา" },
+		{ value: "activityStaff", label: "ส่วนกลาง (เข้างาน เวที และรางวัล)" },
 		{ value: "admin", label: "ผู้ดูแลระบบ (Admin) — ทุกสิทธิ์" },
 	];
 	const options = $derived([
 		...basePermissions,
-		...data.departments.filter((department) => department !== "all").map((department) => ({
-			value: `boothStaff:${department}` as StaffPermission,
-			label: `บูธ ${department}`,
-		})),
+		...data.boothScopes,
+	]);
+	const selectedPermissions = $derived([
+		...permissions,
+		...data.boothScopes.filter((scope) => selectedBooths.includes(scope.value)).map((scope) => scope.value),
 	]);
 	const dateFormat = new Intl.DateTimeFormat("th-TH", {
 		dateStyle: "medium",
@@ -41,7 +45,8 @@
 		const status = httpStatus(cause);
 		if (status === 401) return "กรุณาเข้าสู่ระบบอีกครั้ง";
 		if (status === 403) return "เฉพาะผู้ดูแลระบบเท่านั้น";
-		if (status === 400) return "สิทธิ์ไม่ถูกต้อง กรุณาโหลดหน้าใหม่แล้วลองอีกครั้ง";
+		if (status === 400) return "ตรวจสอบสิทธิ์และรหัสเชิญ รหัสต้องมี 8–128 ตัวอักษร";
+		if (status === 409) return "รหัสเชิญนี้ถูกใช้แล้ว กรุณาเลือกรหัสใหม่";
 		return "ทำรายการไม่สำเร็จ กรุณาลองอีกครั้ง";
 	}
 
@@ -56,14 +61,16 @@
 
 	async function create(event: SubmitEvent) {
 		event.preventDefault();
-		if (busy || created || permissions.length === 0) return;
+		if (busy || created || selectedPermissions.length === 0) return;
 		busy = true;
 		failure = "";
 		message = "";
 		copyMessage = "";
 		try {
-			created = await createInviteCode({ permission: permissions });
+			created = await createInviteCode({ permission: selectedPermissions, code: customCode });
 			permissions = [];
+			selectedBooths = [];
+			customCode = "";
 			message = "สร้างรหัสเชิญแล้ว";
 			await refreshList();
 		} catch (cause) {
@@ -115,16 +122,45 @@
 	<Glass as="section" class="flex flex-col gap-4 rounded-xl p-4">
 		<h2 class="text-xl text-brand-yellow">สร้างรหัสเชิญ</h2>
 		<form onsubmit={create} class="flex flex-col gap-4">
+			<div class="flex flex-col gap-2">
+				<Label for="custom-invite-code">รหัสเชิญที่กำหนดเอง (ไม่บังคับ)</Label>
+				<Input
+					id="custom-invite-code"
+					bind:value={customCode}
+					placeholder="เช่น TCAS-TEAM-2026"
+					minlength={8}
+					maxlength={128}
+					autocomplete="off"
+					autocapitalize="off"
+					spellcheck={false}
+					disabled={busy || created !== null}
+					aria-describedby="custom-invite-help"
+					class="focus-visible:border-brand-yellow focus-visible:ring-brand-yellow/60"
+				/>
+				<p id="custom-invite-help" class="text-xs">เว้นว่างเพื่อสุ่มรหัส หรือกำหนดเอง 8–128 ตัวอักษร ตัวพิมพ์เล็กและใหญ่ต่างกัน</p>
+			</div>
 			<fieldset disabled={busy || created !== null} class="flex flex-col gap-3 disabled:opacity-60">
 				<legend class="mb-3 text-sm">เลือกสิทธิ์ที่จะให้ (เลือกได้หลายข้อ)</legend>
-				{#each options as option (option.value)}
+				{#each basePermissions as option (option.value)}
 					<label class="flex items-start gap-3 text-sm">
 						<input type="checkbox" bind:group={permissions} value={option.value} class="mt-0.5 size-4 shrink-0 accent-brand-yellow" />
 						<span>{option.label}</span>
 					</label>
 				{/each}
 			</fieldset>
-			<Button type="submit" variant="cta" size="cta-sm" disabled={busy || created !== null || permissions.length === 0}>
+			<div class="flex flex-col gap-2">
+				<Label for="invite-booth-scopes">เลือกบูธที่ดูแล</Label>
+				<MultiPicker
+					id="invite-booth-scopes"
+					options={data.boothScopes}
+					bind:value={selectedBooths}
+					placeholder="เลือกภาควิชา, TCAS หรือกิจกรรมส่วนกลาง"
+					disabled={busy || created !== null}
+					class="has-[[data-slot=picker-trigger]:focus-visible]:border-brand-yellow has-[[data-slot=picker-trigger]:focus-visible]:ring-brand-yellow/60"
+				/>
+				<p class="text-xs">เลือกได้หลายบูธ สิทธิ์ทุกบูธภาควิชาไม่รวม TCAS และกิจกรรมส่วนกลาง</p>
+			</div>
+			<Button type="submit" variant="cta" size="cta-sm" disabled={busy || created !== null || selectedPermissions.length === 0}>
 				สร้างรหัสเชิญ
 			</Button>
 		</form>

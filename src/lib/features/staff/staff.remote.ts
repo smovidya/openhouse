@@ -52,9 +52,9 @@ export const redeemInviteCode = command(redeemInviteInput, async ({ code }) => {
 
 export const createInviteCode = command(
   createInviteInput,
-  async ({ permission }) => {
+  async ({ permission, code }) => {
     const { db, actorId } = requestContext(true);
-    return service.createInviteCode(db, actorId, permission);
+    return service.createInviteCode(db, actorId, permission, code);
   },
 );
 

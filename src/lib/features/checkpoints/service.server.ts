@@ -14,7 +14,11 @@ import type { Db } from "#db";
 import { attendees, checkpointLogs, checkpoints, users } from "#db/tables.ts";
 import { requireStaff } from "../auth/guards.server";
 import { findSessionUser } from "../auth/service.server";
-import { canScanCheckpoint, type StaffPermission } from "../staff/permissions";
+import {
+  canScanCheckpoint,
+  specialBoothScopes,
+  type StaffPermission,
+} from "../staff/permissions";
 import type { CheckInAttendeeInput } from "./schemas";
 
 function accessibleCheckpoints(permission: StaffPermission[]) {
@@ -24,6 +28,10 @@ function accessibleCheckpoints(permission: StaffPermission[]) {
     conditions.push(eq(checkpoints.type, "workshop"));
   if (permission.includes("activityStaff"))
     conditions.push(inArray(checkpoints.type, ["entry", "stage", "reward"]));
+  for (const scope of specialBoothScopes) {
+    if (permission.includes(scope.permission))
+      conditions.push(eq(checkpoints.type, scope.type));
+  }
   const departments = permission
     .filter((value) => value.startsWith("boothStaff:"))
     .map((value) => value.slice(11));

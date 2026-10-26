@@ -26,13 +26,17 @@ import {
   staffPermission,
   type StaffPermission,
 } from "../src/lib/features/staff/permissions";
-import { enrollStaffInput } from "../src/lib/features/staff/schemas";
+import {
+  createInviteInput,
+  enrollStaffInput,
+} from "../src/lib/features/staff/schemas";
 import {
   createInviteCode,
   disableInviteCode,
   enrollStaff,
   getStaffProfile,
   listBoothDepartments,
+  listBoothScopes,
   listInviteCodes,
   redeemInviteCode,
 } from "../src/lib/features/staff/service.server";
@@ -56,6 +60,8 @@ it("validates permission names and handles wildcard/admin access without prefix 
     "admin",
     "boothStaff:all",
     "boothStaff:physics",
+    "boothStaff:tcas",
+    "boothStaff:central-activity",
     "workshopStaff",
     "activityStaff",
   ]) {
@@ -77,6 +83,13 @@ it("validates permission names and handles wildcard/admin access without prefix 
   );
   assert.equal(hasPermission(["boothStaff:physics"], "boothStaff:all"), false);
   assert.equal(hasPermission(["boothStaff:all"], "workshopStaff"), false);
+  for (const permission of [
+    "boothStaff:tcas",
+    "boothStaff:central-activity",
+  ] as const) {
+    assert.equal(hasPermission(["boothStaff:all"], permission), false);
+    assert.equal(hasPermission(["activityStaff"], permission), false);
+  }
   assert.equal(hasPermission(["admin"], "workshopStaff"), true);
   assert.equal(
     canScanCheckpoint(["boothStaff:physics"], {
@@ -184,6 +197,12 @@ describe("staff enrollment and checkpoint authorization on D1", () => {
       { id: "workshop-1", type: "workshop" },
       { id: "workshop-2", type: "workshop" },
       { id: "entry", type: "entry" },
+      { id: "tcas", name: "TCAS", type: "tcas" },
+      {
+        id: "central-activity",
+        name: "Central activity",
+        type: "central_activity",
+      },
       { id: "stage", type: "stage" },
       { id: "reward", type: "reward" },
       {
@@ -218,6 +237,166 @@ describe("staff enrollment and checkpoint authorization on D1", () => {
     );
     assert.equal(result.at(-1)?.results.length, 0);
     assert.equal((await findSessionUser(db, other))?.role, "attendee");
+  });
+
+  it("validates custom codes and keeps blank codes automatic", async () => {
+    for (const code of [undefined, "", "   "]) {
+      assert.equal(
+        createInviteInput.parse({ permission: ["admin"], code }).code,
+        undefined,
+      );
+      const invite = await createInviteCode(db, adminId, ["admin"], code);
+      assert.match(invite.code, /^[a-f0-9]{48}$/);
+    }
+    assert.equal(
+      createInviteInput.parse({ permission: ["admin"], code: "  Team-2026  " })
+        .code,
+      "Team-2026",
+    );
+    for (const code of ["short", "a".repeat(129)]) {
+      assert.equal(
+        createInviteInput.safeParse({ permission: ["admin"], code }).success,
+        false,
+      );
+      await assert.rejects(
+        createInviteCode(db, adminId, ["admin"], code),
+        isStatus(400),
+      );
+    }
+    for (const length of [8, 128]) {
+      const code = "a".repeat(length);
+      assert.equal(
+        (await createInviteCode(db, adminId, ["workshopStaff"], code)).code,
+        code,
+      );
+    }
+  });
+
+  it("redeems a trimmed custom code, stores only its hash, and never reuses disabled codes", async () => {
+    const code = "TCAS-Team-2026";
+    const invite = await createInviteCode(
+      db,
+      adminId,
+      ["boothStaff:tcas"],
+      `  ${code}  `,
+    );
+    assert.equal(invite.code, code);
+    const [stored] = await db
+      .select()
+      .from(inviteCodes)
+      .where(eq(inviteCodes.id, invite.id));
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(code),
+    );
+    assert.equal(stored.codeHash, Buffer.from(digest).toString("hex"));
+    assert.equal("code" in stored, false);
+    const user = await createUser();
+    await assert.rejects(
+      enrollStaff(db, user, { ...profile, code: code.toLowerCase() }),
+      isStatus(400),
+    );
+    const enrolled = await enrollStaff(db, user, {
+      ...profile,
+      code: ` ${code} `,
+    });
+    assert.deepEqual(enrolled.staff?.permission, ["boothStaff:tcas"]);
+    await assert.rejects(
+      createInviteCode(db, adminId, ["admin"], code),
+      isStatus(409),
+    );
+    await disableInviteCode(db, adminId, invite.id);
+    await assert.rejects(
+      createInviteCode(db, adminId, ["admin"], code),
+      isStatus(409),
+    );
+    await assert.rejects(
+      enrollStaff(db, await createUser(), { ...profile, code }),
+      isStatus(400),
+    );
+  });
+
+  it("allows only one creation when custom codes collide concurrently", async () => {
+    const results = await Promise.allSettled([
+      createInviteCode(db, adminId, ["workshopStaff"], "Shared-code-2026"),
+      createInviteCode(db, adminId, ["admin"], " Shared-code-2026 "),
+    ]);
+    assert.equal(
+      results.filter((result) => result.status === "fulfilled").length,
+      1,
+    );
+    const rejected = results.find((result) => result.status === "rejected");
+    assert.ok(
+      rejected?.status === "rejected" && isHttpError(rejected.reason, 409),
+    );
+  });
+
+  it("offers named department and event booth scopes, plus configured extra departments", async () => {
+    await db.insert(checkpoints).values({
+      id: "extra-booth",
+      type: "booth",
+      department: "extra-department",
+    });
+    try {
+      const scopes = await listBoothScopes(db, adminId);
+      for (const value of [
+        "physics",
+        "biology",
+        "tcas",
+        "central-activity",
+        "extra-department",
+      ])
+        assert.ok(
+          scopes.some((scope) => scope.value === `boothStaff:${value}`),
+        );
+      assert.equal(
+        scopes.find((scope) => scope.value === "boothStaff:physics")?.label,
+        "บูธ ฟิสิกส์",
+      );
+      for (const value of [
+        "disabled",
+        "all",
+        "entry",
+        "stage",
+        "reward",
+        "unknown",
+      ])
+        assert.equal(
+          scopes.some((scope) => scope.value === `boothStaff:${value}`),
+          false,
+        );
+      for (const permission of [
+        "boothStaff:biology",
+        "boothStaff:tcas",
+        "boothStaff:central-activity",
+        "boothStaff:extra-department",
+      ] as const)
+        assert.deepEqual(
+          (await createInviteCode(db, adminId, [permission])).permission,
+          [permission],
+        );
+      for (const permission of [
+        "boothStaff:entry",
+        "boothStaff:stage",
+        "boothStaff:reward",
+        "boothStaff:disabled",
+      ] as const)
+        await assert.rejects(
+          createInviteCode(db, adminId, [permission]),
+          isStatus(400),
+        );
+      await assert.rejects(
+        createInviteCode(
+          db,
+          await createUser(),
+          ["boothStaff:tcas"],
+          "Custom-code-2026",
+        ),
+        isStatus(403),
+      );
+    } finally {
+      await db.delete(checkpoints).where(eq(checkpoints.id, "extra-booth"));
+    }
   });
 
   it("reuses an invite across accounts, preserves attendee records, and exposes safe permissions", async () => {
@@ -359,59 +538,73 @@ describe("staff enrollment and checkpoint authorization on D1", () => {
     assert.equal(await getStaffProfile(db, disabled.id), null);
   });
 
-  it("enforces the same permission matrix for listing and scanning checkpoints", async () => {
-    const cases: Array<[StaffPermission[], string[]]> = [
-      [["boothStaff:physics"], ["physics"]],
-      [["boothStaff:all"], ["chemistry", "physics"]],
-      [["workshopStaff"], ["workshop-1", "workshop-2"]],
-      [["activityStaff"], ["entry", "reward", "stage"]],
-      [
-        ["admin"],
+  it(
+    "enforces the same permission matrix for listing and scanning checkpoints",
+    { timeout: 20_000 },
+    async () => {
+      const cases: Array<[StaffPermission[], string[]]> = [
+        [["boothStaff:physics"], ["physics"]],
+        [["boothStaff:tcas"], ["tcas"]],
+        [["boothStaff:central-activity"], ["central-activity"]],
         [
-          "chemistry",
-          "entry",
-          "physics",
-          "reward",
-          "stage",
-          "workshop-1",
-          "workshop-2",
+          ["boothStaff:physics", "boothStaff:tcas"],
+          ["physics", "tcas"],
         ],
-      ],
-    ];
-    const all = [
-      "chemistry",
-      "entry",
-      "physics",
-      "reward",
-      "stage",
-      "workshop-1",
-      "workshop-2",
-    ];
-    for (const [permission, allowed] of cases) {
-      const { id } = await enroll(permission);
-      const listed = await listScannableCheckpoints(db, id, {
-        offset: 0,
-        limit: 100,
-      });
-      assert.deepEqual(
-        listed.map((row) => row.id),
-        allowed,
-      );
-      for (const checkpointId of all) {
-        if (allowed.includes(checkpointId))
-          await checkInAttendee(db, id, { qrCodeId, checkpointId });
-        else
-          await assert.rejects(
-            checkInAttendee(db, id, { qrCodeId, checkpointId }),
-            isStatus(403),
-          );
+        [["boothStaff:all"], ["chemistry", "physics"]],
+        [["workshopStaff"], ["workshop-1", "workshop-2"]],
+        [["activityStaff"], ["entry", "reward", "stage"]],
+        [
+          ["admin"],
+          [
+            "central-activity",
+            "chemistry",
+            "entry",
+            "physics",
+            "reward",
+            "stage",
+            "tcas",
+            "workshop-1",
+            "workshop-2",
+          ],
+        ],
+      ];
+      const all = [
+        "central-activity",
+        "chemistry",
+        "entry",
+        "physics",
+        "reward",
+        "stage",
+        "tcas",
+        "workshop-1",
+        "workshop-2",
+      ];
+      for (const [permission, allowed] of cases) {
+        const { id } = await enroll(permission);
+        const listed = await listScannableCheckpoints(db, id, {
+          offset: 0,
+          limit: 100,
+        });
+        assert.deepEqual(
+          listed.map((row) => row.id),
+          allowed,
+        );
+        for (const checkpointId of all) {
+          if (allowed.includes(checkpointId))
+            await checkInAttendee(db, id, { qrCodeId, checkpointId });
+          else
+            await assert.rejects(
+              checkInAttendee(db, id, { qrCodeId, checkpointId }),
+              isStatus(403),
+            );
+        }
+        await assert.rejects(
+          checkInAttendee(db, id, { qrCodeId, checkpointId: "disabled" }),
+          isStatus(404),
+        );
       }
-      await assert.rejects(
-        checkInAttendee(db, id, { qrCodeId, checkpointId: "disabled" }),
-        isStatus(404),
-      );
-    }
-  });
+    },
+  );
 
   it("makes concurrent repeat scans idempotent and records the trusted checker", async () => {
     const { id, user } = await enroll(["boothStaff:physics"]);

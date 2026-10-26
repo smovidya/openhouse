@@ -7,6 +7,16 @@ export const staffPermission = z.union([
 ]);
 export type StaffPermission = z.infer<typeof staffPermission>;
 
+// These event booths have no department. Grant them separately from department booths.
+export const specialBoothScopes = [
+  { type: "tcas", permission: "boothStaff:tcas", label: "TCAS" },
+  {
+    type: "central_activity",
+    permission: "boothStaff:central-activity",
+    label: "กิจกรรมส่วนกลาง",
+  },
+] as const;
+
 export const staffPermissions = z
   .array(staffPermission)
   .transform((values) => [...new Set(values)]);
@@ -19,12 +29,21 @@ export function hasPermission(
   return (
     granted.includes("admin") ||
     granted.includes(required) ||
-    (required.startsWith("boothStaff:") && granted.includes("boothStaff:all"))
+    (required.startsWith("boothStaff:") &&
+      !specialBoothScopes.some((scope) => scope.permission === required) &&
+      granted.includes("boothStaff:all"))
   );
 }
 
 export interface CheckpointAccess {
-  type: "entry" | "booth" | "reward" | "stage" | "workshop";
+  type:
+    | "entry"
+    | "booth"
+    | "tcas"
+    | "central_activity"
+    | "reward"
+    | "stage"
+    | "workshop";
   department: string | null;
 }
 
@@ -33,6 +52,10 @@ export function canScanCheckpoint(
   checkpoint: CheckpointAccess,
 ) {
   if (granted.includes("admin")) return true;
+  const specialBooth = specialBoothScopes.find(
+    (scope) => scope.type === checkpoint.type,
+  );
+  if (specialBooth) return hasPermission(granted, specialBooth.permission);
   if (checkpoint.type === "booth") {
     return (
       checkpoint.department !== null &&

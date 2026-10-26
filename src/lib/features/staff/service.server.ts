@@ -2,14 +2,20 @@ import { error } from "@sveltejs/kit";
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import type { Db } from "#db";
 import { checkpoints, inviteCodes, staffs, users } from "#db/tables.ts";
+import { majorOptions } from "#lib/registration/options.ts";
 import {
   requirePermission,
   requireStaff,
   requireUser,
 } from "../auth/guards.server";
 import { findSessionUser } from "../auth/service.server";
-import { staffPermissions, type StaffPermission } from "./permissions";
-import type { EnrollStaffInput } from "./schemas";
+import {
+  departmentId,
+  specialBoothScopes,
+  staffPermissions,
+  type StaffPermission,
+} from "./permissions";
+import { createInviteInput, type EnrollStaffInput } from "./schemas";
 
 const inviteColumns = {
   id: inviteCodes.id,
@@ -38,35 +44,65 @@ export async function listBoothDepartments(db: Db, actorId: string) {
   return rows.flatMap(({ department }) => (department ? [department] : []));
 }
 
+export async function listBoothScopes(db: Db, actorId: string) {
+  const departments = await listBoothDepartments(db, actorId);
+  // Known departments can be assigned before the event checkpoints are seeded.
+  // Extra configured department booths are included automatically.
+  const options = new Map<StaffPermission, string>(
+    majorOptions.map(({ value, label }) => [
+      `boothStaff:${value}`,
+      `บูธ ${label}`,
+    ]),
+  );
+  for (const department of departments) {
+    const permission: StaffPermission = `boothStaff:${department}`;
+    if (
+      department !== "all" &&
+      departmentId.safeParse(department).success &&
+      !options.has(permission)
+    )
+      options.set(permission, `บูธ ${department}`);
+  }
+  for (const scope of specialBoothScopes)
+    options.set(scope.permission, scope.label);
+  return Array.from(options, ([value, label]) => ({ value, label }));
+}
+
 export async function createInviteCode(
   db: Db,
   actorId: string,
   permission: StaffPermission[],
+  customCode?: string,
 ) {
   requirePermission(await findSessionUser(db, actorId), "admin");
-  const parsed = staffPermissions.safeParse(permission);
-  if (!parsed.success || parsed.data.length === 0)
-    error(400, "Invalid permissions");
-  const departments = new Set(await listBoothDepartments(db, actorId));
-  for (const value of parsed.data) {
+  const parsed = createInviteInput.safeParse({ permission, code: customCode });
+  if (!parsed.success) error(400, "Invalid permissions or invite code");
+  const boothPermissions = new Set(
+    (await listBoothScopes(db, actorId)).map((scope) => scope.value),
+  );
+  for (const value of parsed.data.permission) {
     if (
       value.startsWith("boothStaff:") &&
       value !== "boothStaff:all" &&
-      !departments.has(value.slice(11))
+      !boothPermissions.has(value)
     ) {
-      error(400, "Booth department does not have an active checkpoint");
+      error(400, "Unknown booth scope");
     }
   }
-  const code = Array.from(crypto.getRandomValues(new Uint8Array(24)), (byte) =>
-    byte.toString(16).padStart(2, "0"),
-  ).join("");
+  const code =
+    parsed.data.code ??
+    Array.from(crypto.getRandomValues(new Uint8Array(24)), (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join("");
   const [invite] = await db
     .insert(inviteCodes)
     .values({
       codeHash: await hashCode(code),
-      permission: parsed.data,
+      permission: parsed.data.permission,
     })
+    .onConflictDoNothing({ target: inviteCodes.codeHash })
     .returning(inviteColumns);
+  if (!invite) error(409, "Invite code already exists");
   // The reusable bearer code is shown once. List endpoints never expose it.
   return { ...invite, code };
 }
