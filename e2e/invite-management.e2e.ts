@@ -210,3 +210,79 @@ test("admin can page through older codes and invalid pages are rejected", async 
     );
   }
 });
+
+test("admin creates a custom code for department, TCAS, and central activity scopes", async ({
+  page,
+  browser,
+}) => {
+  const adminId = await newcomerId(page);
+  grant(adminId, "admin");
+  await open(page, "/staff/invites");
+  const code = `Booth-Team-${crypto.randomUUID()}`;
+  const customInput = page.getByLabel("รหัสเชิญที่กำหนดเอง (ไม่บังคับ)");
+  await customInput.fill(code);
+  await page
+    .getByRole("button", { name: "เลือกบูธที่ดูแล", exact: true })
+    .click();
+  for (const name of ["บูธ ฟิสิกส์", "TCAS", "กิจกรรมส่วนกลาง"])
+    await page.getByRole("checkbox", { name, exact: true }).check();
+  await page
+    .getByRole("button", { name: "สร้างรหัสเชิญ", exact: true })
+    .click();
+
+  const fresh = page.getByRole("region", { name: "รหัสเชิญใหม่" });
+  await expect(fresh).toBeVisible();
+  const id = (await fresh.getByText(/^ID: /).innerText()).slice(4);
+  expect(id).toMatch(/^[a-f0-9-]+$/);
+  testInvites.add(id);
+  await expect(
+    page.getByRole("textbox", { name: "รหัสเชิญใหม่", exact: true }),
+  ).toHaveValue(code);
+  for (const permission of [
+    "boothStaff:physics",
+    "boothStaff:tcas",
+    "boothStaff:central-activity",
+  ])
+    await expect(fresh).toContainText(permission);
+  await fresh.getByRole("button", { name: "บันทึกรหัสแล้ว ปิด" }).click();
+
+  // A duplicate remains an actionable form error; it never replaces the original grants.
+  await customInput.fill(` ${code} `);
+  // The multi-picker stays open after creating a code.
+  await page.getByRole("checkbox", { name: "TCAS", exact: true }).check();
+  await page
+    .getByRole("button", { name: "สร้างรหัสเชิญ", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toHaveText(
+    "รหัสเชิญนี้ถูกใช้แล้ว กรุณาเลือกรหัสใหม่",
+  );
+  await expect(customInput).toHaveValue(` ${code} `);
+  await expect(fresh).toHaveCount(0);
+
+  const recipientContext = await browser.newContext({
+    baseURL: "http://localhost:5174",
+  });
+  try {
+    const recipient = await recipientContext.newPage();
+    await newcomerId(recipient);
+    await open(recipient, "/staff");
+    await recipient.getByLabel("ชื่อ-นามสกุล").fill("Scoped booth staff");
+    await recipient.getByLabel("เบอร์โทรศัพท์").fill("0812345678");
+    await recipient.getByLabel("รหัสเชิญ (ไม่บังคับ)").fill(code);
+    await recipient
+      .getByRole("button", { name: "ลงทะเบียนสตาฟ", exact: true })
+      .click();
+    await expect(
+      recipient.getByRole("link", { name: "เช็คอินบูธนิทรรศการ" }),
+    ).toBeVisible();
+    await expect(
+      recipient.getByRole("link", { name: "จัดการรหัสเชิญ" }),
+    ).toHaveCount(0);
+    await expect(recipient.getByText("สิทธิ์ปัจจุบัน:")).toContainText(
+      "boothStaff:tcas",
+    );
+    expect((await recipient.goto("/staff/invites"))?.status()).toBe(403);
+  } finally {
+    await recipientContext.close();
+  }
+});

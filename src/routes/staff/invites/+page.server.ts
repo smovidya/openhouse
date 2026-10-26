@@ -3,7 +3,7 @@ import { error, redirect } from "@sveltejs/kit";
 import { getAuthDb } from "#lib/features/auth/config.server.ts";
 import { requirePermission } from "#lib/features/auth/guards.server.ts";
 import {
-  listBoothDepartments,
+  listBoothScopes,
   listInviteCodes,
 } from "#lib/features/staff/service.server.ts";
 import type { PageServerLoad } from "./$types";
@@ -18,16 +18,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     error(400, "Invalid page");
 
   const db = getAuthDb(env);
-  const [invites, departments] = await Promise.all([
+  const [invites, boothScopes] = await Promise.all([
     listInviteCodes(db, actor.id, {
       offset: (page - 1) * pageSize,
       limit: pageSize + 1,
     }),
-    listBoothDepartments(db, actor.id),
+    listBoothScopes(db, actor.id),
   ]);
   return {
     invites: invites.slice(0, pageSize),
-    departments,
+    boothScopes,
     page,
     hasNextPage: invites.length > pageSize,
   };
