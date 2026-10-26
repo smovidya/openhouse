@@ -1,5 +1,5 @@
 import { error } from "@sveltejs/kit";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import type { Db } from "#db";
 import { checkpoints, inviteCodes, staffs, users } from "#db/tables.ts";
 import {
@@ -80,7 +80,7 @@ export async function listInviteCodes(
   return db
     .select(inviteColumns)
     .from(inviteCodes)
-    .orderBy(asc(inviteCodes.id))
+    .orderBy(desc(inviteCodes.createdAt), desc(inviteCodes.id))
     .offset(input.offset)
     .limit(input.limit);
 }

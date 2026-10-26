@@ -55,6 +55,12 @@
 		</h1>
 
 		<nav class="flex w-full flex-col gap-3">
+			{#if staff.permission.includes("admin")}
+				<Button variant="cta" size="cta-lg" href="/staff/invites" class="w-full">
+					จัดการรหัสเชิญ
+					<img src={arrowRightIcon} alt="" />
+				</Button>
+			{/if}
 			<Button variant="cta" size="cta-lg" href="/staff/attendees" class="w-full">
 				ดูข้อมูลผู้เข้าร่วมงาน
 				<img src={arrowRightIcon} alt="" />
