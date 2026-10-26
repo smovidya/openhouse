@@ -21,7 +21,11 @@ import {
 } from "#db/tables.ts";
 import { requireStaff } from "../auth/guards.server";
 import { findSessionUser } from "../auth/service.server";
-import { canScanCheckpoint, type StaffPermission } from "../staff/permissions";
+import {
+  canScanCheckpoint,
+  specialBoothScopes,
+  type StaffPermission,
+} from "../staff/permissions";
 import { getAttendeeProgress } from "./progress.server";
 import type {
   CheckInAttendeeInput,
@@ -45,6 +49,10 @@ function accessibleCheckpoints(permission: StaffPermission[]) {
   const conditions: SQL[] = [];
   if (permission.includes("workshopStaff"))
     conditions.push(eq(checkpoints.type, "workshop"));
+  for (const scope of specialBoothScopes) {
+    if (permission.includes(scope.permission))
+      conditions.push(eq(checkpoints.type, scope.type));
+  }
   const departments = permission
     .filter((value) => value.startsWith("boothStaff:"))
     .map((value) => value.slice(11));

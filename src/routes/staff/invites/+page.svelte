@@ -24,7 +24,7 @@
 	const basePermissions: { value: StaffPermission; label: string }[] = [
 		{ value: "workshopStaff", label: "เวิร์คช็อป" },
 		{ value: "boothStaff:all", label: "ทุกบูธภาควิชา" },
-		{ value: "activityStaff", label: "ส่วนกลาง (เข้างาน เวที และรางวัล)" },
+		{ value: "activityStaff", label: "ส่วนกลาง (รวมบูธและเวิร์คช็อป)" },
 		{ value: "admin", label: "ผู้ดูแลระบบ (Admin) — ทุกสิทธิ์" },
 	];
 	const options = $derived([

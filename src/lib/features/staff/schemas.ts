@@ -12,18 +12,20 @@ export const staffProfileInput = z.strictObject({
 export const redeemInviteInput = z.strictObject({
   code: z.string().trim().min(8).max(128),
 });
+const optionalInviteCode = z
+  .string()
+  .trim()
+  .max(128)
+  .refine(
+    (value) => value.length === 0 || value.length >= 8,
+    "Invite code must contain at least 8 characters",
+  )
+  .transform((value) => value || undefined)
+  .optional();
+
 export const enrollStaffInput = staffProfileInput.extend({
   // An empty form field means the user will supply an invite later.
-  code: z
-    .string()
-    .trim()
-    .max(128)
-    .refine(
-      (value) => value.length === 0 || value.length >= 8,
-      "Invite code must contain at least 8 characters",
-    )
-    .transform((value) => value || undefined)
-    .optional(),
+  code: optionalInviteCode,
 });
 export type EnrollStaffInput = z.infer<typeof enrollStaffInput>;
 

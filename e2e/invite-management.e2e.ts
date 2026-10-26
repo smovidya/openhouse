@@ -268,12 +268,12 @@ test("admin creates a custom code for department, TCAS, and central activity sco
     await open(recipient, "/staff");
     await recipient.getByLabel("ชื่อ-นามสกุล").fill("Scoped booth staff");
     await recipient.getByLabel("เบอร์โทรศัพท์").fill("0812345678");
-    await recipient.locator("#staff-code").fill(code);
+    await recipient.getByLabel("รหัสเชิญ (ไม่บังคับ)").fill(code);
     await recipient
       .getByRole("button", { name: "ลงทะเบียนสตาฟ", exact: true })
       .click();
     await expect(
-      recipient.getByRole("heading", { name: /เมนูสตาฟ/ }),
+      recipient.getByRole("link", { name: "เช็คอินบูธนิทรรศการ" }),
     ).toBeVisible();
     await expect(
       recipient.getByRole("link", { name: "จัดการรหัสเชิญ" }),

@@ -33,7 +33,9 @@ export function hasPermission(
       (required === "workshopStaff" ||
         required === "boothStaff:all" ||
         required.startsWith("boothStaff:"))) ||
-    (required.startsWith("boothStaff:") && granted.includes("boothStaff:all"))
+    (required.startsWith("boothStaff:") &&
+      !specialBoothScopes.some((scope) => scope.permission === required) &&
+      granted.includes("boothStaff:all"))
   );
 }
 

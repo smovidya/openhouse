@@ -350,6 +350,8 @@ access categories are:
 | `admin`                                           | Every staff module, every checkpoint, and invite-code management                    |
 | `boothStaff:all`                                  | View and scan every configured department's booth checkpoints                       |
 | `boothStaff:physics` (or another department slug) | View and scan only that department's booth checkpoints                              |
+| `boothStaff:tcas`                                 | View and scan TCAS checkpoints only                                                 |
+| `boothStaff:central-activity`                     | View and scan central activity checkpoints only                                     |
 | `workshopStaff`                                   | Workshop attendance, rosters, and statistics only                                   |
 | `activityStaff`                                   | All department booths, workshops, entry, TCAS, central activity, stage, and rewards |
 
@@ -372,15 +374,15 @@ The staff profile's optional department is descriptive and never grants access.
 
 `#lib/features/staff/staff.remote.ts` exports:
 
-| Operation                | Input                                       | Access/result                                                                                  |
-| ------------------------ | ------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `getMyStaffProfile()`    | None                                        | Signed-in user's active profile or `null`                                                      |
-| `listBoothDepartments()` | None                                        | Signed-in user; active booth department slugs                                                  |
-| `enrollStaff(...)`       | `{ name, phone, type, department?, code? }` | Signed-in user; saves a profile, optionally grants invite permissions, returns updated session |
-| `redeemInviteCode(...)`  | `{ code }`                                  | Signed-in user with a saved staff profile; adds invite permissions and returns updated session |
-| `createInviteCode(...)`  | `{ permission: StaffPermission[] }`         | Admin; returns invite metadata and generated reusable code                                     |
-| `listInviteCodes(...)`   | `{ offset?: number, limit?: number }`       | Admin; active/disabled invite metadata, never codes or hashes                                  |
-| `disableInviteCode(...)` | `{ id }`                                    | Admin; sets the invite's `deletedAt`                                                           |
+| Operation                | Input                                              | Access/result                                                                                  |
+| ------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `getMyStaffProfile()`    | None                                               | Signed-in user's active profile or `null`                                                      |
+| `listBoothDepartments()` | None                                               | Signed-in user; active booth department slugs                                                  |
+| `enrollStaff(...)`       | `{ name, phone, type, department?, code? }`        | Signed-in user; saves a profile, optionally grants invite permissions, returns updated session |
+| `redeemInviteCode(...)`  | `{ code }`                                         | Signed-in user with a saved staff profile; adds invite permissions and returns updated session |
+| `createInviteCode(...)`  | `{ permission: StaffPermission[], code?: string }` | Admin; returns invite metadata and the custom or generated reusable code                       |
+| `listInviteCodes(...)`   | `{ offset?: number, limit?: number }`              | Admin; active/disabled invite metadata, never codes or hashes                                  |
+| `disableInviteCode(...)` | `{ id }`                                           | Admin; sets the invite's `deletedAt`                                                           |
 
 Enrollment collects `name`, `phone`, and descriptive `type` (for example `student`
 or `organizer`), plus optional `department`. It takes the user ID from the current
