@@ -526,6 +526,14 @@ refuses to bootstrap a second admin while one exists. Existing admins create adm
 invites for additional admins. The command requires an existing active account;
 it does not fabricate a Google identity or revive a deleted staff record.
 
+Admins can manage invite codes at `/staff/invites`, linked from their staff menu.
+Select one or more permissions, create a code, then copy and save it before
+leaving the page. Codes can be reused by multiple staff members; only their
+metadata can be viewed later. The page lists active and disabled codes, newest
+first, with pagination. Disabling a code stops future redemptions but preserves
+permissions already granted. Both page access and invite operations require the
+`admin` permission.
+
 The staff migration adds invite storage, checkpoint departments, a unique staff
 record per user, unique attendee QR codes, and unique active checkpoint logs.
 Legacy non-JSON staff permission strings become `[]`; JSON arrays are preserved.
