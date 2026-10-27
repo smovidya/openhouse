@@ -14,6 +14,7 @@
 				destructive: "bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30",
 				link: "text-primary underline-offset-4 hover:underline",
 				cta: "rounded-full bg-brand-yellow font-heading font-normal text-brand-brown hover:bg-brand-yellow/80",
+				"cta-light": "rounded-full border-brand-brown bg-brand-mist font-heading font-normal text-brand-brown hover:bg-brand-mist/80",
 			},
 			size: {
 				default: "h-9 gap-1.5 px-2.5 in-data-[slot=button-group]:rounded-md has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",

@@ -1,0 +1,175 @@
+import assert from "node:assert/strict";
+import { beforeEach, it, mock } from "bun:test";
+import { isHttpError } from "@sveltejs/kit";
+import { err, ok } from "neverthrow";
+
+let user;
+let mockNow;
+const getAttendeeProfile = mock();
+const getActiveAttendeeByUserId = mock();
+const createAttendeeProfile = mock();
+const generateQrCode = mock();
+const command = mock((_schema, handler) => handler);
+
+mock.module("$app/server", () => ({
+  command,
+  query: (...args) => args.at(-1),
+  getRequestEvent: () => ({
+    locals: { user },
+    cookies: { get: () => mockNow },
+  }),
+}));
+mock.module("$app/env", () => ({
+  browser: false,
+  building: false,
+  dev: true,
+  version: "test",
+}));
+mock.module("nanoid", () => ({ customAlphabet: () => generateQrCode }));
+mock.module("../src/lib/features/attendees/service.server", () => ({
+  getActiveAttendeeByUserId,
+  getAttendeeProfile,
+  createAttendeeProfile,
+}));
+
+const { selfRegisterAttendee } =
+  await import("../src/lib/features/attendees/attendees.remote");
+const input = {
+  prefix: "mr",
+  prefixOther: "",
+  firstName: "Test",
+  lastName: "Attendee",
+  age: 18,
+  province: "Bangkok",
+  emergencyPhone: "0812345678",
+  emergencyName: "Emergency Person",
+  specialNeeds: "",
+  reason: "Learn science",
+  expectation: "Try workshops",
+  newsSources: ["instagram"],
+  visitIntent: "intended",
+  status: "upper-secondary",
+  schoolName: "Science School",
+  major1: "major-1",
+  major2: "major-2",
+  major3: "",
+  pdpa: true,
+};
+const profileInput = {
+  title: "mr",
+  prefixOther: null,
+  firstname: "Test",
+  lastname: "Attendee",
+  age: 18,
+  residentProvince: "Bangkok",
+  emergencyPhone: "0812345678",
+  emergencyName: "Emergency Person",
+  specialNeed: null,
+  type: "upper-secondary",
+  school: "Science School",
+  surveyResponses: {
+    reason: "Learn science",
+    expectation: "Try workshops",
+    newsSources: ["instagram"],
+    visitIntent: "intended",
+    major1: "major-1",
+    major2: "major-2",
+    major3: "",
+  },
+};
+
+beforeEach(() => {
+  user = { id: "signed-in-user" };
+  mockNow = "2026-10-21T00:00:00.000Z";
+  getAttendeeProfile.mockReset();
+  getActiveAttendeeByUserId.mockReset();
+  getActiveAttendeeByUserId.mockResolvedValue(err("ATTENDEE_NOT_FOUND"));
+  createAttendeeProfile.mockReset();
+  generateQrCode.mockReset();
+  generateQrCode.mockReturnValue("ABCDE");
+});
+
+it("registers through a command, retries occupied QR codes, and returns the created profile", async () => {
+  assert.equal(command.mock.results[0].value, selfRegisterAttendee);
+  generateQrCode.mockReturnValueOnce("TAKEN").mockReturnValueOnce("ABCDE");
+  getAttendeeProfile
+    .mockResolvedValueOnce(ok({ qrCodeId: "TAKEN" }))
+    .mockResolvedValueOnce(ok(undefined));
+  const profile = {
+    ...profileInput,
+    id: "attendee-profile",
+    userId: user.id,
+    qrCodeId: "ABCDE",
+  };
+  createAttendeeProfile.mockResolvedValue(ok(profile));
+
+  const result = await selfRegisterAttendee(input);
+  assert.equal(result.isOk(), true);
+  assert.deepEqual(result._unsafeUnwrap(), profile);
+  assert.deepEqual(
+    getAttendeeProfile.mock.calls.map(([query]) => query),
+    [{ qrCodeId: "TAKEN" }, { qrCodeId: "ABCDE" }],
+  );
+  assert.deepEqual(createAttendeeProfile.mock.calls, [
+    [{ ...profileInput, userId: user.id, qrCodeId: "ABCDE" }],
+  ]);
+});
+
+it("stops on a lookup error without attempting an insert", async () => {
+  getAttendeeProfile.mockResolvedValue(err("FETCH_ATTENDEE_PROFILE_FAILED"));
+
+  const result = await selfRegisterAttendee(input);
+  assert.equal(result.isErr(), true);
+  assert.equal(result._unsafeUnwrapErr(), "FETCH_ATTENDEE_PROFILE_FAILED");
+  assert.equal(getAttendeeProfile.mock.calls.length, 1);
+  assert.equal(createAttendeeProfile.mock.calls.length, 0);
+});
+
+it("reports an insert error without retrying the write", async () => {
+  getAttendeeProfile.mockResolvedValue(ok(undefined));
+  createAttendeeProfile.mockResolvedValue(
+    err("CREATE_ATTENDEE_PROFILE_FAILED"),
+  );
+
+  const result = await selfRegisterAttendee(input);
+  assert.equal(result.isErr(), true);
+  assert.equal(result._unsafeUnwrapErr(), "CREATE_ATTENDEE_PROFILE_FAILED");
+  assert.equal(createAttendeeProfile.mock.calls.length, 1);
+});
+
+it("allows general registration before the former opening date", async () => {
+  mockNow = "2026-10-19T00:00:00.000Z";
+  getAttendeeProfile.mockResolvedValue(ok(undefined));
+  createAttendeeProfile.mockResolvedValue(ok({ id: "profile" }));
+  const result = await selfRegisterAttendee(input);
+  assert.equal(result.isOk(), true);
+  assert.equal(createAttendeeProfile.mock.calls.length, 1);
+});
+
+it("requires a signed-in user before accessing profiles", async () => {
+  user = null;
+
+  await assert.rejects(selfRegisterAttendee(input), (cause) =>
+    isHttpError(cause, 401),
+  );
+  assert.equal(getAttendeeProfile.mock.calls.length, 0);
+  assert.equal(createAttendeeProfile.mock.calls.length, 0);
+});
+
+it("does not create a second profile for a returning attendee", async () => {
+  getActiveAttendeeByUserId.mockResolvedValue(ok({ id: "existing-profile" }));
+  const result = await selfRegisterAttendee(input);
+  assert.equal(result._unsafeUnwrapErr(), "ALREADY_REGISTERED");
+  assert.deepEqual(getActiveAttendeeByUserId.mock.calls, [[user.id]]);
+  assert.equal(getAttendeeProfile.mock.calls.length, 0);
+  assert.equal(createAttendeeProfile.mock.calls.length, 0);
+});
+
+it("does not create a profile when the existing-profile check fails", async () => {
+  getActiveAttendeeByUserId.mockResolvedValue(
+    err("FETCH_ATTENDEE_PROFILE_FAILED"),
+  );
+  const result = await selfRegisterAttendee(input);
+  assert.equal(result._unsafeUnwrapErr(), "FETCH_ATTENDEE_PROFILE_FAILED");
+  assert.equal(createAttendeeProfile.mock.calls.length, 0);
+});

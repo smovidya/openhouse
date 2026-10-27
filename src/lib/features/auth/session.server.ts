@@ -4,7 +4,7 @@ import type { SessionSettings } from "./config.server";
 
 export const SESSION_TTL_SECONDS = 24 * 60 * 60;
 export const CHALLENGE_TTL_SECONDS = 5 * 60;
-const ISSUER = "openhouse26";
+const ISSUER = "vidyachula";
 
 const audience = (
   settings: SessionSettings,
@@ -13,10 +13,10 @@ const audience = (
   `${ISSUER}:${purpose}:${settings.development ? "development" : "production"}`;
 
 export const sessionCookieName = (development: boolean) =>
-  development ? "openhouse26-session-dev" : "__Host-session";
+  development ? "vidyachula-session-dev" : "__Host-session";
 
 export const challengeCookieName = (development: boolean) =>
-  development ? "openhouse26-google-login-dev" : "__Host-google-login";
+  development ? "vidyachula-google-login-dev" : "__Host-google-login";
 
 function cookieOptions(development: boolean) {
   return {

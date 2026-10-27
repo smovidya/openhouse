@@ -1,5 +1,25 @@
 # Open House 2027
 
+## Workshop catalog
+
+`src/lib/data/workshops.ts` contains the nine workshops and 40 rounds from
+“เนื้อหา Workshop [Science Chula Open House 2027]”. The explicit dates in the
+attachment are 31 October–1 November 2569 (2026), using Bangkok time.
+The workshop pages use this catalog; attendance counts and registration remain
+demo data until those pages are connected to the backend.
+
+Per-round capacities follow the organizer’s confirmation: GEO/MATSCI/BISTECH 20,
+FOODTECH 10, and BIOCHEM/MICRO/IMPRINT/BSAC & CHEM/BBTech 15.
+To populate the database used by the workshop backend, run migrations followed by:
+
+```sh
+bun run workshops:seed
+```
+
+The seed keeps existing workshop/session IDs and registrations on repeat runs.
+It updates matching slugs and rounds without deleting unrelated records.
+Append `--remote --env production` to target production explicitly.
+
 ## Backend organization
 
 Backend code is grouped by feature. Authentication, staff enrollment/permissions,
@@ -101,10 +121,28 @@ checks, and identity/fixture operations against an isolated local D1 database.
 `checkJs` is disabled because Wrangler's generated binding declarations reference
 the compiled worker JavaScript; TypeScript source remains strictly checked.
 
+## Sign-in and registration
+
+The main page shows Google's sign-in button, which opens account selection in a
+popup. After the server verifies the credential and refreshes the session, the
+attendee continues to `/register`. Direct visits to `/register` require an active
+session and otherwise return to the main page's `#register` section. Attendees
+who already have a profile go to `/myid`. Failed sign-ins stay on the main page
+and can be retried with a fresh challenge. Existing `/login` links redirect to
+the main page. The menu's sign-out button clears the real session.
+
+Google sign-in and general attendee registration are open immediately. Their
+former opening-date restrictions have been removed. Workshop registration still
+uses its configured time window.
+
 ## Login demo
 
 After completing the local setup below, open `http://localhost:5173/`.
-Choose **Demo attendee** or **Demo staff** to exercise real local sessions without
+The home page's **ลงทะเบียน** button creates a fresh attendee account and opens
+the registration form without Google. Repeat it for as many test registrations
+as needed. The DEV toolbar's **New registration** button does the same.
+
+Open `/demo` and choose **Demo attendee** or **Demo staff** to exercise real local sessions without
 a Google account. Sign out before switching profiles. The page shows the current
 user, role, permissions, expiry, and an expandable session payload; reloading keeps
 the session. Development profile buttons are absent from production builds and
@@ -132,13 +170,13 @@ generated endpoint hashes. The server hook registers the remote modules so they
 are available even before a UI imports them. `getSession` remains available from
 `#lib/features/auth/auth.remote.ts` when a remote query is needed.
 
-| Operation                                         | Input                                | Result                                                             |
-| ------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------ |
-| `beginGoogleSignIn()`                             | None                                 | `{ clientId, nonce }`; sets a signed, five-minute challenge cookie |
-| `signInWithGoogle(...)`                           | `{ googleIdToken: string }`          | `AuthSession`; sets the session cookie                             |
-| `getSession()`                                    | None                                 | `AuthSession` or `null`                                            |
-| `logout()`                                        | None                                 | `{ success: true }`; clears session and challenge cookies          |
-| `createDevSession(...)` from `auth/dev.remote.ts` | `{ profile: "attendee" \| "staff" }` | `AuthSession`; development only                                    |
+| Operation                                         | Input                                              | Result                                                             |
+| ------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------ |
+| `beginGoogleSignIn()`                             | None                                               | `{ clientId, nonce }`; sets a signed, five-minute challenge cookie |
+| `signInWithGoogle(...)`                           | `{ googleIdToken: string }`                        | `AuthSession`; sets the session cookie                             |
+| `getSession()`                                    | None                                               | `AuthSession` or `null`                                            |
+| `logout()`                                        | None                                               | `{ success: true }`; clears session and challenge cookies          |
+| `createDevSession(...)` from `auth/dev.remote.ts` | `{ profile: "attendee" \| "newcomer" \| "staff" }` | `AuthSession`; development only                                    |
 
 `AuthSession` contains `{ user: { id, email, name, image, role, staff }, expiresAt }`.
 `staff` is `null` or `{ id, permission: StaffPermission[] }` for an active staff
@@ -205,8 +243,9 @@ from the shell environment; no environment file is added. Keep the same secret i
 your shell to retain sessions across restarts. A newly generated key invalidates
 existing sessions. Never commit the secret or expose it to client code.
 
-`createDevSession` creates or reuses fixed local users and matching attendee/staff
-records, then follows the normal JWT/cookie/session path. Existing fixtures are
+`createDevSession` creates a new local user for each `newcomer` request, while
+`attendee` and `staff` reuse fixed users and matching profiles. All follow the
+normal JWT/cookie/session path. Existing fixed fixtures are
 not reset, so local role changes and disabled-user scenarios remain testable.
 New staff fixtures have `boothStaff:all`; existing fixture permissions are preserved.
 The migration clears the old free-text `development` marker to an empty permission
@@ -231,6 +270,41 @@ The Google identity migration adds a unique index. If an existing database has
 duplicate Google IDs, reconcile those accounts before applying it; the migration
 intentionally fails rather than deleting data. No production resources or secrets
 are created by the local setup.
+
+### Cloud previews
+
+Named previews use the separate `openhouse27-dev` cloud D1 database through
+`env.production.previews` in `wrangler.jsonc`. The `DB` binding and Google client
+ID are configured explicitly for previews. Authentication uses a separate
+`AUTH_JWT_SECRET` stored in the Preview base configuration; newly created
+previews receive that secret.
+
+Before the first preview, configure a 64-character hexadecimal signing secret
+with `bun run preview:secret`, then apply the development database migrations:
+
+```sh
+bun run db:migrate:preview
+bun run deploy:preview
+```
+
+The named `dev` preview is served at `https://dev.scichulaopenhouse.com` once the
+existing custom domain's `previews_enabled` setting is applied in Cloudflare.
+Register this exact origin in Google Cloud for Google sign-in. These are
+production builds, so development login fixtures and the developer toolbar
+remain disabled.
+
+For another preview name, build and run
+`bunx wrangler preview --env production --name feature-name`.
+All named previews share the development database. Keep
+`wrangler.preview-migrations.jsonc` pointed at the same database ID as
+`env.production.previews.d1_databases`; its separate configuration is necessary
+because D1 migration commands read top-level bindings.
+
+`bun run preview` continues to serve the production build locally.
+
+References: [Preview configuration](https://developers.cloudflare.com/workers/previews/configuration/),
+[D1 preview migrations](https://developers.cloudflare.com/workers/previews/resources/#d1-migrations),
+and [custom preview domains](https://developers.cloudflare.com/workers/previews/custom-domains/).
 
 ## Staff enrollment and permissions
 
@@ -400,6 +474,7 @@ To create a production version of your app:
 npm run build
 ```
 
+openhouse
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.

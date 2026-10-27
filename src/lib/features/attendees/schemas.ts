@@ -1,13 +1,8 @@
-import { z } from "zod";
+import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
+import { tables } from "#lib/server/db/tables.ts";
 
-export const attendeeProfileInput = z.strictObject({
-  title: z.string().min(1),
-  firstname: z.string().min(1),
-  lastname: z.string().min(1),
-  age: z.int().nonnegative(),
-  residentProvince: z.string().min(1),
-  type: z.string().min(1),
-  school: z.string().nullable().optional(),
-});
+export const attendeeProfileSelect = createSelectSchema(tables.attendees);
+export const attendeeProfileInsert = createInsertSchema(tables.attendees);
 
-export type AttendeeProfileInput = z.infer<typeof attendeeProfileInput>;
+export type AttendeeProfileSelect = typeof tables.attendees.$inferSelect;
+export type AttendeeProfileInsert = typeof tables.attendees.$inferInsert;

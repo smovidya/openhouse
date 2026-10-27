@@ -24,3 +24,7 @@ vite.config.ts.timestamp-*
 
 .dev.vars*
 !.dev.vars.example
+
+# Playwright (bun run test:e2e)
+/test-results/
+/playwright-report/

@@ -3,7 +3,20 @@
   "compilerOptions": {
     "strict": true,
     "checkJs": false,
-    "types": ["$app/types", "./src/worker-configuration.d.ts", "node"]
+    "types": [
+      "$app/types",
+      "./src/worker-configuration.d.ts",
+      "node",
+      "@webgpu/types"
+    ]
   },
-  "include": ["src", "tests", "scripts", "vite.config.ts", "drizzle.config.ts"]
+  "include": [
+    "src",
+    "tests",
+    "scripts",
+    "vite.config.ts",
+    "drizzle.config.ts",
+    "e2e",
+    "playwright.config.ts"
+  ]
 }

@@ -6,7 +6,9 @@ export const googleSignInInput = z.strictObject({
 });
 
 export const devSessionInput = z.strictObject({
-  profile: z.enum(["attendee", "staff"]),
+  // attendee: fixed registered fixture; newcomer: a fresh account for each registration;
+  // staff: a staff member.
+  profile: z.enum(["attendee", "newcomer", "staff"]),
 });
 
 export type DevProfile = z.infer<typeof devSessionInput>["profile"];
@@ -18,6 +20,8 @@ export interface AuthUser {
   image: string | null;
   role: "attendee" | "staff";
   staff: { id: string; permission: StaffPermission[] } | null;
+  /** The user's attendee registration; null until they complete the registration form. */
+  attendee: { id: string; qrCodeId: string } | null;
 }
 
 export interface AuthSession {

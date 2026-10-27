@@ -1,336 +1,204 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { dev } from "$app/env";
-  import { page } from "$app/state";
-  import { Button } from "#lib/components/ui/button/index.js";
-  import { Input } from "#lib/components/ui/input/index.js";
-  import { Label } from "#lib/components/ui/label/index.js";
-  import {
-    Picker,
-    type PickerOption,
-  } from "#lib/components/ui/picker/index.js";
-  import MoveRight from "@lucide/svelte/icons/move-right";
-  import {
-    beginGoogleSignIn,
-    createDevSession,
-    logout,
-    signInWithGoogle,
-  } from "#lib/features/auth/auth.client.js";
-  import type { DevProfile } from "#lib/features/auth/schemas.js";
+	import { onMount, untrack } from "svelte";
+	import { dev } from "$app/env";
+	import { page } from "$app/state";
+	import { goto } from "$app/navigation";
+	import { beginGoogleSignIn, createDevSession, signInWithGoogle } from "#lib/features/auth/auth.client.ts";
+	import { loadGoogleIdentity, type GoogleIdentity } from "#lib/features/auth/google.client.ts";
+	import { accountHome } from "#lib/account.ts";
 
-  // Kept inline as a reference for the frontend team, before extracting a component.
-  // API reference: https://developers.google.com/identity/gsi/web/reference/js-reference
-  type GoogleIdentityServices = {
-    initialize: (options: {
-      client_id: string;
-      nonce: string;
-      callback: (response: { credential: string }) => void;
-      auto_select: boolean;
-    }) => void;
-    renderButton: (
-      container: HTMLElement,
-      options: {
-        type: "standard";
-        theme: "outline";
-        size: "large";
-        text: "signin_with";
-        width: number;
-      },
-    ) => void;
-    disableAutoSelect: () => void;
-  };
+	const session = $derived(page.data.session);
+	let status = $state<"loading" | "ready" | "signing-in" | "error">("loading");
+	let authError = $state("");
+	let buttonVersion = $state(0);
+	let google: GoogleIdentity | undefined;
+	let disposed = false;
+	let attempt = 0;
 
-  let google: GoogleIdentityServices | undefined;
-  let googleButtonVersion = $state(0);
-  let disposed = false;
-  let authStatus = $state<
-    "loading" | "ready" | "signing-in" | "signing-out" | "error"
-  >("loading");
-  let authError = $state("");
-  let pendingDevProfile = $state<DevProfile | null>(null);
-  let devSessionError = $state("");
-  const session = $derived(page.data.session);
-  const authBusy = $derived(
-    pendingDevProfile !== null ||
-      authStatus === "signing-in" ||
-      authStatus === "signing-out",
-  );
+	async function startDevRegistration() {
+		if (!dev || status === "signing-in") return;
+		status = "signing-in";
+		authError = "";
+		try {
+			await createDevSession({ profile: "newcomer" });
+			await goto("/register", { invalidateAll: true });
+		} catch {
+			showError("ไม่สามารถสร้างบัญชีทดสอบได้ กรุณาลองอีกครั้ง");
+		}
+	}
 
-  async function handleDevSession(profile: DevProfile) {
-    if (!dev || authBusy) return;
-    pendingDevProfile = profile;
-    devSessionError = "";
-    try {
-      // Creates/reuses a fixed demo user and sets the real session cookie.
-      // The client helper refreshes page.data.session; never assign it manually.
-      await createDevSession({ profile });
-      authError = "";
-    } catch (error) {
-      devSessionError = error instanceof Error
-        ? error.message
-        : "Could not create a development session. Please try again.";
-    } finally {
-      pendingDevProfile = null;
-    }
-  }
+	function showError(message: string) {
+		if (disposed) return;
+		authError = message;
+		status = "error";
+	}
 
-  function showAuthError(error: unknown) {
-    if (disposed) return;
-    authError = error instanceof Error ? error.message : "Sign-in failed. Please try again.";
-    authStatus = "error";
-  }
+	async function prepareSignIn() {
+		if (disposed || session || status === "signing-in") return;
+		const currentAttempt = ++attempt;
+		status = "loading";
+		authError = "";
+		try {
+			google = await loadGoogleIdentity();
+			if (disposed || currentAttempt !== attempt) return;
+			const { clientId, nonce } = await beginGoogleSignIn();
+			if (disposed || currentAttempt !== attempt) return;
+			google.initialize({
+				client_id: clientId,
+				ux_mode: "popup",
+				nonce,
+				auto_select: false,
+				button_auto_select: false,
+				callback: ({ credential }) => {
+					if (currentAttempt === attempt) void completeSignIn(credential);
+				},
+			});
+			buttonVersion += 1;
+			status = "ready";
+		} catch {
+			showError("ไม่สามารถเตรียมการเข้าสู่ระบบได้ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง");
+		}
+	}
 
-  async function prepareGoogleSignIn() {
-    if (disposed || session) return;
-    if (!google) {
-      // A reload also retries a blocked or failed SDK download.
-      window.location.reload();
-      return;
-    }
-    authError = "";
-    authStatus = "loading";
-    try {
-      // 1. Browser-only command: the server sets the login challenge cookie.
-      const { clientId, nonce } = await beginGoogleSignIn();
-      if (disposed || session) return;
+	function renderGoogleButton(container: HTMLDivElement) {
+		try {
+			google?.renderButton(container, {
+				type: "standard",
+				theme: "outline",
+				size: "large",
+				text: "continue_with",
+			});
+		} catch {
+			showError("ไม่สามารถแสดงปุ่ม Google ได้ กรุณาลองอีกครั้ง");
+		}
+	}
 
-      // 2. Use the JavaScript API so the callback stays in this Svelte scope.
-      google.initialize({
-        client_id: clientId,
-        nonce,
-        auto_select: false,
-        callback: (response) => { void handleSignIn(response); },
-      });
-      googleButtonVersion += 1;
-      authStatus = "ready";
-    } catch (error) {
-      showAuthError(error);
-    }
-  }
+	async function completeSignIn(credential: string) {
+		if (disposed || session || status !== "ready") return;
+		status = "signing-in";
+		authError = "";
+		try {
+			// Wait for credential verification, the session cookie, and session refresh.
+			const signedIn = await signInWithGoogle({ googleIdToken: credential });
+			if (!disposed) {
+				await goto(accountHome(signedIn.user), {
+					invalidateAll: true,
+					replaceState: true,
+				});
+			}
+		} catch {
+			showError("เข้าสู่ระบบไม่สำเร็จ กรุณาเลือกบัญชี Google และลองอีกครั้ง");
+		}
+	}
 
-  function renderGoogleButton(container: HTMLDivElement) {
-    try {
-      google?.renderButton(container, {
-        type: "standard",
-        theme: "outline",
-        size: "large",
-        text: "signin_with",
-        width: 280,
-      });
-    } catch (error) {
-      showAuthError(error);
-    }
-  }
+	function initializeGoogleSignIn() {
+		// The signed-out section mounts again after logout, including on this page.
+		untrack(() => void prepareSignIn());
+	}
 
-  async function handleSignIn(response: { credential: string }) {
-    if (disposed || session || authStatus !== "ready" || authBusy) return;
-    authStatus = "signing-in";
-    authError = "";
-    try {
-      // 3. Google sends an object, not a token string. The helper refreshes
-      // layout data after setting the session cookie; session updates below.
-      await signInWithGoogle({ googleIdToken: response.credential });
-    } catch (error) {
-      showAuthError(error);
-    }
-  }
+	onMount(() => {
+		return () => {
+			disposed = true;
+			attempt += 1;
+		};
+	});
 
-  async function handleLogout() {
-    if (authBusy) return;
-    authStatus = "signing-out";
-    authError = "";
-    try {
-      await logout();
-      google?.disableAutoSelect();
-      if (!disposed) await prepareGoogleSignIn();
-    } catch (error) {
-      showAuthError(error);
-    }
-  }
-
-  onMount(() => {
-    // Load after hydration, and initialize only after the SDK is ready.
-    const sdkWindow = window as Window & {
-      google?: { accounts: { id: GoogleIdentityServices } };
-    };
-    const script = document.createElement("script");
-    const timeout = window.setTimeout(() => {
-      showAuthError(new Error("Google sign-in took too long to load. Please try again."));
-    }, 15000);
-    function handleLoad() {
-      window.clearTimeout(timeout);
-      if (disposed) return;
-      google = sdkWindow.google?.accounts.id;
-      if (!google) {
-        showAuthError(new Error("Google sign-in is unavailable. Please try again."));
-        return;
-      }
-      if (!session) void prepareGoogleSignIn();
-    }
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.onload = handleLoad;
-    script.onerror = () => {
-      window.clearTimeout(timeout);
-      showAuthError(new Error("Could not load Google sign-in. Check your connection and try again."));
-    };
-    if (sdkWindow.google?.accounts.id) handleLoad();
-    else document.head.appendChild(script);
-
-    return () => {
-      disposed = true;
-      window.clearTimeout(timeout);
-      script.remove();
-    };
-  });
-
-  const attendeeStatuses: PickerOption[] = [
-    { value: "upper-secondary", label: "มัธยมศึกษาตอนปลาย" },
-    { value: "lower-secondary", label: "มัธยมศึกษาตอนต้น" },
-    { value: "parent", label: "ผู้ปกครอง" },
-  ];
-
-  let attendeeStatus = $state("");
+	import logo from "#lib/assets/logo.png";
+	import Countdown from "#lib/components/countdown.svelte";
+	import Glass from "#lib/render/glass.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { EVENT_SCHEDULE } from "#lib/constants/time.ts";
 </script>
 
 <svelte:head>
-  <title>Components & Google sign-in demo</title>
+	<title>Sci CU Open House 2027</title>
 </svelte:head>
 
-<main
-  class="flex min-h-screen flex-col items-center justify-center gap-6 bg-brand-sky p-4"
->
-  <h1 class="text-2xl">Components demo</h1>
-  <Button variant="cta" size="cta-lg" class="w-full max-w-[378px]"
-    >ลงทะเบียน</Button
-  >
-  <Button variant="cta" size="cta-sm">
-    ดูทั้งหมด <MoveRight />
-  </Button>
-  <div class="flex w-full max-w-[378px] flex-col gap-1">
-    <Label for="emergency-contact" class="text-base font-normal text-brand-navy"
-      >หมายเลขติดต่อฉุกเฉิน</Label
-    >
-    <Input id="emergency-contact" type="tel" placeholder="0XXXXXXXXX" />
-  </div>
-  <div class="flex w-full max-w-[378px] flex-col gap-1">
-    <Label for="attendee-status" class="text-base font-normal text-brand-navy"
-      >สถานะผู้เข้าร่วมงาน</Label
-    >
-    <Picker
-      id="attendee-status"
-      name="attendee-status"
-      placeholder="เลือกสถานะ"
-      options={attendeeStatuses}
-      bind:value={attendeeStatus}
-    />
-  </div>
-  <section
-    aria-labelledby="google-signin-heading"
-    class="flex w-full max-w-[378px] flex-col gap-4 rounded-2xl border border-brand-navy/20 bg-white p-6 text-brand-navy"
-  >
-    <div>
-      <p class="text-xs font-semibold uppercase tracking-widest">Frontend reference</p>
-      <h2 id="google-signin-heading" class="mt-1 text-xl font-semibold">Google sign-in demo</h2>
-      <p class="mt-2 text-sm">Uses the real authentication flow. Signing in creates a user session.</p>
-    </div>
+<!-- Content is capped at the 402px design width; the countdown ropes run edge to edge. -->
+<main class="flex w-full flex-col items-center gap-6 pt-6 pb-4">
+	<img src={logo} alt="Sci CU Open House 2027" class="size-62.75 object-cover" />
 
-    {#if session}
-      <div class="flex flex-col gap-1 text-sm">
-        <p class="font-semibold">Signed in as {session.user.name}</p>
-        <p class="break-all">{session.user.email}</p>
-        <p>Role: {session.user.role}</p>
-        <p class="break-all">User ID: {session.user.id}</p>
-      </div>
-      <Button type="button" variant="outline" onclick={handleLogout} disabled={authBusy}>
-        {authStatus === "signing-out" ? "Signing out…" : "Sign out"}
-      </Button>
-    {/if}
+	<Countdown target={EVENT_SCHEDULE.eventStartsAt} />
 
-    <!-- Keep the container mounted so Google's iframe survives status updates. -->
-    <div hidden={!!session || authStatus !== "ready" || pendingDevProfile !== null}>
-      {#key googleButtonVersion}
-        <div {@attach renderGoogleButton}></div>
-      {/key}
-    </div>
+	<div id="register" class="w-full max-w-100.5 scroll-mt-24 px-3">
+		{#if dev}
+			<Button type="button" variant="cta" size="cta-lg" class="w-full" disabled={status === "signing-in"} onclick={startDevRegistration}>
+				{status === "signing-in" ? "กำลังสร้างบัญชีทดสอบ..." : "ลงทะเบียน"}
+			</Button>
+			<p class="mt-2 text-center text-sm text-brand-mist">Development · เริ่มลงทะเบียนด้วยบัญชีทดสอบใหม่ทุกครั้ง</p>
+			<!-- Staff sign in and enroll there; there's no other link to it from the landing page. -->
+			<p class="mt-1 text-center text-sm text-brand-mist">
+				<a href="/staff" class="underline">ไปหน้าสตาฟ (/staff)</a>
+			</p>
+			{#if authError}
+				<p role="alert" class="mt-2 text-center text-sm text-brand-yellow">{authError}</p>
+			{/if}
+		{:else if session}
+			<Button variant="cta" size="cta-lg" href={accountHome(session.user)} class="w-full">
+				{session.user.staff ? "เมนูสตาฟ" : session.user.attendee ? "MY QR CODE" : "ลงทะเบียน"}
+			</Button>
+		{:else}
+			<div class="flex flex-col items-center gap-3 text-center text-brand-mist" {@attach initializeGoogleSignIn}>
+				<p class="text-sm">ลงทะเบียนด้วยบัญชี Google</p>
+				<!-- Google's button opens its popup directly from the user's click. -->
+				<div hidden={status !== "ready"}>
+					{#key buttonVersion}
+						<div {@attach renderGoogleButton}></div>
+					{/key}
+				</div>
+				<p role="status" class="text-sm">
+					{#if status === "loading"}
+						กำลังเตรียมการเข้าสู่ระบบ...
+					{:else if status === "signing-in"}
+						กำลังตรวจสอบบัญชี Google...
+					{/if}
+				</p>
+				{#if authError}
+					<p role="alert" class="text-sm text-brand-yellow">{authError}</p>
+				{/if}
+				{#if status === "error"}
+					<Button type="button" variant="cta" size="cta-sm" onclick={prepareSignIn}>ลองอีกครั้ง</Button>
+				{/if}
+			</div>
+		{/if}
+	</div>
 
-    <p role="status" class="text-sm">
-      {#if !session && authStatus === "loading"}
-        Loading Google sign-in…
-      {:else if !session && authStatus === "signing-in"}
-        Signing in…
-      {:else if session && authStatus !== "signing-out"}
-        Your session is active.
-      {/if}
-    </p>
-    {#if authError}
-      <p role="alert" class="text-sm text-red-700">{authError}</p>
-    {/if}
-    {#if !session && (authStatus === "error" || authStatus === "ready")}
-      <Button type="button" variant="outline" onclick={prepareGoogleSignIn} disabled={authBusy}>
-        {authStatus === "error" ? "Try again" : "Restart sign-in"}
-      </Button>
-    {/if}
-  </section>
+	<div class="w-full max-w-100.5 p-3">
+		<Glass as="section" class="flex flex-col items-center gap-3 rounded-xl p-3">
+			<div class="w-full text-brand-yellow">
+				<h1 class="text-2xl font-semibold">Sci CU Open House 2027</h1>
+				<p class="text-sm">งานเปิดบ้านคณะวิทยาศาสตร์ จุฬาลงกรณ์มหาวิทยาลัย 2569</p>
+			</div>
+			<div class="flex w-full flex-col gap-[1lh] text-sm text-brand-mist">
+				<p class="indent-8">
+					ในมหาสมุทรแห่งวิทยาศาสตร์ มีหมู่เกาะมากมายที่รอให้ค้นพบ แต่ละเกาะมีเรื่องราว ความรู้
+					และเส้นทางการผจญภัยที่แตกต่างกัน ปีนี้น้องๆจะได้สวมบทเป็นโจรสลัดหน้าใหม่ ออกเดินทางสำรวจ 5
+					หมู่เกาะหลัก จากคณะวิทยาศาสตร์ จุฬาลงกรณ์มหาวิทยาลัย ได้แก่ เกาะกายภาพ เกาะชีวภาพ เกาะเทคโนโลยี
+					เกาะวิทยาศาสตร์ธรรมชาติ และเกาะนานาชาติ
+				</p>
+				<p class="indent-8">
+					น้องๆ อาจไม่ได้พบเกาะที่ใช่ตั้งแต่ครั้งแรก บางเกาะอาจทำให้รู้สึกว่า “นี่แหละสิ่งที่ชอบ”
+					ขณะที่บางเกาะอาจทำให้ค้นพบว่า “อันนี้ไม่ใช่เรา” แต่ไม่ว่าการเดินทางจะพาไปที่ไหน
+					ทุกก้าวล้วนเป็นประสบการณ์ที่ทำให้น้องได้รู้จักโลกวิทยาศาสตร์ และรู้จักตัวเองมากขึ้น ตลอดการเดินทาง
+					พี่เสือ ในฐานะกัปตัน จะคอยนำทางและพาน้องๆออกสำรวจแต่ละเกาะ เพื่อค้นหาว่า
+				</p>
+			</div>
+			<p class="text-center font-heading text-xl text-brand-yellow italic">
+				“เกาะไหนคือเกาะที่ใช่สำหรับเรา”
+			</p>
+		</Glass>
+	</div>
 
-  {#if dev}
-    <section
-      aria-labelledby="dev-session-heading"
-      class="flex w-full max-w-[378px] flex-col gap-4 rounded-2xl border border-brand-navy/20 bg-white p-6 text-brand-navy"
-    >
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-widest">Development only</p>
-        <h2 id="dev-session-heading" class="mt-1 text-xl font-semibold">Dev session demo</h2>
-        <p class="mt-2 text-sm">
-          Set the current session to a demo attendee or staff user without Google sign-in.
-          Choosing a profile replaces the current session.
-        </p>
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={authBusy}
-          onclick={() => handleDevSession("attendee")}
-        >
-          {pendingDevProfile === "attendee" ? "Setting attendee session…" : "Use demo attendee"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={authBusy}
-          onclick={() => handleDevSession("staff")}
-        >
-          {pendingDevProfile === "staff" ? "Setting staff session…" : "Use demo staff"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!session || authBusy}
-          onclick={handleLogout}
-        >
-          {authStatus === "signing-out" ? "Signing out…" : "Clear current session"}
-        </Button>
-      </div>
-
-      <p role="status" class="text-sm">
-        {#if pendingDevProfile}
-          Setting the current session to the demo {pendingDevProfile}…
-        {:else if session}
-          Current user: {session.user.name} ({session.user.role})
-        {:else}
-          No active session.
-        {/if}
-      </p>
-      {#if devSessionError}
-        <p role="alert" class="text-sm text-red-700">{devSessionError}</p>
-      {/if}
-
-      <div class="min-w-0">
-        <h3 class="mb-2 text-sm font-semibold">Current session (page.data.session)</h3>
-        <pre class="max-h-80 overflow-auto rounded-lg bg-brand-sky p-3 text-xs"><code>{JSON.stringify(session, null, 2)}</code></pre>
-      </div>
-    </section>
-  {/if}
+	<div class="w-full max-w-[402px] px-3">
+		<Glass as="section" class="flex flex-col items-center gap-2 rounded-xl p-3 text-brand-mist">
+			<h2 class="text-2xl font-medium text-brand-yellow">กำหนดการ</h2>
+			<dl class="grid w-full grid-cols-[auto_auto] justify-between gap-x-4">
+				<dt>วันเสาร์ที่ 31 ตุลาคม 2569</dt>
+				<dd>เวลา 13.00 - 20.00 น.</dd>
+				<dt>วันอาทิตย์ที่ 1 พฤศจิกายน 2569</dt>
+				<dd>เวลา 09.00 - 17.00 น.</dd>
+			</dl>
+			<p class="text-center">ณ จามจุรีสแควร์ ชั้น G</p>
+		</Glass>
+	</div>
 </main>

@@ -4,6 +4,34 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  optimizeDeps: {
+    // Pre-bundle at startup what Vite would otherwise discover on first visit to a page. Discovering
+    // them late makes the dev server re-optimize and reload the page mid-navigation (e.g. the dev
+    // toolbar's "New registration" landing back on / instead of /register: a flaky e2e test).
+    include: [
+      "@tanstack/svelte-query",
+      "bits-ui",
+      "cn",
+      "neverthrow",
+      "runed",
+      "tailwind-variants",
+      "vaul-svelte",
+      // /register
+      "@lucide/svelte/icons/check",
+      "@lucide/svelte/icons/chevron-down",
+      "@lucide/svelte/icons/chevron-up",
+      "@lucide/svelte/icons/circle",
+      "@lucide/svelte/icons/minus",
+      "@lucide/svelte/icons/square",
+      "@lucide/svelte/icons/square-check",
+      "formsnap",
+      "sveltekit-superforms",
+      "sveltekit-superforms/adapters",
+      "zod",
+      // /myid
+      "qrcode",
+    ],
+  },
   plugins: [
     tailwindcss(),
     sveltekit({

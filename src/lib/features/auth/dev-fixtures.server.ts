@@ -10,19 +10,29 @@ export async function ensureDevFixture(
   development: boolean,
 ) {
   if (!development) error(404, "Not found");
-  const id = `dev-user-${profile}`;
-  // Deterministic IDs make fixtures repeatable. Existing records are not reset,
-  // allowing role changes and disabled-account behavior to be tested locally.
+  // Each newcomer starts a separate registration. Registered attendee/staff
+  // fixtures remain repeatable and keep any local changes made to them.
+  const fixture =
+    profile === "newcomer" ? `newcomer-${crypto.randomUUID()}` : profile;
+  const id = `dev-user-${fixture}`;
   const insertUser = db
     .insert(users)
     .values({
       id,
-      googleId: `__development__:${profile}`,
-      email: `${profile}@example.invalid`,
+      googleId: `__development__:${fixture}`,
+      email: `${fixture}@example.invalid`,
       name: `Development ${profile}`,
-      role: profile,
+      role: profile === "staff" ? "staff" : "attendee",
     })
     .onConflictDoNothing();
+
+  // A newcomer is an attendee user who hasn't filled in the registration form yet.
+  if (profile === "newcomer") {
+    await insertUser;
+    const user = await findSessionUser(db, id);
+    if (!user) error(403, "This development account is unavailable");
+    return user;
+  }
 
   const insertProfile =
     profile === "attendee"
