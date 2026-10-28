@@ -1,7 +1,6 @@
 <script lang="ts">
 	import './layout.css';
 	import "../app.css";
-	import favicon from '#lib/assets/favicon.svg';
 	import { browser, dev } from '$app/env';
 	import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
 	import DevToolbar from '#lib/components/dev-toolbar.svelte';
