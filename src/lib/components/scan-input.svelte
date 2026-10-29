@@ -7,16 +7,21 @@
 </script>
 
 <script lang="ts">
+	import { dev } from "$app/env";
 	import keyboardIcon from "#lib/assets/icons/keyboard-onscreen.svg";
 	import scannerIcon from "#lib/assets/icons/qr-code-scanner.svg";
 	import QrScanner from "#lib/components/qr-scanner.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
-	import { errorDialog } from "#lib/error-dialog.svelte.js";
+	import { errorDialog, showError } from "#lib/error-dialog.svelte.js";
+	import { parseQrCode, QR_CODE_LENGTH } from "#lib/qr-code.js";
 
 	/** Scan a QR code, or type the code under it: both call `onScan`. */
 	type Props = {
-		/** Called with the scanned or typed code. If it returns a promise, the camera freezes until it settles. */
+		/**
+		 * Called with the scanned or typed code, normalized (see parseQrCode); malformed input shows an
+		 * error instead. If it returns a promise, the camera freezes until it settles.
+		 */
 		onScan: (code: string) => unknown;
 		/** Freezes the camera, e.g. while a sheet is open. It's also frozen while showError's dialog is. */
 		paused?: boolean;
@@ -36,6 +41,19 @@
 	}: Props = $props();
 
 	let mode = $state<InputMode>("scan");
+
+	function submit(input: string) {
+		const parsed = parseQrCode(input, { allowAny: dev });
+		switch (parsed.kind) {
+			case "valid":
+				return onScan(parsed.code);
+			case "invalid":
+				return showError({
+					title: "รหัสไม่ถูกต้อง",
+					description: `รหัสของผู้ร่วมงานมี ${QR_CODE_LENGTH} ตัวอักษร กรุณาตรวจสอบแล้วลองอีกครั้ง`,
+				});
+		}
+	}
 </script>
 
 <!-- Segmented control (Figma). -->
@@ -61,14 +79,14 @@
 </div>
 
 {#if mode === "scan"}
-	<QrScanner {onScan} paused={paused || errorDialog.current !== null} />
+	<QrScanner onScan={submit} paused={paused || errorDialog.current !== null} />
 {:else}
 	<!-- Figma: the field, then a small button centered under it. -->
 	<form
 		class="flex w-full flex-col items-center gap-4"
 		onsubmit={(event) => {
 			event.preventDefault();
-			if (code.trim()) void onScan(code.trim());
+			if (code.trim()) void submit(code);
 		}}
 	>
 		<div class="flex w-full flex-col gap-1">
