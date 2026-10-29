@@ -74,7 +74,7 @@
 	<div class="flex w-full flex-col items-center gap-6">
 		<h1 class="text-center text-[32px] font-medium text-brand-yellow">เช็คอินบูธเวิร์คช็อป</h1>
 
-		<ScanInput onScan={lookUp} paused={sheetOpen} />
+		<ScanInput submitLabel="ลงทะเบียน" onScan={lookUp} paused={sheetOpen} />
 
 		<p class="w-full text-base text-brand-sky">
 			*สามารถเช็คอินผู้เข้าร่วมงานได้ปกติจนถึงก่อนรอบเวลานั้น 5 นาที หลังจากนั้นจำเป็นต้องเปลี่ยนเป็นเพิ่มคนแทน

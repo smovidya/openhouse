@@ -75,7 +75,7 @@
 	<div class="flex w-full flex-col items-center gap-6">
 		<h1 class="text-center text-[32px] font-medium text-brand-yellow">เช็คอินจุดลงทะเบียน</h1>
 
-		<ScanInput onScan={lookUp} paused={sheetOpen} bind:code />
+		<ScanInput submitLabel="ลงทะเบียน" onScan={lookUp} paused={sheetOpen} bind:code />
 
 		{#if message}
 			<p role="status" class="flex items-center justify-center gap-1 text-center text-sm text-brand-mist">

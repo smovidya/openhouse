@@ -23,9 +23,17 @@
 		/** The typed code; clear it once handled. */
 		code?: string;
 		codeLabel?: string;
+		/** The code form's submit button, e.g. ลงทะเบียน. */
+		submitLabel: string;
 	};
 
-	let { onScan, paused = false, code = $bindable(""), codeLabel = "กรอกรหัสของผู้ร่วมงาน" }: Props = $props();
+	let {
+		onScan,
+		paused = false,
+		code = $bindable(""),
+		codeLabel = "กรอกรหัสของผู้ร่วมงาน",
+		submitLabel,
+	}: Props = $props();
 
 	let mode = $state<InputMode>("scan");
 </script>
@@ -55,15 +63,16 @@
 {#if mode === "scan"}
 	<QrScanner {onScan} paused={paused || errorDialog.current !== null} />
 {:else}
+	<!-- Figma: the field, then a small button centered under it. -->
 	<form
-		class="flex w-full flex-col gap-1"
+		class="flex w-full flex-col items-center gap-4"
 		onsubmit={(event) => {
 			event.preventDefault();
 			if (code.trim()) void onScan(code.trim());
 		}}
 	>
-		<label for="scan-code" class="text-center text-base text-brand-yellow">{codeLabel}</label>
-		<div class="flex gap-2">
+		<div class="flex w-full flex-col gap-1">
+			<label for="scan-code" class="text-center text-base text-brand-yellow">{codeLabel}</label>
 			<Input
 				id="scan-code"
 				bind:value={code}
@@ -71,11 +80,9 @@
 				autocapitalize="off"
 				spellcheck={false}
 				enterkeyhint="go"
-				class="focus-visible:border-brand-yellow focus-visible:ring-brand-yellow/60"
+				class="border-brand-sky focus-visible:border-brand-yellow focus-visible:ring-brand-yellow/60"
 			/>
-			<Button type="submit" variant="cta" size="cta-sm" class="h-10 px-4 text-base" disabled={!code.trim()}>
-				ตกลง
-			</Button>
 		</div>
+		<Button type="submit" variant="cta" size="cta-sm" disabled={!code.trim()}>{submitLabel}</Button>
 	</form>
 {/if}
