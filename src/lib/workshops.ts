@@ -139,6 +139,32 @@ export const workshops: Workshop[] = workshopCatalog.map((workshop) => ({
   })),
 }));
 
+/** A catalog round by its session id, with its workshop. */
+export function findSession(id: string) {
+  for (const workshop of workshops) {
+    const session = workshop.sessions.find((candidate) => candidate.id === id);
+    if (session) return { workshop, session };
+  }
+  return null;
+}
+
+const roundDayFormat = new Intl.DateTimeFormat("th-TH", {
+  day: "numeric",
+  month: "short",
+  timeZone: "Asia/Bangkok",
+});
+const roundTimeFormat = new Intl.DateTimeFormat("th-TH", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Asia/Bangkok",
+});
+
+/** e.g. "31 ต.ค. 10:00 - 11:00": rounds of a workshop can fall on both event days. */
+export function roundLabel(session: Pick<WorkshopSession, "start" | "end">) {
+  const start = new Date(session.start);
+  return `${roundDayFormat.format(start)} ${roundTimeFormat.format(start)} - ${roundTimeFormat.format(new Date(session.end))}`;
+}
+
 /** A workshop as the workshops service's getWorkshop returns it. */
 export type ApiWorkshop = {
   slug: string;

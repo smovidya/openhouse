@@ -7,6 +7,7 @@
 </script>
 
 <script lang="ts">
+	import type { Snippet } from "svelte";
 	import { dev } from "$app/env";
 	import keyboardIcon from "#lib/assets/icons/keyboard-onscreen.svg";
 	import scannerIcon from "#lib/assets/icons/qr-code-scanner.svg";
@@ -30,6 +31,8 @@
 		codeLabel?: string;
 		/** The code form's submit button, e.g. ลงทะเบียน. */
 		submitLabel: string;
+		/** Above the scan/code tabs, closer than the rest of the page (Figma: 12px), e.g. a mode switch. */
+		header?: Snippet;
 	};
 
 	let {
@@ -38,6 +41,7 @@
 		code = $bindable(""),
 		codeLabel = "กรอกรหัสของผู้ร่วมงาน",
 		submitLabel,
+		header,
 	}: Props = $props();
 
 	let mode = $state<InputMode>("scan");
@@ -56,8 +60,10 @@
 	}
 </script>
 
-<!-- Segmented control (Figma). -->
-<div class="flex items-center overflow-clip rounded-full bg-brand-mist" role="group" aria-label="วิธีสแกน">
+<div class="flex w-full flex-col items-center gap-3">
+	{@render header?.()}
+	<!-- Segmented control (Figma). -->
+	<div class="flex items-center overflow-clip rounded-full bg-brand-mist" role="group" aria-label="วิธีสแกน">
 	<button
 		type="button"
 		aria-pressed={mode === "scan"}
@@ -76,6 +82,7 @@
 		<img src={keyboardIcon} alt="" />
 		กรอกรหัส
 	</button>
+</div>
 </div>
 
 {#if mode === "scan"}

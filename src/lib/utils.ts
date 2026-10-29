@@ -1,3 +1,5 @@
+import { isHttpError } from "@sveltejs/kit";
+
 export { cn } from "cn";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,4 +18,9 @@ export function httpStatus(error: unknown): number | null {
   if (typeof error !== "object" || error === null || !("status" in error))
     return null;
   return typeof error.status === "number" ? error.status : null;
+}
+
+/** A thrown `error(status, message)`'s message, e.g. a remote command's rejection code. */
+export function httpErrorMessage(error: unknown): string | null {
+  return isHttpError(error) ? error.body.message : null;
 }
