@@ -140,3 +140,33 @@ export function seedWorkshops() {
     shell: process.platform === "win32",
   });
 }
+
+/**
+ * Sign in as a fresh local account and make it staff with `permissions` (directly in D1, skipping
+ * the invite code). Returns the user id; delete it with `deleteStaff`.
+ */
+export async function signInAsStaff(page: Page, permissions: string[]) {
+  await devSession(page, "New registration");
+  const cookie = (await page.context().cookies()).find(
+    (item) => item.name === "vidyachula-session-dev",
+  );
+  expect(cookie).toBeDefined();
+  const { sub } = JSON.parse(
+    Buffer.from(cookie!.value.split(".")[1], "base64url").toString(),
+  ) as { sub: string };
+  localD1(`
+    INSERT INTO staffs (id, user_id, type, name, phone, permission)
+    VALUES ('${sub}', '${sub}', 'test', 'E2E staff', '0000000000', '${JSON.stringify(permissions)}');
+    UPDATE users SET role = 'staff' WHERE id = '${sub}';
+  `);
+  return sub;
+}
+
+/** Deletes the account and the check-ins it recorded (they reference it). */
+export function deleteStaff(userId: string) {
+  localD1(`
+    DELETE FROM checkpoint_logs WHERE checker_id = '${userId}';
+    DELETE FROM staffs WHERE user_id = '${userId}';
+    DELETE FROM users WHERE id = '${userId}';
+  `);
+}
