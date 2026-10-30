@@ -125,7 +125,10 @@
 		const rewardPoint = rewardPointFor(tier);
 		if (!rewardPoint) {
 			current.state = "closed";
-			void showError({ title: "ไม่พบจุดแลกของรางวัล", description: "ยังไม่ได้ตั้งค่าจุดแลกของรางวัล กรุณาติดต่อผู้ดูแลระบบ" });
+			void showError({
+				title: "ระบบแลกของรางวัลยังไม่พร้อม",
+				description: "ยังไม่ได้ตั้งค่าการแลกของรางวัลในระบบ หรือบัญชีนี้ไม่มีสิทธิ์ กรุณาติดต่อผู้ดูแลระบบ",
+			});
 			return;
 		}
 		current.state = "redeeming";
