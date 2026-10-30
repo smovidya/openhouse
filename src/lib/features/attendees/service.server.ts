@@ -34,6 +34,22 @@ export const getAttendeeProfile = (query: {
   );
 };
 
+/** The attendee profile plus its account's email, for staff scanning a QR code. */
+export const getAttendeeProfileWithEmail = (query: { qrCodeId: string }) => {
+  const db = getDb(env.DB);
+  return ResultAsync.fromPromise(
+    db.query.attendees.findFirst({
+      where: query,
+      with: { user: { columns: { email: true } } },
+    }),
+    () => "FETCH_ATTENDEE_PROFILE_FAILED" as const,
+  ).map((attendee) => {
+    if (!attendee) return attendee;
+    const { user, ...profile } = attendee;
+    return { ...profile, email: user?.email ?? null };
+  });
+};
+
 export const createAttendeeProfile = (input: AttendeeProfileInsert) => {
   const db = getDb(env.DB);
   return ResultAsync.fromPromise(

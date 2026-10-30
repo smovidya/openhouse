@@ -94,6 +94,7 @@ export async function findAttendeeByQrCode(db: Db, qrCodeId: string) {
       id: attendees.id,
       firstname: attendees.firstname,
       lastname: attendees.lastname,
+      email: users.email,
     })
     .from(attendees)
     .innerJoin(users, eq(users.id, attendees.userId))

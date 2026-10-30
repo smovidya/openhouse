@@ -9,6 +9,7 @@ import {
   createAttendeeProfile,
   getActiveAttendeeByUserId,
   getAttendeeProfile,
+  getAttendeeProfileWithEmail,
 } from "./service.server";
 import { customAlphabet } from "nanoid";
 import {
@@ -26,7 +27,7 @@ export const getAttendeeProfileByQrCodeId = query(
     requireStaff(locals.user);
 
     return safeTry(async function* () {
-      const profile = yield* await getAttendeeProfile({ qrCodeId });
+      const profile = yield* await getAttendeeProfileWithEmail({ qrCodeId });
       if (!profile) return err("NO_ATTENDEE_PROFILE_FOUND");
       return ok(profile);
     }).match(

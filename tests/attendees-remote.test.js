@@ -29,6 +29,8 @@ mock.module("nanoid", () => ({ customAlphabet: () => generateQrCode }));
 mock.module("../src/lib/features/attendees/service.server", () => ({
   getActiveAttendeeByUserId,
   getAttendeeProfile,
+  // Staff QR lookup; not exercised here.
+  getAttendeeProfileWithEmail: mock(),
   createAttendeeProfile,
 }));
 

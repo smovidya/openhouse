@@ -60,6 +60,7 @@ async function attendeeById(db: Db, id: string) {
       id: attendees.id,
       firstname: attendees.firstname,
       lastname: attendees.lastname,
+      email: users.email,
     })
     .from(attendees)
     .innerJoin(users, eq(users.id, attendees.userId))
@@ -233,6 +234,7 @@ export async function listWorkshopAttendance(
         attendeeId: sql<string>`${attendees.id}`.as("attendee_row_id"),
         firstname: attendees.firstname,
         lastname: attendees.lastname,
+        email: users.email,
         registrationType: workshopRegistrations.type,
       })
       .from(workshopRegistrations)
@@ -253,6 +255,7 @@ export async function listWorkshopAttendance(
         attendeeId: sql<string>`${attendees.id}`.as("attendee_row_id"),
         firstname: attendees.firstname,
         lastname: attendees.lastname,
+        email: users.email,
       })
       .from(checkpointLogs)
       .innerJoin(attendees, eq(attendees.id, checkpointLogs.attendeeId))
@@ -282,6 +285,7 @@ export async function listWorkshopAttendance(
         id: booking.attendeeId,
         firstname: booking.firstname,
         lastname: booking.lastname,
+        email: booking.email,
       },
       registrationId: booking.registrationId,
       registrationType: booking.registrationType,
@@ -295,6 +299,7 @@ export async function listWorkshopAttendance(
         id: attendance.attendeeId,
         firstname: attendance.firstname,
         lastname: attendance.lastname,
+        email: attendance.email,
       },
       registrationId: null,
       registrationType: null,
