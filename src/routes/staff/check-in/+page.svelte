@@ -8,7 +8,7 @@
 	import { getAttendeeProfileByQrCodeId } from "#lib/features/attendees/attendees.remote.ts";
 	import { checkInAttendee } from "#lib/features/checkpoints/checkpoints.remote.ts";
 	import { showError } from "#lib/error-dialog.svelte.js";
-	import { httpStatus } from "#lib/utils.js";
+	import { httpErrorMessage, httpStatus } from "#lib/utils.js";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -52,10 +52,16 @@
 		current.state = "checkingIn";
 		const name = `${attendee.firstname} ${attendee.lastname}`;
 		try {
-			const result = await checkInAttendee({ qrCodeId: attendee.qrCodeId, checkpointId: data.entry.id });
-			message = result.alreadyCheckedIn ? `${name} เช็คอินไปแล้วก่อนหน้านี้` : `เช็คอิน ${name} แล้ว`;
+			await checkInAttendee({ qrCodeId: attendee.qrCodeId, checkpointId: data.entry.id });
+			message = `เช็คอิน ${name} แล้ว`;
 			code = "";
 		} catch (caught) {
+			// A repeat scan isn't a failure: say so the same way as a check-in.
+			if (httpErrorMessage(caught) === "ALREADY_CHECKED_IN") {
+				message = `${name} เช็คอินไปแล้วก่อนหน้านี้`;
+				code = "";
+				return;
+			}
 			void showError(
 				httpStatus(caught) === 403
 					? { title: "ไม่มีสิทธิ์", description: "บัญชีนี้ไม่มีสิทธิ์เช็คอินจุดลงทะเบียน" }
