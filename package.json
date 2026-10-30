@@ -10,6 +10,7 @@
     "db:migrate:preview": "wrangler d1 migrations apply DB --remote --config wrangler.preview-migrations.jsonc",
     "staff:seed-admin": "bun scripts/seed-admin.ts",
     "workshops:seed": "bun scripts/seed-workshops.ts",
+    "checkpoints:seed": "bun scripts/seed-checkpoints.ts",
     "dev": "vite dev",
     "build": "vite build",
     "preview": "bun run build && wrangler dev",
