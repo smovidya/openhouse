@@ -23,7 +23,12 @@
 		</span>
 		<ul class="grid flex-1 grid-cols-2 gap-x-2">
 			{#each tier.conditions as condition (condition.label)}
-				<li>{condition.label} {condition.done ?? "–"}/{condition.total}</li>
+				<li>
+					{condition.label} {condition.done ?? "–"}/{condition.total}
+					{#if condition.done === condition.total}
+						<span aria-label="ผ่านเงื่อนไขแล้ว" class="text-status-green">✓</span>
+					{/if}
+				</li>
 			{/each}
 		</ul>
 	</div>

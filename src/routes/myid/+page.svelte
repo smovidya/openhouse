@@ -1,17 +1,35 @@
 <script lang="ts">
 	import arrowRightIcon from "#lib/assets/icons/arrow-right.svg";
 	import checkCircleIcon from "#lib/assets/icons/check-circle.svg";
+	import refreshIcon from "#lib/assets/icons/refresh.svg";
 	import Glass from "#lib/render/glass.svelte";
 	import QrCode from "#lib/components/qr-code.svelte";
 	import RewardTierCard from "#lib/components/reward-tier-card.svelte";
 	import SignBoard from "#lib/components/sign-board.svelte";
+	import StampLog from "#lib/components/stamp-log.svelte";
 	import WorkshopCard from "#lib/components/workshop-card.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { BANGKOK_TIME_ZONE, EVENT_SCHEDULE } from "#lib/constants/time.ts";
+	import { getMyProgress } from "#lib/features/checkpoints/checkpoints.remote.ts";
 	import { entryReward, rewardHashtags, rewardTiers, tierConditions } from "#lib/rewards.js";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
+
+	// The stamp map reads scans made at booths, so it can go stale while the page stays open;
+	// the refresh button re-runs getMyProgress instead of reloading the whole page.
+	const progressQuery = getMyProgress();
+	const progress = $derived(progressQuery.current ?? data.progress);
+	let refreshing = $state(false);
+	async function refresh() {
+		if (refreshing) return;
+		refreshing = true;
+		try {
+			await progressQuery.refresh();
+		} finally {
+			refreshing = false;
+		}
+	}
 
 	const registrationOpensLabel = new Intl.DateTimeFormat("th-TH", {
 		dateStyle: "long",
@@ -40,6 +58,20 @@
 			<p class="text-xl">{data.profile.name}</p>
 			<p class="text-sm">{data.profile.code}</p>
 		</div>
+	</Glass>
+
+	<Glass as="section" variant="light" class="w-full rounded-xl flex flex-col gap-1 p-4 text-center">
+		<h2 class="text-xl font-medium text-brand-navy">เกียรติบัตรการเข้าร่วมงาน</h2>
+		{#if progress?.entered}
+			<p class="text-xs text-brand-navy">
+				เช็คอินจุดลงทะเบียนเข้างานแล้ว <span class="font-bold text-status-green">✓</span> มีสิทธิ์ได้รับเกียรติบัตรนี้
+			</p>
+		{:else}
+			<p class="text-xs text-brand-mist">
+				เช็คอินที่จุดลงทะเบียนในวันงานเท่านั้น จึงจะได้รับเกียรติบัตรนี้
+			</p>
+		{/if}
+		<p class="text-xs text-brand-navy">กรุณารอติดตามประกาศภายหลัง</p>
 	</Glass>
 
 	<section class="flex w-full flex-col gap-2">
@@ -82,23 +114,47 @@
 	</section>
 
 	<section class="flex w-full flex-col gap-2">
-		<div class="text-brand-navy">
-			<h2 class="text-2xl font-medium">ภารกิจล่าของรางวัล</h2>
-			<p class="text-xs">
-				*แลกของรางวัลได้ครั้งเดียว เมื่อแลกแล้วจะสะสมกิจกรรมเพื่อเลื่อนขั้นต่อไม่ได้
-			</p>
-			<p class="text-xs">ลงทะเบียนเข้างานรับ{entryReward}ทันที</p>
+		<div class="flex items-start justify-between gap-2">
+			<div class="text-brand-navy">
+				<h2 class="text-2xl font-medium">ภารกิจล่าของรางวัล</h2>
+				<p class="text-xs">
+					*แลกของรางวัลได้ครั้งเดียว เมื่อแลกแล้วจะสะสมกิจกรรมเพื่อเลื่อนขั้นต่อไม่ได้
+				</p>
+				<p class="text-xs">ลงทะเบียนเข้างานรับ{entryReward}ทันที</p>
+			</div>
+			<button
+				type="button"
+				class="grid size-9 shrink-0 place-items-center rounded-full border border-brand-sky/40 bg-brand-mist text-brand-navy transition-colors hover:bg-brand-sky/20 disabled:opacity-50"
+				aria-label="รีเฟรชตราแสตมป์"
+				disabled={refreshing}
+				onclick={refresh}
+			>
+				<img src={refreshIcon} alt="" class="size-4 {refreshing ? "animate-spin" : ""}" />
+			</button>
 		</div>
-		{#if data.progress}
+		{#if progress}
+			<StampLog
+				checkpoints={progress.checkpoints}
+				registered={data.workshops.map((workshop) => ({
+					slug: workshop.slug,
+					title: workshop.title,
+					type: workshop.type,
+				}))}
+			/>
+		{/if}
+		<!-- Redemptions from before gift names were recorded have none: show the generic status then. -->
+		{#if progress?.redemption}
 			<p class="text-sm text-brand-navy">
-				{data.progress.redemption ? "แลกรับของรางวัลแล้ว" : "ยังไม่ได้แลกรับของรางวัล"}
+				{progress.redemption.giftName
+					? `แลก${progress.redemption.giftName}แล้ว`
+					: "แลกรับของรางวัลแล้ว"}
 			</p>
 		{/if}
 		{#each rewardTiers as tier (tier.tier)}
 			<RewardTierCard
 				tier={{
 					title: tier.title,
-					conditions: tierConditions(tier, data.progress?.counts ?? null),
+					conditions: tierConditions(tier, progress?.counts ?? null),
 					rewards: tier.rewards,
 				}}
 			/>

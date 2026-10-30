@@ -39,10 +39,17 @@
 	import { Picker } from "#lib/components/ui/picker/index.js";
 	import { showError } from "#lib/error-dialog.svelte.js";
 	import { getAttendeeProfileByQrCodeId } from "#lib/features/attendees/attendees.remote.ts";
+	import { getStaffAttendeeProgress } from "#lib/features/checkpoints/checkpoints.remote.ts";
 	import { checkInWorkshop } from "#lib/features/workshops/attendance.remote.ts";
+	import { getAttendeeWorkshopRegistrations } from "#lib/features/workshops/workshops.remote.ts";
 	import { httpStatus } from "#lib/utils.js";
-	import { attendanceError, findSlotId, slotNotFound } from "#lib/workshop-attendance.js";
-	import { findSession, roundLabel, workshops } from "#lib/workshops.js";
+	import {
+		attendanceError,
+		findSlotId,
+		rejectionMessages,
+		slotNotFound,
+	} from "#lib/workshop-attendance.js";
+	import { findSession, roundLabel, workshops, type WorkshopSession } from "#lib/workshops.js";
 
 	// The round is in the URL (?session=), so the participant list's back button returns to it.
 	const workshopOptions = workshops.map((workshop) => ({ value: workshop.id, label: workshop.title }));
@@ -75,6 +82,18 @@
 	let mode = $state<Mode>("check-in");
 
 	type Attendee = Awaited<ReturnType<typeof getAttendeeProfileByQrCodeId>>;
+	type Registrations = Awaited<ReturnType<typeof getAttendeeWorkshopRegistrations>>;
+	/** Whether the attendee holds a live advance booking for the selected round. */
+	function isBookedFor(registrations: Registrations, session: WorkshopSession) {
+		return registrations.isOk()
+			? (registrations.value ?? []).some(
+					(registration) =>
+						registration.type === "advance" &&
+						registration.workshopSlug === session.workshop &&
+						registration.workshopRoundNumber === session.round
+				)
+			: false;
+	}
 	/**
 	 * Null before the first lookup. Closing keeps the attendee, so the sheet still shows them as it
 	 * slides away. The mode and round are fixed when the sheet opens.
@@ -83,6 +102,8 @@
 		attendee: Attendee;
 		mode: Mode;
 		sessionId: string;
+		/** Whether the attendee has been scanned at the registration point (entry log). */
+		entered: boolean;
 		state: "confirming" | "saving" | "closed";
 	};
 	let sheet = $state<Sheet | null>(null);
@@ -105,7 +126,21 @@
 		}
 		try {
 			const attendee = await getAttendeeProfileByQrCodeId(qrCodeId);
-			sheet = { attendee, mode, sessionId: selected.session.id, state: "confirming" };
+			const [{ progress }, registrations] = await Promise.all([
+				getStaffAttendeeProgress({ qrCodeId }),
+				getAttendeeWorkshopRegistrations({ attendeeId: attendee.id }),
+			]);
+			const booked = isBookedFor(registrations, selected.session);
+			// Refuse the scan outright instead of opening the sheet, so staff see why at once.
+			if (!progress.entered) {
+				await showError(rejectionMessages.ENTRY_REQUIRED);
+				return;
+			}
+			if (mode === "check-in" && !booked) {
+				await showError(rejectionMessages.ADVANCE_REGISTRATION_REQUIRED);
+				return;
+			}
+			sheet = { attendee, mode, sessionId: selected.session.id, entered: true, state: "confirming" };
 		} catch (caught) {
 			// Awaited: the scanner stays frozen until it's dismissed.
 			await showError(
@@ -118,7 +153,7 @@
 
 	async function confirm() {
 		const current = sheet;
-		if (current?.state !== "confirming") return;
+		if (current?.state !== "confirming" || !current.entered) return;
 		const { attendee } = current;
 		current.state = "saving";
 		const name = `${attendee.firstname} ${attendee.lastname}`;
@@ -242,7 +277,7 @@
 			</div>
 			<div class="flex w-full flex-col gap-2">
 				<Button variant="cta-light" size="cta-lg" class="w-full" onclick={closeSheet}>ยกเลิก</Button>
-				<Button variant="cta" size="cta-lg" class="w-full" disabled={sheet.state !== "confirming"} onclick={confirm}>
+				<Button variant="cta" size="cta-lg" class="w-full" disabled={!sheet.entered || sheet.state !== "confirming"} onclick={confirm}>
 					{sheet.state === "saving" ? "กำลังบันทึก…" : "ตกลง"}
 				</Button>
 			</div>
