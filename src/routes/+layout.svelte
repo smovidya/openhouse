@@ -1,6 +1,5 @@
 <script lang="ts">
 	import './layout.css';
-	import "../app.css";
 	import { browser, dev } from '$app/env';
 	import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
 	import DevToolbar from '#lib/components/dev-toolbar.svelte';
