@@ -1,19 +1,14 @@
 <script lang="ts">
 	import HistoryList from "#lib/components/history-list.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import { tierTitle } from "#lib/rewards.js";
 	import type { PageProps } from "./$types";
 
 	// Every reward handed out (Figma "บูธแลกของที่ระลึก / ประวัติการรับของรางวัล"): the latest 100.
+	// Who redeemed and when, not which tier: no page shows a redemption's tier.
 	let { data }: PageProps = $props();
 
 	const entries = $derived(
-		data.redemptions.map((redemption) => ({
-			...redemption,
-			// Redemptions from before tiers and gifts were recorded have neither.
-			detail: redemption.tier ? tierTitle(redemption.tier) : (redemption.giftName ?? "ของรางวัล"),
-			at: redemption.createdAt,
-		}))
+		data.redemptions.map((redemption) => ({ ...redemption, at: redemption.createdAt }))
 	);
 </script>
 

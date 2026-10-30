@@ -34,7 +34,7 @@ test("/myid lists the reward tiers with the attendee's progress", async ({
   await expect(crew).toContainText("หมอนเสืออ้วน");
 });
 
-test("/myid counts the attendee's scans and shows the redeemed gift", async ({
+test("/myid counts the attendee's scans and shows whether they redeemed", async ({
   page,
 }) => {
   seedBooths();
@@ -55,6 +55,7 @@ test("/myid counts the attendee's scans and shows the redeemed gift", async ({
     await expect(crew.getByText("บูธ TCAS 1/1")).toBeVisible();
     await expect(crew.getByText("กิจกรรมกลาง 0/1")).toBeVisible();
     await expect(crew.getByText("บูธภาควิชา 2/6")).toBeVisible();
+    await expect(page.getByText("ยังไม่ได้แลกรับของรางวัล")).toBeVisible();
 
     localD1(`
       INSERT INTO reward_gifts (id, name, tier) VALUES ('${gift}', 'หมอนทดสอบ', 3);
@@ -62,7 +63,7 @@ test("/myid counts the attendee's scans and shows the redeemed gift", async ({
       VALUES ('${gift}-redemption', '${attendeeId}', 'reward', '${gift}', 3, 'หมอนทดสอบ');
     `);
     await open(page, "/myid");
-    await expect(page.getByText("แลกหมอนทดสอบแล้ว")).toBeVisible();
+    await expect(page.getByText("แลกรับของรางวัลแล้ว")).toBeVisible();
   } finally {
     // The account stays, like the registration spec's; its scans and gift go.
     localD1(`

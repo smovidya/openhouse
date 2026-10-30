@@ -89,9 +89,10 @@
 			</p>
 			<p class="text-xs">ลงทะเบียนเข้างานรับ{entryReward}ทันที</p>
 		</div>
-		<!-- Redemptions from before gift names were recorded have none: show nothing then. -->
-		{#if data.progress?.redemption?.giftName}
-			<p class="text-sm text-brand-navy">แลก{data.progress.redemption.giftName}แล้ว</p>
+		{#if data.progress}
+			<p class="text-sm text-brand-navy">
+				{data.progress.redemption ? "แลกรับของรางวัลแล้ว" : "ยังไม่ได้แลกรับของรางวัล"}
+			</p>
 		{/if}
 		{#each rewardTiers as tier (tier.tier)}
 			<RewardTierCard

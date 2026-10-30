@@ -6,8 +6,8 @@
 		age: number;
 		/** The attendee's status (their `type`). */
 		type: string;
-		/** What happened, e.g. the booth or the reward tier. */
-		detail: string;
+		/** What happened, e.g. the booth. */
+		detail?: string;
 		at: Date | null;
 	};
 
@@ -36,7 +36,9 @@
 			<div class="min-w-0">
 				<p>{entry.firstname} {entry.lastname}</p>
 				<p>{entry.age} ปี / {attendeeStatusLabel(entry.type)}</p>
-				<p>{entry.detail}</p>
+				{#if entry.detail}
+					<p>{entry.detail}</p>
+				{/if}
 			</div>
 			{#if entry.at}
 				<p class="shrink-0 text-right text-sm">เวลา {timeFormat.format(entry.at)} น.</p>

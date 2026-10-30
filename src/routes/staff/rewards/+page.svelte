@@ -93,8 +93,7 @@
 	/** Why the open sheet can't redeem, or null when it can. */
 	function blocker({ preview }: Sheet): string | null {
 		const { progress } = preview;
-		// Redemptions from before gifts were recorded have no gift name.
-		if (progress.redemption) return `แลก${progress.redemption.giftName ?? "ของรางวัล"}ไปแล้ว`;
+		if (progress.redemption) return "แลกรับของรางวัลแล้ว";
 		if (!progress.entered) return "ยังไม่ได้ผ่านจุดลงทะเบียน";
 		if (progress.highestEligibleTier === null) return "ยังไม่ผ่านเกณฑ์ขั้นใด";
 		if (preview.gifts.length === 0) return "ยังไม่ได้ตั้งค่าของรางวัลของขั้นนี้ กรุณาติดต่อผู้ดูแลระบบ";
@@ -211,7 +210,8 @@
 				{#if reason}
 					<p role="alert" class="text-center font-heading text-xl text-brand-navy">{reason}</p>
 				{:else if tier !== null}
-					<p class="text-center font-heading text-xl text-brand-navy">“กำลังแลก {tierTitle(tier)}”</p>
+					<!-- The highest tier reached: redeeming hands over this tier's gift, never a lower one's. -->
+					<p class="text-center font-heading text-xl text-brand-navy">ขั้นสูงสุดที่แลกได้: {tierTitle(tier)}</p>
 					{#if gifts.length > 1}
 						<Picker
 							class="border-brand-sky"

@@ -143,7 +143,9 @@ test("redeems the highest tier reached once, then locks; workshops stay open", a
   // Tier 3 reached: the sheet says what's being redeemed and what the next tier needs.
   let sheet = await lookUp(page, crew);
   await expect(sheet.getByText(`${crew.id}@example.com`)).toBeVisible();
-  await expect(sheet.getByText("“กำลังแลก ลูกเรือโจรสลัด”")).toBeVisible();
+  await expect(
+    sheet.getByText("ขั้นสูงสุดที่แลกได้: ลูกเรือโจรสลัด"),
+  ).toBeVisible();
   await expect(sheet.getByText("ของรางวัล: หมอนทดสอบ")).toBeVisible();
   await expect(sheet).toContainText(
     "ขั้นถัดไป (รองหัวหน้าโจรสลัด) ขาด: บูธภาควิชาอีก 6 บูธ, เวิร์คช็อปอีก 1 กิจกรรม",
@@ -153,13 +155,13 @@ test("redeems the highest tier reached once, then locks; workshops stay open", a
     `มอบหมอนทดสอบให้ ${fullName(crew)} แล้ว`,
   );
 
-  // The redemption history lists it with the tier.
+  // The redemption history lists who redeemed, without the tier.
   await page.getByRole("link", { name: "ดูประวัติการแลกของ" }).click();
   await expect(page).toHaveURL(/\/staff\/rewards\/history$/);
   const handover = page
     .getByRole("listitem")
     .filter({ hasText: fullName(crew) });
-  await expect(handover).toContainText("ลูกเรือโจรสลัด");
+  await expect(handover).not.toContainText("ลูกเรือโจรสลัด");
   await expect(handover).toContainText("16 ปี");
   // By keyboard: the dev toolbar floats over the bottom of the page.
   await page.getByRole("link", { name: "ย้อนกลับ" }).press("Enter");
@@ -167,7 +169,7 @@ test("redeems the highest tier reached once, then locks; workshops stay open", a
 
   // Redeemed: scanning again explains why it can't be redeemed twice.
   sheet = await lookUp(page, crew);
-  await expect(sheet.getByRole("alert")).toHaveText("แลกหมอนทดสอบไปแล้ว");
+  await expect(sheet.getByRole("alert")).toHaveText("แลกรับของรางวัลแล้ว");
   await expect(confirmButton(sheet)).toBeDisabled();
   await sheet.getByRole("button", { name: "ยกเลิก" }).click();
 
@@ -217,7 +219,7 @@ test("explains why an attendee can't redeem yet", async ({ page }) => {
 
   // Redeemed before gifts were recorded.
   sheet = await lookUp(page, legacy);
-  await expect(sheet.getByRole("alert")).toHaveText("แลกของรางวัลไปแล้ว");
+  await expect(sheet.getByRole("alert")).toHaveText("แลกรับของรางวัลแล้ว");
   await expect(confirmButton(sheet)).toBeDisabled();
   await sheet.getByRole("button", { name: "ยกเลิก" }).click();
 
@@ -254,7 +256,9 @@ test("refuses a handover when progress changed after the preview", async ({
 
   // Moved up to tier 2 while the sheet showed tier 3.
   let sheet = await lookUp(page, climber);
-  await expect(sheet.getByText("“กำลังแลก ลูกเรือโจรสลัด”")).toBeVisible();
+  await expect(
+    sheet.getByText("ขั้นสูงสุดที่แลกได้: ลูกเรือโจรสลัด"),
+  ).toBeVisible();
   localD1(`DELETE FROM checkpoint_logs WHERE attendee_id = '${climber.id}';`);
   stamp(climber.id, {
     ...crewStamps,
@@ -266,7 +270,9 @@ test("refuses a handover when progress changed after the preview", async ({
 
   // No longer reaches any tier.
   sheet = await lookUp(page, dropout);
-  await expect(sheet.getByText("“กำลังแลก ลูกเรือโจรสลัด”")).toBeVisible();
+  await expect(
+    sheet.getByText("ขั้นสูงสุดที่แลกได้: ลูกเรือโจรสลัด"),
+  ).toBeVisible();
   localD1(
     `DELETE FROM checkpoint_logs WHERE attendee_id = '${dropout.id}' AND checkpoint_id = 'tcas';`,
   );
