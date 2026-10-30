@@ -2,6 +2,7 @@
 	import arrowRightIcon from "#lib/assets/icons/arrow-right.svg";
 	import checkCircleIcon from "#lib/assets/icons/check-circle.svg";
 	import refreshIcon from "#lib/assets/icons/refresh.svg";
+	import trophyIcon from "#lib/assets/icons/trophy.svg";
 	import Glass from "#lib/render/glass.svelte";
 	import QrCode from "#lib/components/qr-code.svelte";
 	import RewardTierCard from "#lib/components/reward-tier-card.svelte";
@@ -11,7 +12,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { BANGKOK_TIME_ZONE, EVENT_SCHEDULE } from "#lib/constants/time.ts";
 	import { getMyProgress } from "#lib/features/checkpoints/checkpoints.remote.ts";
-	import { entryReward, rewardHashtags, rewardTiers, tierConditions } from "#lib/rewards.js";
+	import { entryReward, rewardHashtags, rewardTiers, tierConditions, tierTitle } from "#lib/rewards.js";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -132,6 +133,30 @@
 				<img src={refreshIcon} alt="" class="size-4 {refreshing ? "animate-spin" : ""}" />
 			</button>
 		</div>
+		{#if progress?.redemption}
+			<Glass
+				as="section"
+				class="rounded-xl flex w-full flex-col items-center gap-1.5 p-4 text-center"
+			>
+				<img src={trophyIcon} alt="" class="size-9" />
+				<h3 class="font-heading text-xl font-medium text-brand-yellow">
+					จบการผจญภัยล่าแสตมป์!
+				</h3>
+				{#if progress.redemption.tier}
+					<p class="text-sm text-brand-mist">
+						คุณคือ “{tierTitle(progress.redemption.tier)}” แห่งมหาสมุทรวิทยาศาสตร์
+					</p>
+				{/if}
+				<p class="text-sm text-brand-mist">
+					{progress.redemption.giftName
+						? `รับของรางวัล “${progress.redemption.giftName}” ไปแล้ว`
+						: "รับของรางวัลไปแล้ว"}
+				</p>
+				<p class="text-xs text-brand-mist/90">
+					การล่าแสตมป์ของคุณสิ้นสุดลงแล้ว — เก็บแสตมป์เพิ่มหรือเลื่อนขั้นต่อไม่ได้อีกต่อไป
+				</p>
+			</Glass>
+		{/if}
 		{#if progress}
 			<StampLog
 				checkpoints={progress.checkpoints}
@@ -142,14 +167,6 @@
 				}))}
 			/>
 		{/if}
-		<!-- Redemptions from before gift names were recorded have none: show the generic status then. -->
-		{#if progress?.redemption}
-			<p class="text-sm text-brand-navy">
-				{progress.redemption.giftName
-					? `แลก${progress.redemption.giftName}แล้ว`
-					: "แลกรับของรางวัลแล้ว"}
-			</p>
-		{/if}
 		{#each rewardTiers as tier (tier.tier)}
 			<RewardTierCard
 				tier={{
@@ -157,6 +174,8 @@
 					conditions: tierConditions(tier, progress?.counts ?? null),
 					rewards: tier.rewards,
 				}}
+				locked={Boolean(progress?.redemption)}
+				awarded={Boolean(progress?.redemption) && tier.tier === progress?.redemption?.tier}
 			/>
 		{/each}
 		<p class="text-xs text-brand-navy">
