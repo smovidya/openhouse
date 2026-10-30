@@ -1,104 +1,227 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  deleteAttendees,
   deleteStaff,
+  fullName,
+  insertAttendees,
   localD1,
   open,
   seedBooths,
+  seedWorkshops,
   signInAsStaff,
+  stamp,
+  type TestAttendee,
 } from "./helpers";
 
-// The reward point (/staff/rewards) against the local D1, through the code form.
+// The reward point (/staff/rewards) against the local D1, through the code form. Assumes the
+// local D1 has no reward gifts of its own: each test adds the ones it needs.
 
 test.describe.configure({ mode: "serial" });
 
-const attendee = {
-  id: "e2e-reward-attendee",
-  qr: "E2ER4",
-  name: "รางวัล ทดสอบ",
-};
-const entryCheckpoint = "e2e-reward-entry";
-const gift = { id: "e2e-reward-gift", name: "หมอนทดสอบ" };
+const attendee = (key: string, firstname: string): TestAttendee => ({
+  id: `e2e-reward-${key}`,
+  qr: `E2E-REWARD-${key.toUpperCase()}`,
+  firstname,
+  lastname: "ทดสอบ",
+});
+const crew = attendee("crew", "ลูกเรือ");
+const outsider = attendee("outsider", "ยังไม่เข้างาน");
+const beginner = attendee("beginner", "เพิ่งเริ่ม");
+const deputy = attendee("deputy", "รองหัวหน้า");
+const chooser = attendee("chooser", "เลือกของ");
+const climber = attendee("climber", "เลื่อนขั้น");
+const dropout = attendee("dropout", "หลุดเกณฑ์");
+const attendees = [crew, outsider, beginner, deputy, chooser, climber, dropout];
 
-function cleanUp() {
-  localD1(`
-    DELETE FROM reward_redemptions WHERE attendee_id = '${attendee.id}';
-    DELETE FROM checkpoint_logs WHERE attendee_id = '${attendee.id}';
-    DELETE FROM attendees WHERE id = '${attendee.id}';
-    DELETE FROM users WHERE id = '${attendee.id}';
-    DELETE FROM checkpoints WHERE id = '${entryCheckpoint}';
-    DELETE FROM reward_gifts WHERE id = '${gift.id}';
-  `);
-}
+/** Tier 3 (ลูกเรือโจรสลัด): entered, TCAS, the central activity and 6 department booths. */
+const crewStamps = { entry: "entry", tcas: true, central: true, booths: 6 };
 
 let staffId: string | null = null;
+const gifts: string[] = [];
+
+function addGift(id: string, name: string, tier: 1 | 2 | 3) {
+  gifts.push(id);
+  localD1(
+    `INSERT INTO reward_gifts (id, name, tier) VALUES ('${id}', '${name}', ${tier});`,
+  );
+}
 
 test.beforeAll(() => {
   seedBooths();
-  cleanUp();
-  // Tier 3 (ลูกเรือโจรสลัด): entered, TCAS, the central activity and 6 department booths.
-  localD1(`
-    INSERT INTO users (id, google_id, email, name, role)
-    VALUES ('${attendee.id}', '${attendee.id}', '${attendee.id}@example.com', 'Reward Test', 'attendee');
-    INSERT INTO attendees (id, qrCodeId, user_id, title, firstname, lastname, age, resident_province, type)
-    VALUES ('${attendee.id}', '${attendee.qr}', '${attendee.id}', 'นาย', 'รางวัล', 'ทดสอบ', 16, 'กรุงเทพมหานคร', 'student');
-    INSERT INTO checkpoints (id, name, type) VALUES ('${entryCheckpoint}', 'E2E entry', 'entry');
-    INSERT INTO checkpoint_logs (id, attendee_id, checkpoint_id)
-    SELECT '${attendee.id}-' || id, '${attendee.id}', id FROM checkpoints
-    WHERE deleted_at IS NULL AND (
-      id = '${entryCheckpoint}' OR type IN ('tcas', 'central_activity')
-      OR id IN (SELECT id FROM checkpoints WHERE type = 'booth' AND deleted_at IS NULL ORDER BY id LIMIT 6)
-    );
-    INSERT INTO reward_gifts (id, name, tier) VALUES ('${gift.id}', '${gift.name}', 3);
-  `);
+  seedWorkshops();
+  deleteAttendees(attendees.map((a) => a.id));
+  insertAttendees(attendees);
+  stamp(crew.id, crewStamps);
+  // Scanned around without passing the entry point.
+  stamp(outsider.id, { tcas: true, central: true, booths: 6 });
+  stamp(beginner.id, { entry: "entry" });
+  // Tier 2: 12 booths and a workshop.
+  stamp(deputy.id, {
+    ...crewStamps,
+    booths: 12,
+    workshopSlots: ["workshop-geo-map-2"],
+  });
+  stamp(chooser.id, crewStamps);
+  stamp(climber.id, crewStamps);
+  stamp(dropout.id, crewStamps);
 });
 
 test.afterEach(() => {
   if (staffId) deleteStaff(staffId);
   staffId = null;
+  if (gifts.length > 0) {
+    const list = gifts.map((id) => `'${id}'`).join(", ");
+    localD1(`
+      DELETE FROM reward_redemptions WHERE gift_id IN (${list});
+      DELETE FROM reward_gifts WHERE id IN (${list});
+    `);
+    gifts.length = 0;
+  }
 });
 
-test.afterAll(cleanUp);
+test.afterAll(() => deleteAttendees(attendees.map((a) => a.id)));
 
-async function lookUp(page: Page) {
+async function openRewards(page: Page, permissions = ["activityStaff"]) {
+  staffId = await signInAsStaff(page, permissions);
+  await open(page, "/staff/rewards");
+}
+
+/** Look `who` up through the code form; returns the sheet. */
+async function lookUp(page: Page, who: TestAttendee) {
   const field = page.getByLabel("กรอกรหัสของผู้ร่วมงาน");
   if (!(await field.isVisible()))
     await page.getByRole("button", { name: "กรอกรหัส" }).click();
-  await field.fill(attendee.qr);
+  await field.fill(who.qr);
   await page.getByRole("button", { name: "ตรวจสอบ", exact: true }).click();
   const sheet = page.getByRole("dialog");
   await expect(
     sheet.getByRole("heading", { name: "รับของรางวัล" }),
   ).toBeVisible();
-  await expect(sheet.getByText(attendee.name)).toBeVisible();
+  await expect(sheet.getByText(fullName(who))).toBeVisible();
   return sheet;
 }
 
-test("the reward point shows the tiers, redeems the highest reached, then locks", async ({
+const confirmButton = (sheet: ReturnType<Page["getByRole"]>) =>
+  sheet.getByRole("button", { name: "ยืนยันการรับของ" });
+
+async function dismissError(page: Page, title: string) {
+  const dialog = page.getByRole("dialog", { name: title });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "ตกลง" }).click();
+  await expect(dialog).toBeHidden();
+}
+
+test("redeems the highest tier reached once, then locks; workshops stay open", async ({
   page,
 }) => {
-  staffId = await signInAsStaff(page, ["activityStaff"]);
-  await open(page, "/staff/rewards");
+  addGift("e2e-reward-gift", "หมอนทดสอบ", 3);
+  await openRewards(page, ["activityStaff", "workshopStaff"]);
   await expect(
     page.getByRole("table", { name: "เงื่อนไขแลกของรางวัลในแต่ละขั้น" }),
   ).toContainText("กัปตันโจรสลัด");
 
   // Tier 3 reached: the sheet says what's being redeemed and what the next tier needs.
-  let sheet = await lookUp(page);
-  await expect(sheet.getByText(`${attendee.id}@example.com`)).toBeVisible();
+  let sheet = await lookUp(page, crew);
+  await expect(sheet.getByText(`${crew.id}@example.com`)).toBeVisible();
   await expect(sheet.getByText("“กำลังแลก ลูกเรือโจรสลัด”")).toBeVisible();
-  await expect(sheet.getByText(`ของรางวัล: ${gift.name}`)).toBeVisible();
+  await expect(sheet.getByText("ของรางวัล: หมอนทดสอบ")).toBeVisible();
   await expect(sheet).toContainText(
     "ขั้นถัดไป (รองหัวหน้าโจรสลัด) ขาด: บูธภาควิชาอีก 6 บูธ, เวิร์คช็อปอีก 1 กิจกรรม",
   );
-  await sheet.getByRole("button", { name: "ยืนยันการรับของ" }).click();
+  await confirmButton(sheet).click();
   await expect(page.getByRole("status")).toContainText(
-    `มอบ${gift.name}ให้ ${attendee.name} แล้ว`,
+    `มอบหมอนทดสอบให้ ${fullName(crew)} แล้ว`,
   );
 
   // Redeemed: scanning again explains why it can't be redeemed twice.
-  sheet = await lookUp(page);
-  await expect(sheet.getByRole("alert")).toHaveText(`แลก${gift.name}ไปแล้ว`);
-  await expect(
-    sheet.getByRole("button", { name: "ยืนยันการรับของ" }),
-  ).toBeDisabled();
+  sheet = await lookUp(page, crew);
+  await expect(sheet.getByRole("alert")).toHaveText("แลกหมอนทดสอบไปแล้ว");
+  await expect(confirmButton(sheet)).toBeDisabled();
+  await sheet.getByRole("button", { name: "ยกเลิก" }).click();
+
+  // Workshops stay open after redemption (the backend locks only the other checkpoints).
+  await open(page, "/staff/workshop-check-in?session=geo-map%3A3");
+  await page.getByRole("button", { name: "เพิ่มคน" }).click();
+  await page.getByRole("button", { name: "กรอกรหัส" }).click();
+  await page.getByLabel("กรอกรหัสของผู้ร่วมงาน").fill(crew.qr);
+  await page.getByRole("button", { name: "ลงทะเบียน", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "ตกลง" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    `เพิ่ม ${fullName(crew)} เข้ารอบนี้แล้ว`,
+  );
+});
+
+test("explains why an attendee can't redeem yet", async ({ page }) => {
+  addGift("e2e-reward-gift", "หมอนทดสอบ", 3);
+  await openRewards(page);
+
+  // Not through the entry point.
+  let sheet = await lookUp(page, outsider);
+  await expect(sheet.getByRole("alert")).toHaveText(
+    "ยังไม่ได้ผ่านจุดลงทะเบียน",
+  );
+  await expect(confirmButton(sheet)).toBeDisabled();
+  await sheet.getByRole("button", { name: "ยกเลิก" }).click();
+
+  // Entered, nothing else: what tier 3 needs, and the booths still to visit.
+  sheet = await lookUp(page, beginner);
+  await expect(sheet.getByRole("alert")).toHaveText("ยังไม่ผ่านเกณฑ์ขั้นใด");
+  await expect(sheet).toContainText(
+    "ขั้นถัดไป (ลูกเรือโจรสลัด) ขาด: บูธ TCAS, กิจกรรมกลาง, บูธภาควิชาอีก 6 บูธ",
+  );
+  await expect(sheet.getByText(/^บูธที่ยังไม่ได้เก็บ \(\d+\)$/)).toBeVisible();
+  await expect(confirmButton(sheet)).toBeDisabled();
+  await sheet.getByRole("button", { name: "ยกเลิก" }).click();
+
+  // Tier 2 reached, but no tier 2 gift configured.
+  sheet = await lookUp(page, deputy);
+  await expect(sheet.getByRole("alert")).toHaveText(
+    "ยังไม่ได้ตั้งค่าของรางวัลของขั้นนี้ กรุณาติดต่อผู้ดูแลระบบ",
+  );
+  await expect(confirmButton(sheet)).toBeDisabled();
+});
+
+test("lets staff pick between a tier's gifts", async ({ page }) => {
+  addGift("e2e-reward-gift-a", "หมอนลายเสือ", 3);
+  addGift("e2e-reward-gift-b", "หมอนลายปลา", 3);
+  await openRewards(page);
+
+  const sheet = await lookUp(page, chooser);
+  const picker = sheet.locator("[data-slot=picker]");
+  await picker.locator("[data-slot=picker-trigger]").click();
+  await picker
+    .locator("[data-slot=picker-item]", { hasText: "หมอนลายปลา" })
+    .click();
+  await confirmButton(sheet).click();
+  await expect(page.getByRole("status")).toContainText(
+    `มอบหมอนลายปลาให้ ${fullName(chooser)} แล้ว`,
+  );
+});
+
+test("refuses a handover when progress changed after the preview", async ({
+  page,
+}) => {
+  addGift("e2e-reward-gift", "หมอนทดสอบ", 3);
+  await openRewards(page);
+
+  // Moved up to tier 2 while the sheet showed tier 3.
+  let sheet = await lookUp(page, climber);
+  await expect(sheet.getByText("“กำลังแลก ลูกเรือโจรสลัด”")).toBeVisible();
+  localD1(`DELETE FROM checkpoint_logs WHERE attendee_id = '${climber.id}';`);
+  stamp(climber.id, {
+    ...crewStamps,
+    booths: 12,
+    workshopSlots: ["workshop-geo-map-2"],
+  });
+  await confirmButton(sheet).click();
+  await dismissError(page, "ข้อมูลเปลี่ยนไปแล้ว");
+
+  // No longer reaches any tier.
+  sheet = await lookUp(page, dropout);
+  await expect(sheet.getByText("“กำลังแลก ลูกเรือโจรสลัด”")).toBeVisible();
+  localD1(
+    `DELETE FROM checkpoint_logs WHERE attendee_id = '${dropout.id}' AND checkpoint_id = 'tcas';`,
+  );
+  await confirmButton(sheet).click();
+  await dismissError(page, "ยังไม่ผ่านเกณฑ์");
 });

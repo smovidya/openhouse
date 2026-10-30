@@ -114,16 +114,17 @@ export async function completeRegistration(
   await expect(page).toHaveURL(/\/myid$/);
 }
 
+// Wrangler's own script under Node, without a shell, so the SQL reaches it as one argument.
+const wrangler = join(
+  process.cwd(),
+  "node_modules",
+  "wrangler",
+  "bin",
+  "wrangler.js",
+);
+
 /** Run SQL (or a package script) against the local D1. */
 export function localD1(sql: string) {
-  // Wrangler's own script under Node, without a shell, so the SQL reaches it as one argument.
-  const wrangler = join(
-    process.cwd(),
-    "node_modules",
-    "wrangler",
-    "bin",
-    "wrangler.js",
-  );
   execFileSync(
     process.execPath,
     [wrangler, "d1", "execute", "DB", "--local", "--command", sql],
@@ -131,6 +132,16 @@ export function localD1(sql: string) {
       stdio: "pipe",
     },
   );
+}
+
+/** Run one SELECT against the local D1 and return its rows. */
+export function localD1Rows<Row>(sql: string): Row[] {
+  const output = execFileSync(
+    process.execPath,
+    [wrangler, "d1", "execute", "DB", "--local", "--json", "--command", sql],
+    { stdio: "pipe", encoding: "utf8" },
+  );
+  return (JSON.parse(output) as { results: Row[] }[])[0].results;
 }
 
 /** Make sure the department booths and event checkpoints exist in the local D1 (repeat-safe). */
@@ -149,19 +160,105 @@ export function seedWorkshops() {
   });
 }
 
+export type TestAttendee = {
+  id: string;
+  qr: string;
+  firstname: string;
+  lastname: string;
+};
+
+export const fullName = (attendee: TestAttendee) =>
+  `${attendee.firstname} ${attendee.lastname}`;
+
+/** Registered attendees (with their accounts), aged 16, email `<id>@example.com`. */
+export function insertAttendees(attendees: TestAttendee[]) {
+  localD1(
+    attendees
+      .map(
+        (attendee) => `
+      INSERT INTO users (id, google_id, email, name, role)
+      VALUES ('${attendee.id}', '${attendee.id}', '${attendee.id}@example.com', 'E2E attendee', 'attendee');
+      INSERT INTO attendees (id, qrCodeId, user_id, title, firstname, lastname, age, resident_province, type)
+      VALUES ('${attendee.id}', '${attendee.qr}', '${attendee.id}', 'นาย', '${attendee.firstname}', '${attendee.lastname}', 16, 'กรุงเทพมหานคร', 'student');`,
+      )
+      .join("\n"),
+  );
+}
+
+/** Deletes the attendees with everything recorded about them. */
+export function deleteAttendees(ids: string[]) {
+  const list = ids.map((id) => `'${id}'`).join(", ");
+  localD1(`
+    DELETE FROM reward_redemptions WHERE attendee_id IN (${list});
+    DELETE FROM checkpoint_logs WHERE attendee_id IN (${list});
+    DELETE FROM workshop_registrations WHERE attendee_id IN (${list});
+    DELETE FROM attendees WHERE id IN (${list});
+    DELETE FROM users WHERE id IN (${list});
+  `);
+}
+
+/** Checkpoints an attendee has been scanned at (seedBooths / seedWorkshops first). */
+export type Stamps = {
+  /** An entry checkpoint's id. */
+  entry?: string;
+  tcas?: boolean;
+  central?: boolean;
+  stage?: boolean;
+  /** How many department booths (the first ones by id). */
+  booths?: number;
+  /** Workshop rounds attended, by time slot id (e.g. workshop-geo-map-1). */
+  workshopSlots?: string[];
+};
+
+/** Records the attendee's scans directly in D1; log ids are `<attendee id>-<checkpoint id>`. */
+export function stamp(attendeeId: string, stamps: Stamps) {
+  const types = [
+    stamps.tcas && "'tcas'",
+    stamps.central && "'central_activity'",
+    stamps.stage && "'stage'",
+  ].filter(Boolean);
+  const matches = [
+    stamps.entry && `id = '${stamps.entry}'`,
+    types.length > 0 && `type IN (${types.join(", ")})`,
+    stamps.booths &&
+      `id IN (SELECT id FROM checkpoints WHERE type = 'booth' AND deleted_at IS NULL ORDER BY id LIMIT ${stamps.booths})`,
+  ].filter(Boolean);
+  const statements = [
+    matches.length > 0 &&
+      `INSERT INTO checkpoint_logs (id, attendee_id, checkpoint_id)
+       SELECT '${attendeeId}-' || id, '${attendeeId}', id FROM checkpoints
+       WHERE deleted_at IS NULL AND (${matches.join(" OR ")});`,
+    ...(stamps.workshopSlots ?? []).map(
+      (slot) =>
+        `INSERT INTO checkpoint_logs (id, attendee_id, checkpoint_id, workshop_id, attendance_type)
+         SELECT '${attendeeId}-' || c.id, '${attendeeId}', c.id, s.workshop_id, 'walk-in'
+         FROM checkpoints c JOIN workshop_time_slots s ON s.id = c.workshop_time_slot_id
+         WHERE s.id = '${slot}' AND c.type = 'workshop' AND c.deleted_at IS NULL;`,
+    ),
+  ].filter(Boolean);
+  if (statements.length > 0) localD1(statements.join("\n"));
+}
+
+/** The signed-in dev session's user id. */
+export async function sessionUserId(page: Page) {
+  const cookie = (await page.context().cookies()).find(
+    (item) => item.name === "vidyachula-session-dev",
+  );
+  expect(cookie).toBeDefined();
+  return (
+    JSON.parse(
+      Buffer.from(cookie!.value.split(".")[1], "base64url").toString(),
+    ) as { sub: string }
+  ).sub;
+}
+
 /**
  * Sign in as a fresh local account and make it staff with `permissions` (directly in D1, skipping
  * the invite code). Returns the user id; delete it with `deleteStaff`.
  */
 export async function signInAsStaff(page: Page, permissions: string[]) {
   await devSession(page, "New registration");
-  const cookie = (await page.context().cookies()).find(
-    (item) => item.name === "vidyachula-session-dev",
-  );
-  expect(cookie).toBeDefined();
-  const { sub } = JSON.parse(
-    Buffer.from(cookie!.value.split(".")[1], "base64url").toString(),
-  ) as { sub: string };
+  const sub = await sessionUserId(page);
   localD1(`
     INSERT INTO staffs (id, user_id, type, name, phone, permission)
     VALUES ('${sub}', '${sub}', 'test', 'E2E staff', '0000000000', '${JSON.stringify(permissions)}');
