@@ -27,10 +27,3 @@
 
 - certification
 - เปิดงาน
-
-- `event_journey` migration, `workshops:seed`, `booths:seed`
-- เพิ่มของรางวัล 3 ขั้น (ดูข้างบน)????
-
-## หน้า
-
-- ประวัติการแลกของรางวัล: ไม่ทำ
