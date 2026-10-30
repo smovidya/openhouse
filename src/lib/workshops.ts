@@ -30,14 +30,6 @@ export type BookedSession = Pick<
 export const sessionId = (workshop: string, round: number) =>
   `${workshop}:${round}`;
 
-/**
- * The round's `workshop_time_slots` id in D1, as scripts/seed-workshops.ts has always written it.
- * The attendance API takes this; no query returns slot ids.
- */
-export const timeSlotId = (
-  session: Pick<WorkshopSession, "workshop" | "round">,
-) => `workshop-${session.workshop}-${session.round}`;
-
 /** A Date as ISO 8601 in Bangkok time (UTC+7, no DST), so its first 10 chars are the local day. */
 export function toBangkokIso(date: Date) {
   const local = new Date(date.getTime() + 7 * 60 * 60 * 1000);
@@ -182,6 +174,7 @@ export type ApiWorkshop = {
   description: string;
   capacity: number;
   timeSlots: {
+    slotId: string;
     roundNumber: number;
     startsAt: Date;
     endsAt: Date;

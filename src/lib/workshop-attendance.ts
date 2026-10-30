@@ -1,6 +1,8 @@
 import type { ErrorMessage } from "#lib/error-dialog.svelte.js";
 
 import type { CheckInWorkshopInput } from "#lib/features/workshops/schemas.ts";
+import { getWorkshopBySlug } from "#lib/features/workshops/workshops.remote.ts";
+import type { WorkshopSession } from "#lib/workshops.js";
 import { httpErrorMessage, httpStatus } from "#lib/utils.js";
 
 /** `advance` lets in attendees who booked the round; `open` also adds walk-ins. */
@@ -42,6 +44,34 @@ export const rejectionMessages = {
 export const isRejection = (code: string | null): code is RejectionCode =>
   code !== null && Object.hasOwn(rejectionMessages, code);
 
+export const slotNotFound: ErrorMessage = {
+  title: "ไม่พบรอบเวลานี้ในระบบ",
+  description: "รอบเวลานี้ยังไม่ได้ตั้งค่าในระบบ กรุณาติดต่อผู้ดูแลระบบ",
+};
+
+type WorkshopResult = Awaited<ReturnType<typeof getWorkshopBySlug>>;
+
+/** A catalog round's time slot id (the attendance API's `workshopTimeSlotId`) in `getWorkshopBySlug`'s result. */
+export function slotIdIn(
+  result: WorkshopResult,
+  session: Pick<WorkshopSession, "round">,
+): string | null {
+  if (result.isErr()) return null;
+  return (
+    result.value?.timeSlots.find((slot) => slot.roundNumber === session.round)
+      ?.slotId ?? null
+  );
+}
+
+/** Looks up a catalog round's time slot id; null when the round isn't in D1. */
+export async function findSlotId(
+  session: Pick<WorkshopSession, "workshop" | "round">,
+) {
+  const result = await getWorkshopBySlug(session.workshop);
+  if (result.isErr()) throw new Error(result.error);
+  return slotIdIn(result, session);
+}
+
 /** A failed query's `error` (App.Error) carries the code as its message. */
 function errorCode(error: unknown) {
   if (httpErrorMessage(error) !== null) return httpErrorMessage(error);
@@ -57,11 +87,7 @@ function errorCode(error: unknown) {
 export function attendanceError(error: unknown): ErrorMessage {
   const reason = errorCode(error);
   if (isRejection(reason)) return rejectionMessages[reason];
-  if (reason === "WORKSHOP_TIME_SLOT_NOT_FOUND")
-    return {
-      title: "ไม่พบรอบเวลานี้ในระบบ",
-      description: "รอบเวลานี้ยังไม่ได้ตั้งค่าในระบบ กรุณาติดต่อผู้ดูแลระบบ",
-    };
+  if (reason === "WORKSHOP_TIME_SLOT_NOT_FOUND") return slotNotFound;
   if (httpStatus(error) === 403)
     return {
       title: "ไม่มีสิทธิ์",

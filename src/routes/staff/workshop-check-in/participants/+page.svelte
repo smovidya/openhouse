@@ -4,19 +4,22 @@
 	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { showError } from "#lib/error-dialog.svelte.js";
+	import { getWorkshopBySlug } from "#lib/features/workshops/workshops.remote.ts";
 	import {
 		getWorkshopAttendanceStats,
 		listWorkshopAttendance,
 		setWorkshopAttendance,
 	} from "#lib/features/workshops/attendance.remote.ts";
 	import { mockAttendeeEmail } from "#lib/mock/attendees.js";
-	import { attendanceError } from "#lib/workshop-attendance.js";
-	import { findSession, roundLabel, timeSlotId } from "#lib/workshops.js";
+	import { attendanceError, slotIdIn, slotNotFound } from "#lib/workshop-attendance.js";
+	import { findSession, roundLabel } from "#lib/workshops.js";
 
 	// A round's roster (Figma "บูธเวิร์คช็อป"): booked attendees with a check-in switch, then walk-ins.
 	const sessionId = $derived(page.url.searchParams.get("session") ?? "");
 	const round = $derived(findSession(sessionId));
-	const slot = $derived(round && timeSlotId(round.session));
+	// The round's time slot id comes from the workshop's rounds in D1.
+	const workshopQuery = $derived(round ? getWorkshopBySlug(round.workshop.id) : null);
+	const slot = $derived(round && workshopQuery?.current ? slotIdIn(workshopQuery.current, round.session) : null);
 	// Remote queries: setWorkshopAttendance refreshes both.
 	const attendance = $derived(slot ? listWorkshopAttendance({ workshopTimeSlotId: slot }) : null);
 	const stats = $derived(slot ? getWorkshopAttendanceStats({ workshopTimeSlotId: slot }) : null);
@@ -68,8 +71,16 @@
 	<div class="flex w-full flex-col gap-6">
 		<h1 class="text-center text-[32px] font-medium text-brand-yellow">บูธเวิร์คช็อป</h1>
 
-		{#if !round || !attendance || !stats}
+		{#if !round || !workshopQuery}
 			<p class="text-center text-base text-brand-mist">ไม่พบรอบเวลานี้ กรุณาเลือกบูธเวิร์คช็อปและรอบเวลาใหม่</p>
+		{:else if workshopQuery.error}
+			<p role="alert" class="text-center text-base text-brand-mist">
+				{attendanceError(workshopQuery.error).description}
+			</p>
+		{:else if !workshopQuery.current}
+			<p class="text-center text-base text-brand-mist">กำลังโหลด…</p>
+		{:else if !attendance || !stats}
+			<p role="alert" class="text-center text-base text-brand-mist">{slotNotFound.description}</p>
 		{:else if attendance.error || stats.error}
 			<p role="alert" class="text-center text-base text-brand-mist">
 				{attendanceError(attendance.error ?? stats.error).description}

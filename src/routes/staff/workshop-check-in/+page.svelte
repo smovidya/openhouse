@@ -42,8 +42,8 @@
 	import { mockAttendeeEmail } from "#lib/mock/attendees.js";
 	import { checkInWorkshop } from "#lib/features/workshops/attendance.remote.ts";
 	import { httpStatus } from "#lib/utils.js";
-	import { attendanceError } from "#lib/workshop-attendance.js";
-	import { findSession, roundLabel, timeSlotId, workshops } from "#lib/workshops.js";
+	import { attendanceError, findSlotId, slotNotFound } from "#lib/workshop-attendance.js";
+	import { findSession, roundLabel, workshops } from "#lib/workshops.js";
 
 	// The round is in the URL (?session=), so the participant list's back button returns to it.
 	const workshopOptions = workshops.map((workshop) => ({ value: workshop.id, label: workshop.title }));
@@ -125,9 +125,13 @@
 		const name = `${attendee.firstname} ${attendee.lastname}`;
 		try {
 			const round = findSession(current.sessionId);
-			if (!round) return;
+			const slotId = round && (await findSlotId(round.session));
+			if (!slotId) {
+				void showError(slotNotFound);
+				return;
+			}
 			const result = await checkInWorkshop({
-				workshopTimeSlotId: timeSlotId(round.session),
+				workshopTimeSlotId: slotId,
 				qrCodeId: attendee.qrCodeId,
 				mode: modes[current.mode].api,
 			});
