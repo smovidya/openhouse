@@ -1,5 +1,11 @@
 import type { ErrorMessage } from "#lib/error-dialog.svelte.js";
 
+import type { CheckInWorkshopInput } from "#lib/features/workshops/schemas.ts";
+import { httpErrorMessage, httpStatus } from "#lib/utils.js";
+
+/** `advance` lets in attendees who booked the round; `open` also adds walk-ins. */
+export type AttendanceMode = CheckInWorkshopInput["mode"];
+
 /** Why a workshop check-in was refused: the attendance API's 409 messages. */
 export type RejectionCode =
   | "ENTRY_REQUIRED"
@@ -35,3 +41,23 @@ export const rejectionMessages = {
 
 export const isRejection = (code: string | null): code is RejectionCode =>
   code !== null && Object.hasOwn(rejectionMessages, code);
+
+/** The dialog for a failed attendance call. */
+export function attendanceError(error: unknown): ErrorMessage {
+  const reason = httpErrorMessage(error);
+  if (isRejection(reason)) return rejectionMessages[reason];
+  if (reason === "WORKSHOP_TIME_SLOT_NOT_FOUND")
+    return {
+      title: "ไม่พบรอบเวลานี้ในระบบ",
+      description: "รอบเวลานี้ยังไม่ได้ตั้งค่าในระบบ กรุณาติดต่อผู้ดูแลระบบ",
+    };
+  if (httpStatus(error) === 403)
+    return {
+      title: "ไม่มีสิทธิ์",
+      description: "บัญชีนี้ไม่มีสิทธิ์เช็คอินเวิร์คช็อป",
+    };
+  return {
+    title: "บันทึกไม่สำเร็จ",
+    description: "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง",
+  };
+}

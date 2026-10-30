@@ -12,7 +12,7 @@ import { error } from "@sveltejs/kit";
 import type { RejectionCode } from "#lib/workshop-attendance.js";
 import { workshops } from "#lib/workshops.js";
 
-export type AttendanceMode = "advance" | "open";
+import type { AttendanceMode } from "#lib/workshop-attendance.js";
 export type AttendanceType = "advance" | "walk-in";
 
 export type RosterAttendee = {

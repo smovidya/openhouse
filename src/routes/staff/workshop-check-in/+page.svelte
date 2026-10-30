@@ -3,7 +3,7 @@
 	import addSkyIcon from "#lib/assets/icons/add-circle-sky.svg";
 	import checkNavyIcon from "#lib/assets/icons/person-check-navy.svg";
 	import checkSkyIcon from "#lib/assets/icons/person-check-sky.svg";
-	import type { AttendanceMode } from "#lib/mock/workshop-attendance.svelte.js";
+	import type { AttendanceMode } from "#lib/workshop-attendance.js";
 
 	/** เช็คอิน lets in attendees who booked the round; เพิ่มคน also adds walk-ins (booked ones are just checked in). */
 	type Mode = "check-in" | "add";
@@ -40,10 +40,10 @@
 	import { showError } from "#lib/error-dialog.svelte.js";
 	import { getAttendeeProfileByQrCodeId } from "#lib/features/attendees/attendees.remote.ts";
 	import { mockAttendeeEmail } from "#lib/mock/attendees.js";
-	import { checkInWorkshop } from "#lib/mock/workshop-attendance.svelte.js";
-	import { httpErrorMessage, httpStatus } from "#lib/utils.js";
-	import { isRejection, rejectionMessages } from "#lib/workshop-attendance.js";
-	import { findSession, roundLabel, workshops } from "#lib/workshops.js";
+	import { checkInWorkshop } from "#lib/features/workshops/attendance.remote.ts";
+	import { httpStatus } from "#lib/utils.js";
+	import { attendanceError } from "#lib/workshop-attendance.js";
+	import { findSession, roundLabel, timeSlotId, workshops } from "#lib/workshops.js";
 
 	// The round is in the URL (?session=), so the participant list's back button returns to it.
 	const workshopOptions = workshops.map((workshop) => ({ value: workshop.id, label: workshop.title }));
@@ -124,21 +124,18 @@
 		current.state = "saving";
 		const name = `${attendee.firstname} ${attendee.lastname}`;
 		try {
-			const result = await checkInWorkshop(
-				{ workshopTimeSlotId: current.sessionId, qrCodeId: attendee.qrCodeId, mode: modes[current.mode].api },
-				attendee
-			);
-			message = result.attendanceType === "advance" ? `เช็คอิน ${name} แล้ว` : `เพิ่ม ${name} เข้ารอบนี้แล้ว`;
+			const round = findSession(current.sessionId);
+			if (!round) return;
+			const result = await checkInWorkshop({
+				workshopTimeSlotId: timeSlotId(round.session),
+				qrCodeId: attendee.qrCodeId,
+				mode: modes[current.mode].api,
+			});
+			message =
+				result.log.attendanceType === "walk-in" ? `เพิ่ม ${name} เข้ารอบนี้แล้ว` : `เช็คอิน ${name} แล้ว`;
 			code = "";
 		} catch (caught) {
-			const reason = httpErrorMessage(caught);
-			void showError(
-				isRejection(reason)
-					? rejectionMessages[reason]
-					: httpStatus(caught) === 403
-						? { title: "ไม่มีสิทธิ์", description: "บัญชีนี้ไม่มีสิทธิ์เช็คอินเวิร์คช็อป" }
-						: { title: "บันทึกไม่สำเร็จ", description: "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง" }
-			);
+			void showError(attendanceError(caught));
 		} finally {
 			current.state = "closed";
 		}
