@@ -144,14 +144,12 @@
 				</h3>
 				{#if progress.redemption.tier}
 					<p class="text-sm text-brand-mist">
-						คุณคือ “{tierTitle(progress.redemption.tier)}” แห่งมหาสมุทรวิทยาศาสตร์
+						คุณปลดล็อค “{tierTitle(progress.redemption.tier)}” แห่งมหาสมุทรวิทยาศาสตร์
+						เรียบร้อยแล้ว
 					</p>
+				{:else}
+					<p class="text-sm text-brand-mist">ปลดล็อคขั้นสูงสุดที่ทำได้แล้ว</p>
 				{/if}
-				<p class="text-sm text-brand-mist">
-					{progress.redemption.giftName
-						? `รับของรางวัล “${progress.redemption.giftName}” ไปแล้ว`
-						: "รับของรางวัลไปแล้ว"}
-				</p>
 				<p class="text-xs text-brand-mist/90">
 					การล่าแสตมป์ของคุณสิ้นสุดลงแล้ว — เก็บแสตมป์เพิ่มหรือเลื่อนขั้นต่อไม่ได้อีกต่อไป
 				</p>

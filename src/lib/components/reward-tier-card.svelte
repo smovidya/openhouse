@@ -42,7 +42,7 @@
 	>
 		<span class="flex shrink-0 items-center gap-1">
 			<img src={trophyIcon} alt="" />
-			{awarded ? "แลกของรางวัลแล้ว" : locked ? "เงื่อนไข (ประวัติสั่งสม):" : "เงื่อนไขปลดล็อค:"}
+			{awarded ? "ปลดล็อคขั้นนี้แล้ว" : locked ? "เงื่อนไข (ประวัติสั่งสม):" : "เงื่อนไขปลดล็อค:"}
 		</span>
 		<ul class="grid flex-1 grid-cols-2 gap-x-2">
 			{#each tier.conditions as condition (condition.label)}
@@ -56,7 +56,7 @@
 		</ul>
 	</div>
 	<div class="text-xs text-brand-mist">
-		<p>{awarded ? "ของรางวัลที่ได้รับ" : "ของรางวัลที่จะได้รับ"}</p>
+		<p>{awarded ? "ของรางวัลของขั้นนี้" : "ของรางวัลที่จะได้รับ"}</p>
 		<ul class="list-disc">
 			{#each tier.rewards as reward (reward)}
 				<li class="ms-[18px]">{reward}</li>
