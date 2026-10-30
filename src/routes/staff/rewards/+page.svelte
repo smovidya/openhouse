@@ -39,6 +39,7 @@
 	import { Picker } from "#lib/components/ui/picker/index.js";
 	import { showError } from "#lib/error-dialog.svelte.js";
 	import { getAttendeeProfileByQrCodeId } from "#lib/features/attendees/attendees.remote.ts";
+	import { souvenirTierForCheckpoint } from "#lib/features/dashboard/souvenirs.ts";
 	import { previewReward, redeemReward } from "#lib/features/rewards/rewards.remote.ts";
 	import { missingItems, nextTier, rewardHashtags, tierTitle } from "#lib/rewards.js";
 	import { httpErrorMessage, httpStatus } from "#lib/utils.js";
@@ -100,13 +101,29 @@
 		return null;
 	}
 
+	/**
+	 * Where a tier's handover is recorded. The admin dashboard tells tiers apart by the reward
+	 * checkpoint's name, so use the tier's own point when there is one; else a point named for no
+	 * tier (a single reward point), else any.
+	 */
+	function rewardPointFor(tier: 1 | 2 | 3) {
+		const { rewardPoints } = data;
+		return (
+			rewardPoints.find((point) => souvenirTierForCheckpoint(point.name) === `tier${tier}`) ??
+			rewardPoints.find((point) => souvenirTierForCheckpoint(point.name) === null) ??
+			rewardPoints[0] ??
+			null
+		);
+	}
+
 	async function confirm() {
 		const current = sheet;
 		if (current?.state !== "confirming" || blocker(current)) return;
 		const tier = current.preview.progress.highestEligibleTier;
 		const gift = current.preview.gifts.find((candidate) => candidate.id === current.giftId);
 		if (tier === null || !gift) return;
-		if (!data.reward) {
+		const rewardPoint = rewardPointFor(tier);
+		if (!rewardPoint) {
 			current.state = "closed";
 			void showError({ title: "ไม่พบจุดแลกของรางวัล", description: "ยังไม่ได้ตั้งค่าจุดแลกของรางวัล กรุณาติดต่อผู้ดูแลระบบ" });
 			return;
@@ -116,7 +133,7 @@
 		try {
 			await redeemReward({
 				qrCodeId: attendee.qrCodeId,
-				checkpointId: data.reward.id,
+				checkpointId: rewardPoint.id,
 				giftId: gift.id,
 				expectedTier: tier,
 			});

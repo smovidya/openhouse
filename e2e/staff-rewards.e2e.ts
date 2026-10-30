@@ -5,6 +5,7 @@ import {
   fullName,
   insertAttendees,
   localD1,
+  localD1Rows,
   open,
   seedBooths,
   seedWorkshops,
@@ -32,6 +33,7 @@ const chooser = attendee("chooser", "เลือกของ");
 const climber = attendee("climber", "เลื่อนขั้น");
 const dropout = attendee("dropout", "หลุดเกณฑ์");
 const legacy = attendee("legacy", "แลกก่อนหน้า");
+const pointed = attendee("pointed", "จุดตามขั้น");
 const attendees = [
   crew,
   outsider,
@@ -41,6 +43,7 @@ const attendees = [
   climber,
   dropout,
   legacy,
+  pointed,
 ];
 
 /** Tier 3 (ลูกเรือโจรสลัด): entered, TCAS, the central activity and 6 department booths. */
@@ -74,6 +77,7 @@ test.beforeAll(() => {
   stamp(chooser.id, crewStamps);
   stamp(climber.id, crewStamps);
   stamp(dropout.id, crewStamps);
+  stamp(pointed.id, crewStamps);
   // Redeemed before gifts were recorded: the redemption has no gift name.
   stamp(legacy.id, crewStamps);
   localD1(`
@@ -268,4 +272,35 @@ test("refuses a handover when progress changed after the preview", async ({
   );
   await confirmButton(sheet).click();
   await dismissError(page, "ยังไม่ผ่านเกณฑ์");
+});
+
+test("records a tier's handover at that tier's reward point when there is one", async ({
+  page,
+}) => {
+  // Production has one reward point per tier (checkpoints:seed), named for its tier; the
+  // dashboard tells tiers apart by that name.
+  const tierPoint = "e2e-reward-point-tier3";
+  localD1(
+    `INSERT INTO checkpoints (id, name, type) VALUES ('${tierPoint}', 'รางวัลระดับที่ 3', 'reward');`,
+  );
+  try {
+    addGift("e2e-reward-gift", "หมอนทดสอบ", 3);
+    await openRewards(page);
+    const sheet = await lookUp(page, pointed);
+    await confirmButton(sheet).click();
+    await expect(page.getByRole("status")).toContainText(
+      `มอบหมอนทดสอบให้ ${fullName(pointed)} แล้ว`,
+    );
+    expect(
+      localD1Rows<{ checkpoint_id: string }>(
+        `SELECT checkpoint_id FROM reward_redemptions WHERE attendee_id = '${pointed.id}'`,
+      ),
+    ).toEqual([{ checkpoint_id: tierPoint }]);
+  } finally {
+    localD1(`
+      DELETE FROM checkpoint_logs WHERE checkpoint_id = '${tierPoint}';
+      DELETE FROM reward_redemptions WHERE checkpoint_id = '${tierPoint}';
+      DELETE FROM checkpoints WHERE id = '${tierPoint}';
+    `);
+  }
 });

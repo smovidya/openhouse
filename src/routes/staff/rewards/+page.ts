@@ -1,8 +1,8 @@
-import { findScannableCheckpoint } from "#lib/checkpoints.js";
+import { listScannableCheckpointsOf } from "#lib/checkpoints.js";
 import type { PageLoad } from "./$types";
 
 export const load: PageLoad = async () => {
-  // The reward point this staff member may scan. Null when there's none (no permission, or not
-  // set up): redeeming then fails with a message.
-  return { reward: await findScannableCheckpoint("reward") };
+  // The reward points this staff member may scan: one per tier (checkpoints:seed) or a single
+  // one (booths:seed). None (no permission, or not set up): redeeming fails with a message.
+  return { rewardPoints: await listScannableCheckpointsOf(["reward"]) };
 };
