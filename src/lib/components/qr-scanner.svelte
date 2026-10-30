@@ -77,12 +77,16 @@
 				const value = code?.rawValue;
 				const repeat = value === last.value && Date.now() - last.at < SAME_CODE_COOLDOWN;
 				if (value && !repeat && !stopped) {
-					const pending = onScan(value);
-					// Freeze on the scanned frame while the caller handles it.
-					const waiting = pending instanceof Promise;
-					if (waiting) video.pause();
+					let waiting = false;
 					try {
+						const pending = onScan(value);
+						// Freeze on the scanned frame while the caller handles it.
+						waiting = pending instanceof Promise;
+						if (waiting) video.pause();
 						await pending;
+					} catch (error) {
+						// A failing handler mustn't end the scan loop: keep scanning.
+						console.error(error);
 					} finally {
 						last = { value, at: Date.now() };
 						if (waiting && !paused && !stopped) await video.play().catch(() => {});
