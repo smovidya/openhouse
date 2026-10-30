@@ -162,10 +162,10 @@ export async function signInAsStaff(page: Page, permissions: string[]) {
   return sub;
 }
 
-/** Deletes the account and the check-ins it recorded (they reference it). */
+/** Deletes the account and the check-ins it recorded or removed (they reference it). */
 export function deleteStaff(userId: string) {
   localD1(`
-    DELETE FROM checkpoint_logs WHERE checker_id = '${userId}';
+    DELETE FROM checkpoint_logs WHERE checker_id = '${userId}' OR removed_by_id = '${userId}';
     DELETE FROM staffs WHERE user_id = '${userId}';
     DELETE FROM users WHERE id = '${userId}';
   `);
