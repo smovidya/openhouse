@@ -1,9 +1,23 @@
 <script lang="ts">
+	import HistoryList from "#lib/components/history-list.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import type { PageProps } from "./$types";
 
-	// A booth's check-in history (Figma "บูธนิทรรศการ / ประวัติการเช็คอิน").
+	// A booth's check-in history (Figma "บูธนิทรรศการ / ประวัติการเช็คอิน"): the latest 100.
 	let { data }: PageProps = $props();
+
+	const entries = $derived(
+		data.checkins.map((checkin) => ({
+			...checkin,
+			detail: checkin.checkpointName ?? checkin.checkpointId,
+			at: checkin.createdAt,
+		}))
+	);
+	const backHref = $derived(
+		data.checkpointId
+			? `/staff/booth-check-in?checkpoint=${encodeURIComponent(data.checkpointId)}`
+			: "/staff/booth-check-in"
+	);
 </script>
 
 <svelte:head>
@@ -16,20 +30,9 @@
 
 		<section class="flex flex-col gap-4">
 			<h2 class="text-2xl text-brand-sky">ประวัติการเช็คอิน</h2>
-			{#each data.checkins as checkin (checkin.id)}
-				<article class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 text-base text-brand-mist">
-					<div>
-						<p>{checkin.name}</p>
-						<p>{checkin.age} ปี / {checkin.level}</p>
-						<p>{checkin.booth}</p>
-					</div>
-					<p class="self-center text-right text-sm whitespace-nowrap">เวลา {checkin.time}</p>
-				</article>
-			{:else}
-				<p class="text-center text-base text-brand-mist">ยังไม่พร้อมใช้งาน</p>
-			{/each}
+			<HistoryList {entries} empty="ยังไม่มีผู้เช็คอิน" />
 		</section>
 	</div>
 
-	<Button variant="cta" size="cta-lg" href="/staff/booth-check-in" class="w-full">ย้อนกลับ</Button>
+	<Button variant="cta" size="cta-lg" href={backHref} class="w-full">ย้อนกลับ</Button>
 </main>

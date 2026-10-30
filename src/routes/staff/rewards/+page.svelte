@@ -28,6 +28,7 @@
 </script>
 
 <script lang="ts">
+	import arrowRightIcon from "#lib/assets/icons/arrow-right.svg";
 	import checkIcon from "#lib/assets/icons/check-circle-green.svg";
 	import AttendeeDetails from "#lib/components/attendee-details.svelte";
 	import RewardTierTable from "#lib/components/reward-tier-table.svelte";
@@ -160,6 +161,12 @@
 				ก่อนมอบของรางวัล ตรวจสอบว่าผู้เข้าร่วมงานลงสตอรี่ IG ติดแฮชแท็ก {rewardHashtags.join(" และ ")} ครบแล้ว
 			</p>
 		</section>
+
+		<!-- Figma: a light pill under the table. -->
+		<Button variant="cta-light" size="cta-sm" class="border" href="/staff/rewards/history">
+			ดูประวัติการแลกของ
+			<img src={arrowRightIcon} alt="" />
+		</Button>
 	</div>
 
 	<Button variant="cta" size="cta-lg" href="/staff" class="w-full">ย้อนกลับ</Button>

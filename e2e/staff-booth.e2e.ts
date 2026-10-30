@@ -100,6 +100,28 @@ test("department staff check attendees in at their booth", async ({ page }) => {
     `${fullName(visitor)} เช็คอิน ${booth.name} ไปแล้วก่อนหน้านี้`,
   );
 
+  // The booth's history lists the check-in, and back keeps the booth.
+  await page.getByRole("link", { name: "ดูประวัติการเช็คอิน" }).click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === "/staff/booth-check-in/history" &&
+      url.searchParams.get("checkpoint") === booth.id,
+  );
+  const visit = page
+    .getByRole("listitem")
+    .filter({ hasText: fullName(visitor) });
+  await expect(visit).toHaveCount(1);
+  await expect(visit).toContainText("16 ปี");
+  await expect(visit).toContainText(booth.name);
+  await expect(visit).toContainText("เวลา");
+  // By keyboard: the dev toolbar floats over the bottom of the page.
+  await page.getByRole("link", { name: "ย้อนกลับ" }).press("Enter");
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === "/staff/booth-check-in" &&
+      url.searchParams.get("checkpoint") === booth.id,
+  );
+
   // Not through the entry point yet.
   await enterCode(page, outsider);
   await confirmSheet(page, outsider);
@@ -131,9 +153,4 @@ test("staff with several booths pick one first", async ({ page }) => {
   await expect(page.getByRole("status")).toContainText(
     `เช็คอิน ${fullName(visitor)} ที่ ${booth.name} แล้ว`,
   );
-
-  // The history button is hidden until that page has data.
-  await expect(
-    page.getByRole("link", { name: "ดูประวัติการเช็คอิน" }),
-  ).toHaveCount(0);
 });

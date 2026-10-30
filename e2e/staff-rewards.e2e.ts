@@ -149,6 +149,18 @@ test("redeems the highest tier reached once, then locks; workshops stay open", a
     `มอบหมอนทดสอบให้ ${fullName(crew)} แล้ว`,
   );
 
+  // The redemption history lists it with the tier.
+  await page.getByRole("link", { name: "ดูประวัติการแลกของ" }).click();
+  await expect(page).toHaveURL(/\/staff\/rewards\/history$/);
+  const handover = page
+    .getByRole("listitem")
+    .filter({ hasText: fullName(crew) });
+  await expect(handover).toContainText("ลูกเรือโจรสลัด");
+  await expect(handover).toContainText("16 ปี");
+  // By keyboard: the dev toolbar floats over the bottom of the page.
+  await page.getByRole("link", { name: "ย้อนกลับ" }).press("Enter");
+  await expect(page).toHaveURL(/\/staff\/rewards$/);
+
   // Redeemed: scanning again explains why it can't be redeemed twice.
   sheet = await lookUp(page, crew);
   await expect(sheet.getByRole("alert")).toHaveText("แลกหมอนทดสอบไปแล้ว");

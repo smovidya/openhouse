@@ -1,17 +1,9 @@
+import { listBoothHistory } from "#lib/features/checkpoints/checkpoints.remote.ts";
 import type { PageLoad } from "./$types";
 
-export type BoothCheckIn = {
-  id: string;
-  name: string;
-  age: number;
-  /** The attendee's status, e.g. มัธยมศึกษาตอนปลาย. */
-  level: string;
-  booth: string;
-  time: string;
-};
-
-export const load: PageLoad = async () => {
-  // TODO(backend): no query returns a booth's check-ins yet; the page says it isn't ready.
-  const checkins: BoothCheckIn[] = [];
-  return { checkins };
+export const load: PageLoad = async ({ url }) => {
+  // The booth picked on the scanner page, else every booth this staff member may scan.
+  const checkpointId = url.searchParams.get("checkpoint") ?? undefined;
+  const checkins = await listBoothHistory({ checkpointId, limit: 100 });
+  return { checkpointId, checkins };
 };

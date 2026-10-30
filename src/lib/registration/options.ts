@@ -21,6 +21,14 @@ export const attendeeStatusOptions: PickerOption[] = [
   { value: "other", label: "อื่น ๆ" },
 ];
 
+const attendeeStatusLabels = new Map(
+  attendeeStatusOptions.map((option) => [option.value, option.label]),
+);
+
+/** An attendee's status (their `type`) as shown to staff, e.g. มัธยมศึกษาตอนปลาย. */
+export const attendeeStatusLabel = (type: string) =>
+  attendeeStatusLabels.get(type) ?? type;
+
 /** Statuses that skip the school name and interested-major questions. */
 export const nonStudentStatuses = new Set(["parent", "other"]);
 
