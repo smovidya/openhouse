@@ -1,8 +1,19 @@
 import { error } from "@sveltejs/kit";
 import type { Db } from "#db";
 import { attendees, staffs, users } from "#db/tables.ts";
+import {
+  specialBoothScopes,
+  staffPermission,
+  type StaffPermission,
+} from "../staff/permissions";
 import type { DevProfile } from "./schemas";
 import { findSessionUser } from "./service.server";
+
+/** The development staff fixture holds every staff role, so every staff page can be tried. */
+const devStaffPermissions: StaffPermission[] = [
+  ...staffPermission.options[0].options,
+  ...specialBoothScopes.map((scope) => scope.permission),
+];
 
 export async function ensureDevFixture(
   db: Db,
@@ -11,7 +22,8 @@ export async function ensureDevFixture(
 ) {
   if (!development) error(404, "Not found");
   // Each newcomer starts a separate registration. Registered attendee/staff
-  // fixtures remain repeatable and keep any local changes made to them.
+  // fixtures remain repeatable and keep any local changes made to them, except
+  // the staff fixture's permissions, which are reset to every role.
   const fixture =
     profile === "newcomer" ? `newcomer-${crypto.randomUUID()}` : profile;
   const id = `dev-user-${fixture}`;
@@ -59,9 +71,12 @@ export async function ensureDevFixture(
             type: "development",
             name: "Development staff",
             phone: "0000000000",
-            permission: ["boothStaff:all"],
+            permission: devStaffPermissions,
           })
-          .onConflictDoNothing();
+          .onConflictDoUpdate({
+            target: staffs.id,
+            set: { permission: devStaffPermissions },
+          });
 
   await db.batch([insertUser, insertProfile]);
   const user = await findSessionUser(db, id);
