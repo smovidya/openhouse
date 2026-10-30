@@ -62,13 +62,17 @@
 	let status = $state<CameraStatus>("starting");
 
 	onMount(() => {
-		let stopped = false;
+		let unmounted = false;
 		let timer = 0;
 		let stream: MediaStream | undefined;
+		let detector: Detector | undefined;
 		let last = { value: "", at: 0 };
+		/** Bumped by every start and stop: a scan loop or camera start from an older one ends itself. */
+		let session = 0;
+		const current = (id: number) => !unmounted && id === session;
 
-		async function tick(detector: Detector) {
-			if (stopped || !video) return;
+		async function tick(id: number) {
+			if (!current(id) || !video || !detector) return;
 			if (paused) {
 				// Restart the cooldown on resume, so the code still in front of the camera isn't read again.
 				last.at = Date.now();
@@ -76,7 +80,7 @@
 				const [code] = await detector.detect(video).catch(() => []);
 				const value = code?.rawValue;
 				const repeat = value === last.value && Date.now() - last.at < SAME_CODE_COOLDOWN;
-				if (value && !repeat && !stopped) {
+				if (value && !repeat && current(id)) {
 					let waiting = false;
 					try {
 						const pending = onScan(value);
@@ -89,36 +93,60 @@
 						console.error(error);
 					} finally {
 						last = { value, at: Date.now() };
-						if (waiting && !paused && !stopped) await video.play().catch(() => {});
+						if (waiting && !paused && current(id)) await video.play().catch(() => {});
 					}
 				}
 			}
-			if (!stopped) timer = window.setTimeout(() => tick(detector), SCAN_INTERVAL);
+			if (current(id)) timer = window.setTimeout(() => tick(id), SCAN_INTERVAL);
 		}
 
-		(async () => {
+		async function start() {
+			const id = ++session;
+			status = "starting";
 			try {
-				const detector = await createDetector();
+				detector ??= await createDetector();
 				// The back camera only: staff point the phone at the attendee's screen.
-				stream = await navigator.mediaDevices.getUserMedia({
+				const media = await navigator.mediaDevices.getUserMedia({
 					video: { facingMode: { ideal: "environment" } },
 					audio: false,
 				});
-				if (stopped || !video) return;
+				if (!current(id) || !video) {
+					for (const track of media.getTracks()) track.stop();
+					return;
+				}
+				stream = media;
 				video.srcObject = stream;
 				await video.play();
 				status = "scanning";
-				void tick(detector);
+				void tick(id);
 			} catch (error) {
-				if (stopped) return;
+				if (!current(id)) return;
 				status = error instanceof DOMException && error.name === "NotAllowedError" ? "denied" : "unavailable";
 			}
-		})();
+		}
 
-		return () => {
-			stopped = true;
+		/** Releases the camera, so the phone's camera light goes off. */
+		function stop() {
+			session++;
 			clearTimeout(timer);
 			for (const track of stream?.getTracks() ?? []) track.stop();
+			stream = undefined;
+			if (video) video.srcObject = null;
+		}
+
+		// In the background (another app or tab, or the screen off) the camera is released, and
+		// reopened on return.
+		function onVisibilityChange() {
+			if (document.hidden) stop();
+			else void start();
+		}
+		document.addEventListener("visibilitychange", onVisibilityChange);
+		if (!document.hidden) void start();
+
+		return () => {
+			unmounted = true;
+			document.removeEventListener("visibilitychange", onVisibilityChange);
+			stop();
 		};
 	});
 
