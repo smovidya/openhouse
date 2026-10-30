@@ -1,25 +1,22 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  deleteAttendees,
   deleteStaff,
+  fullName,
+  insertAttendees,
   localD1,
   open,
+  seedBooths,
   seedWorkshops,
   signInAsStaff,
+  stamp,
+  type TestAttendee,
 } from "./helpers";
 
 // Staff scanner pages against the local D1, through the code form (the camera isn't available
 // headless).
 
 test.describe.configure({ mode: "serial" });
-
-type TestAttendee = {
-  id: string;
-  qr: string;
-  firstname: string;
-  lastname: string;
-};
-const name = (attendee: TestAttendee) =>
-  `${attendee.firstname} ${attendee.lastname}`;
 
 // Real-format codes. `entrant` only checks in at the entry point; `walker` comes to a workshop
 // round without booking it; `booker` booked it.
@@ -106,7 +103,7 @@ const sheet = (page: Page) => page.getByRole("dialog");
 /** Confirm the sheet, checking it shows `attendee`. */
 async function confirmSheet(page: Page, attendee: TestAttendee, title: string) {
   await expect(sheet(page).getByRole("heading", { name: title })).toBeVisible();
-  await expect(sheet(page).getByText(name(attendee))).toBeVisible();
+  await expect(sheet(page).getByText(fullName(attendee))).toBeVisible();
   await sheet(page).getByRole("button", { name: "ตกลง" }).click();
 }
 
@@ -134,14 +131,14 @@ test("entry check-in looks up a typed code and checks the attendee in once", asy
   ).toBeVisible();
   await confirmSheet(page, entrant, "เช็คอินผู้เข้าร่วมงาน");
   await expect(page.getByRole("status")).toContainText(
-    `เช็คอิน ${name(entrant)} แล้ว`,
+    `เช็คอิน ${fullName(entrant)} แล้ว`,
   );
 
   // A repeat scan says so instead of failing.
   await enterCode(page, entrant.qr);
   await confirmSheet(page, entrant, "เช็คอินผู้เข้าร่วมงาน");
   await expect(page.getByRole("status")).toContainText(
-    `${name(entrant)} เช็คอินไปแล้วก่อนหน้านี้`,
+    `${fullName(entrant)} เช็คอินไปแล้วก่อนหน้านี้`,
   );
 });
 
@@ -176,7 +173,7 @@ test("workshop check-in: entry first, booked-only check-in, walk-ins, and the pa
   await submitCode(page);
   await confirmSheet(page, walker, "เพิ่มผู้เข้าร่วมงาน");
   await expect(page.getByRole("status")).toContainText(
-    `เพิ่ม ${name(walker)} เข้ารอบนี้แล้ว`,
+    `เพิ่ม ${fullName(walker)} เข้ารอบนี้แล้ว`,
   );
 
   // Again (success cleared the field): already in this round.
@@ -204,7 +201,9 @@ test("workshop check-in: entry first, booked-only check-in, walk-ins, and the pa
   await expect(page.getByText(`${walker.id}@example.com`)).toBeVisible();
 
   // The switch checks the booked attendee in.
-  const toggle = page.getByRole("switch", { name: `เช็คอิน ${name(booker)}` });
+  const toggle = page.getByRole("switch", {
+    name: `เช็คอิน ${fullName(booker)}`,
+  });
   await expect(toggle).toHaveAttribute("aria-checked", "false");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "true");
@@ -214,21 +213,31 @@ test("workshop check-in: entry first, booked-only check-in, walk-ins, and the pa
     total: before.total + 1,
   });
 
-  // ลบออก asks first, then removes the walk-in.
+  // Switching it off undoes the check-in.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  await expect.poll(counts).toEqual(before);
+
+  // ลบออก asks first: cancelling keeps the walk-in, confirming removes them.
   const walkInRow = page
-    .locator("div", { hasText: name(walker) })
+    .locator("div", { hasText: fullName(walker) })
     .filter({ has: page.getByRole("button", { name: "ลบออก" }) })
     .last();
-  await walkInRow.getByRole("button", { name: "ลบออก" }).click();
   const confirm = page.getByRole("alertdialog");
-  await expect(confirm).toContainText(name(walker));
+  await walkInRow.getByRole("button", { name: "ลบออก" }).click();
+  await expect(confirm).toContainText(fullName(walker));
+  await confirm.getByRole("button", { name: "ยกเลิก" }).click();
+  await expect(confirm).toBeHidden();
+  await expect(page.getByText(fullName(walker))).toBeVisible();
+  await expect.poll(counts).toEqual(before);
+
+  await walkInRow.getByRole("button", { name: "ลบออก" }).click();
   await confirm.getByRole("button", { name: "ลบออก" }).click();
-  await expect(page.getByText(name(walker))).toHaveCount(0);
+  await expect(page.getByText(fullName(walker))).toHaveCount(0);
   await expect.poll(counts).toEqual({
     ...before,
-    arrived: before.arrived + 1,
     walkIns: before.walkIns - 1,
-    total: before.total,
+    total: before.total - 1,
   });
 
   // By keyboard: the dev toolbar floats over the bottom of the page.
@@ -238,4 +247,76 @@ test("workshop check-in: entry first, booked-only check-in, walk-ins, and the pa
       url.pathname === "/staff/workshop-check-in" &&
       url.searchParams.get("session") === session,
   );
+});
+
+test.describe("workshop rejections", () => {
+  // biochem-dna round 1 is shrunk to one seat; seedWorkshops restores the catalog's capacity.
+  const full = { session: "biochem-dna:1", slot: "workshop-biochem-dna-1" };
+  const seated: TestAttendee = {
+    id: "e2e-scan-seated",
+    qr: "E2E-SCAN-SEATED",
+    firstname: "นั่ง",
+    lastname: "ที่สุดท้าย",
+  };
+  const late: TestAttendee = {
+    id: "e2e-scan-late",
+    qr: "E2E-SCAN-LATE",
+    firstname: "มา",
+    lastname: "ทีหลัง",
+  };
+  // Already attended geo-map round 2.
+  const repeater: TestAttendee = {
+    id: "e2e-scan-repeater",
+    qr: "E2E-SCAN-REPEATER",
+    firstname: "มา",
+    lastname: "ซ้ำ",
+  };
+  const ids = [seated.id, late.id, repeater.id];
+
+  test.beforeAll(() => {
+    seedBooths();
+    deleteAttendees(ids);
+    insertAttendees([seated, late, repeater]);
+    stamp(seated.id, { entry: "entry", workshopSlots: [full.slot] });
+    stamp(late.id, { entry: "entry" });
+    stamp(repeater.id, {
+      entry: "entry",
+      workshopSlots: ["workshop-geo-map-2"],
+    });
+    localD1(`
+      INSERT INTO workshop_registrations (id, workshop_time_slot_id, attendee_id, type)
+      VALUES ('${late.id}-booking', '${full.slot}', '${late.id}', 'advance');
+      UPDATE workshops SET capacity = 1 WHERE slug = 'biochem-dna';
+    `);
+  });
+
+  test.afterAll(() => {
+    deleteAttendees(ids);
+    seedWorkshops();
+  });
+
+  test("a full round turns booked attendees away in เช็คอิน mode", async ({
+    page,
+  }) => {
+    staffId = await signInAsStaff(page, ["workshopStaff"]);
+    await open(
+      page,
+      `/staff/workshop-check-in?session=${encodeURIComponent(full.session)}`,
+    );
+    await enterCode(page, late.qr);
+    await confirmSheet(page, late, "เช็คอินผู้เข้าร่วมงาน");
+    await dismissError(page, "รอบนี้เต็มแล้ว");
+  });
+
+  test("one round per workshop", async ({ page }) => {
+    staffId = await signInAsStaff(page, ["workshopStaff"]);
+    await open(
+      page,
+      `/staff/workshop-check-in?session=${encodeURIComponent(session)}`,
+    );
+    await page.getByRole("button", { name: "เพิ่มคน" }).click();
+    await enterCode(page, repeater.qr);
+    await confirmSheet(page, repeater, "เพิ่มผู้เข้าร่วมงาน");
+    await dismissError(page, "เข้าร่วมเวิร์คช็อปนี้แล้ว");
+  });
 });
