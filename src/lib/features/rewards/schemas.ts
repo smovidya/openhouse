@@ -26,3 +26,8 @@ export const saveRewardGiftInput = z.strictObject({
   enabled: z.boolean().default(true),
 });
 export type SaveRewardGiftInput = z.infer<typeof saveRewardGiftInput>;
+
+export const listRedemptionsInput = z.strictObject({
+  offset: z.int().nonnegative().default(0),
+  limit: z.int().min(1).max(100).default(50),
+});

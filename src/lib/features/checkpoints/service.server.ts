@@ -149,6 +149,55 @@ export async function listAttendeeCheckpointLogs(
     .limit(input.limit);
 }
 
+/** Checkpoints scanned on the booth check-in page, whose history booth staff can see. */
+const boothCheckpointTypes = [
+  "booth",
+  "tcas",
+  "central_activity",
+  "stage",
+] as const;
+
+/**
+ * Recent check-ins at the booths this staff member may scan (or just `checkpointId`), newest
+ * first, with the attendee's name, age and status.
+ */
+export async function listBoothHistory(
+  db: Db,
+  actorId: string,
+  input: { checkpointId?: string; offset: number; limit: number },
+) {
+  const actor = requireStaff(await findSessionUser(db, actorId));
+  return db
+    .select({
+      id: checkpointLogs.id,
+      createdAt: checkpointLogs.createdAt,
+      checkpointId: checkpoints.id,
+      checkpointName: checkpoints.name,
+      firstname: attendees.firstname,
+      lastname: attendees.lastname,
+      age: attendees.age,
+      type: attendees.type,
+    })
+    .from(checkpointLogs)
+    .innerJoin(checkpoints, eq(checkpoints.id, checkpointLogs.checkpointId))
+    .innerJoin(attendees, eq(attendees.id, checkpointLogs.attendeeId))
+    .where(
+      and(
+        isNull(checkpointLogs.deletedAt),
+        isNull(checkpoints.deletedAt),
+        isNull(attendees.deletedAt),
+        inArray(checkpoints.type, boothCheckpointTypes),
+        accessibleCheckpoints(actor.staff.permission),
+        input.checkpointId === undefined
+          ? undefined
+          : eq(checkpoints.id, input.checkpointId),
+      ),
+    )
+    .orderBy(desc(checkpointLogs.createdAt), desc(checkpointLogs.id))
+    .offset(input.offset)
+    .limit(input.limit);
+}
+
 export async function checkInAttendee(
   db: Db,
   actorId: string,

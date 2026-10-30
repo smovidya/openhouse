@@ -1,5 +1,5 @@
 import { error } from "@sveltejs/kit";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import type { Db } from "#db";
 import {
   attendees,
@@ -50,6 +50,34 @@ export async function saveRewardGift(
   }
   const [gift] = await db.insert(rewardGifts).values(values).returning();
   return gift;
+}
+
+/** Every redemption at the event, newest first, with the attendee's name, age and status. */
+export async function listRewardRedemptions(
+  db: Db,
+  actorId: string,
+  input: { offset: number; limit: number },
+) {
+  requirePermission(await findSessionUser(db, actorId), "activityStaff");
+  return db
+    .select({
+      id: rewardRedemptions.id,
+      createdAt: rewardRedemptions.createdAt,
+      tier: rewardRedemptions.tier,
+      giftName: rewardRedemptions.giftName,
+      firstname: attendees.firstname,
+      lastname: attendees.lastname,
+      age: attendees.age,
+      type: attendees.type,
+    })
+    .from(rewardRedemptions)
+    .innerJoin(attendees, eq(attendees.id, rewardRedemptions.attendeeId))
+    .where(
+      and(isNull(rewardRedemptions.deletedAt), isNull(attendees.deletedAt)),
+    )
+    .orderBy(desc(rewardRedemptions.createdAt), desc(rewardRedemptions.id))
+    .offset(input.offset)
+    .limit(input.limit);
 }
 
 export async function previewReward(

@@ -4,6 +4,7 @@ import { getAuthDb } from "../auth/config.server";
 import { requirePermission, requireSameOrigin } from "../auth/guards.server";
 import { getStaffAttendeeProgress } from "../checkpoints/checkpoints.remote";
 import {
+  listRedemptionsInput,
   previewRewardInput,
   redeemRewardInput,
   saveRewardGiftInput,
@@ -17,6 +18,17 @@ export const listRewardGifts = query(async () => {
   );
   return service.listRewardGifts(getAuthDb(env), actor.id);
 });
+
+export const listRewardRedemptions = query(
+  listRedemptionsInput,
+  async (input) => {
+    const actor = requirePermission(
+      getRequestEvent().locals.user,
+      "activityStaff",
+    );
+    return service.listRewardRedemptions(getAuthDb(env), actor.id, input);
+  },
+);
 
 export const previewReward = query(previewRewardInput, async (input) => {
   const actor = requirePermission(

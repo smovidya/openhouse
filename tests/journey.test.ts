@@ -23,6 +23,7 @@ import {
   checkInAttendee,
   getStaffAttendeeProgress,
   listAttendeeCheckpointLogs,
+  listBoothHistory,
   removeStageAttendance,
 } from "../src/lib/features/checkpoints/service.server";
 import {
@@ -30,6 +31,7 @@ import {
   getMyProgress,
 } from "../src/lib/features/checkpoints/progress.server";
 import {
+  listRewardRedemptions,
   previewReward,
   redeemReward,
   saveRewardGift,
@@ -76,6 +78,20 @@ describe("attendee journey on D1", () => {
     return attendee;
   }
   type Attendee = Awaited<ReturnType<typeof createAttendee>>;
+  async function createStaff(
+    permission: (typeof staffs.$inferInsert)["permission"],
+  ) {
+    const userId = await createUser();
+    await db.update(users).set({ role: "staff" }).where(eq(users.id, userId));
+    await db.insert(staffs).values({
+      userId,
+      type: "test",
+      name: "Staff",
+      phone: "0000000000",
+      permission,
+    });
+    return userId;
+  }
   async function seedProgress(
     attendee: Attendee,
     options: {
@@ -561,6 +577,70 @@ describe("attendee journey on D1", () => {
           )
       ).length,
       1,
+    );
+  });
+
+  it("lists booth check-in history for the staff's own booths only, newest first", async () => {
+    const visitor = await createAttendee();
+    await seedProgress(visitor, { departments: 2 });
+    const page = { offset: 0, limit: 100 };
+
+    // dept-0 staff: booth-0 (and same-department), never booth-1, TCAS, or entry.
+    const boothStaff = await createStaff(["boothStaff:dept-0"]);
+    const own = await listBoothHistory(db, boothStaff, page);
+    const visits = own.filter((row) => row.firstname === "Journey");
+    assert.ok(visits.some((row) => row.checkpointId === "booth-0"));
+    assert.ok(
+      own.every((row) =>
+        ["booth-0", "same-department"].includes(row.checkpointId),
+      ),
+    );
+    assert.deepEqual(
+      await listBoothHistory(db, boothStaff, {
+        ...page,
+        checkpointId: "booth-1",
+      }),
+      [],
+    );
+    const [row] = visits;
+    assert.equal(row.age, 18);
+    assert.equal(row.type, "student");
+
+    // Admins see every booth-like checkpoint, newest first, but not entry or reward handovers.
+    const all = await listBoothHistory(db, adminId, page);
+    assert.ok(all.some((log) => log.checkpointId === "tcas"));
+    assert.ok(
+      all.every((log) => !["entry", "reward"].includes(log.checkpointId)),
+    );
+    const times = all.map((log) => log.createdAt?.getTime() ?? 0);
+    assert.deepEqual(
+      times,
+      [...times].sort((a, b) => b - a),
+    );
+  });
+
+  it("lists reward redemptions for activity staff only, newest first", async () => {
+    const attendee = await createAttendee();
+    await seedProgress(attendee, { departments: 6 });
+    await confirm(attendee, 3);
+    const page = { offset: 0, limit: 100 };
+
+    const redemptions = await listRewardRedemptions(db, adminId, page);
+    const mine = redemptions.find(
+      (row) => row.id && row.tier === 3 && row.giftName === "Tier 3 gift",
+    );
+    assert.ok(mine);
+    assert.equal(mine.age, 18);
+    const times = redemptions.map((row) => row.createdAt?.getTime() ?? 0);
+    assert.deepEqual(
+      times,
+      [...times].sort((a, b) => b - a),
+    );
+
+    const workshopStaff = await createStaff(["workshopStaff"]);
+    await assert.rejects(
+      listRewardRedemptions(db, workshopStaff, page),
+      status(403),
     );
   });
 });

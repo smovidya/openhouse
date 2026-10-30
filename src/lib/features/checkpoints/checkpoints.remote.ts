@@ -9,6 +9,7 @@ import {
 import {
   attendeeLogsInput,
   attendeeProgressInput,
+  boothHistoryInput,
   checkInAttendeeInput,
   listCheckpointsInput,
   removeStageAttendanceInput,
@@ -49,6 +50,11 @@ export const listAttendeeCheckpointLogs = query(
     return service.listAttendeeCheckpointLogs(getAuthDb(env), actor.id, input);
   },
 );
+
+export const listBoothHistory = query(boothHistoryInput, async (input) => {
+  const actor = requireStaff(getRequestEvent().locals.user);
+  return service.listBoothHistory(getAuthDb(env), actor.id, input);
+});
 
 export const checkInAttendee = command(checkInAttendeeInput, async (input) => {
   const event = getRequestEvent();
