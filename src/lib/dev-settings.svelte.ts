@@ -1,6 +1,5 @@
 import { PersistedState } from "runed";
 import type { GlassMode } from "#lib/render/frame-plan.js";
-import type { StaffRole } from "#lib/staff.js";
 
 export const toolbarPositions = [
   "bottom-center",
@@ -21,12 +20,6 @@ export const blurEnabled = new PersistedState("dev:blur", true);
 
 /** Show the FPS counter overlay (see fps-counter.svelte). */
 export const showFps = new PersistedState("dev:showFps", false);
-
-/** TODO: placeholder for the staff role (/staff menu) until auth exists. */
-export const fakeStaffRole = new PersistedState<StaffRole>(
-  "dev:staffRole",
-  "central",
-);
 
 /**
  * The water background: WebGPU caustics, looping ("animated") or a single frame ("still"), or the

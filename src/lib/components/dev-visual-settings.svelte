@@ -3,16 +3,12 @@
 	import {
 		backgroundMode,
 		blurEnabled,
-		fakeStaffRole,
 		glassMode,
 		showFps,
 		type BackgroundMode,
 	} from "#lib/dev-settings.svelte.js";
 	import type { GlassMode } from "#lib/render/frame-plan.js";
 	import { glassRenderer } from "#lib/render/panes.svelte.js";
-	import { staffMenus, type StaffRole } from "#lib/staff.js";
-
-	const staffRoles = Object.keys(staffMenus) as StaffRole[];
 	const hasWebGPU = typeof navigator !== "undefined" && "gpu" in navigator;
 	const reducedMotion = new MediaQuery("prefers-reduced-motion: reduce");
 
@@ -106,16 +102,4 @@
 		</label>
 	</fieldset>
 
-	<label class="flex flex-col gap-1">
-		<span class="font-bold">Fake staff role <span class="font-normal opacity-60">· /staff menu</span></span>
-		<!-- Matches the toolbar's inputs (its styles are scoped to dev-controls.svelte). -->
-		<select
-			bind:value={fakeStaffRole.current}
-			class="w-full rounded-md border border-zinc-600 bg-zinc-800 px-2 py-1.5 text-sm text-zinc-50"
-		>
-			{#each staffRoles as role (role)}
-				<option value={role}>{role} ({staffMenus[role].title})</option>
-			{/each}
-		</select>
-	</label>
 </div>

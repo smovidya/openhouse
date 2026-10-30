@@ -8,8 +8,6 @@ import {
 } from "#lib/features/staff/permissions.ts";
 import { httpStatus } from "#lib/utils.ts";
 
-export type StaffRole = "central" | "booth";
-
 export type StaffAction = {
   href: string;
   label: string;
@@ -17,59 +15,42 @@ export type StaffAction = {
   permission: StaffPermission;
 };
 
-/** Per-role staff menu. "ดูข้อมูลผู้เข้าร่วมงาน" is shared and rendered by the page. */
-export const staffMenus: Record<
-  StaffRole,
-  { title: string; actions: StaffAction[] }
-> = {
-  central: {
-    title: "ส่วนกลาง",
-    actions: [
-      {
-        href: "/staff/check-in",
-        label: "เช็คอินเข้างาน",
-        icon: calendarCheckIcon,
-        permission: "activityStaff",
-      },
-      {
-        href: "/staff/workshop-check-in",
-        label: "เช็คอินเวิร์คช็อป",
-        icon: labPanelIcon,
-        permission: "workshopStaff",
-      },
-      {
-        href: "/staff/rewards",
-        label: "เช็คแลกของที่ระลึก",
-        icon: giftIcon,
-        permission: "activityStaff",
-      },
-    ],
+/** Staff menu actions. "ดูข้อมูลผู้เข้าร่วมงาน" is shared and rendered by the page. */
+export const staffActions: readonly StaffAction[] = [
+  {
+    href: "/staff/check-in",
+    label: "เช็คอินเข้างาน",
+    icon: calendarCheckIcon,
+    permission: "activityStaff",
   },
-  booth: {
-    title: "บูธนิทรรศการ",
-    actions: [
-      {
-        href: "/staff/booth-check-in",
-        label: "เช็คอินบูธนิทรรศการ",
-        icon: storefrontIcon,
-        permission: "boothStaff:all",
-      },
-    ],
+  {
+    href: "/staff/workshop-check-in",
+    label: "เช็คอินเวิร์คช็อป",
+    icon: labPanelIcon,
+    permission: "workshopStaff",
   },
-};
+  {
+    href: "/staff/rewards",
+    label: "เช็คแลกของที่ระลึก",
+    icon: giftIcon,
+    permission: "activityStaff",
+  },
+  {
+    href: "/staff/booth-check-in",
+    label: "เช็คอินบูธนิทรรศการ",
+    icon: storefrontIcon,
+    permission: "boothStaff:all",
+  },
+];
 
 /** Menu visibility follows the same grants as the backend. */
 export function getStaffActions(permissions: readonly StaffPermission[]) {
-  return Object.values(staffMenus)
-    .flatMap((menu) => menu.actions)
-    .filter(
-      (action) =>
-        hasPermission(permissions, action.permission) ||
-        (action.permission === "boothStaff:all" &&
-          permissions.some((permission) =>
-            permission.startsWith("boothStaff:"),
-          )),
-    );
+  return staffActions.filter(
+    (action) =>
+      hasPermission(permissions, action.permission) ||
+      (action.permission === "boothStaff:all" &&
+        permissions.some((permission) => permission.startsWith("boothStaff:"))),
+  );
 }
 
 /** Thai message for a failed enrollStaff / redeemInviteCode call (the server's HTTP status). */
