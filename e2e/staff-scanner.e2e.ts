@@ -240,6 +240,14 @@ test("workshop check-in: entry first, booked-only check-in, walk-ins, and the pa
     total: before.total - 1,
   });
 
+  // Scanned on another staff phone: the list picks it up without a reload.
+  stamp(entrant.id, { workshopSlots: [slot] });
+  await expect(page.getByText(fullName(entrant))).toBeVisible({
+    timeout: 20_000,
+  });
+  // One walk-in removed above, one added here.
+  await expect.poll(counts).toEqual(before);
+
   // By keyboard: the dev toolbar floats over the bottom of the page.
   await page.getByRole("link", { name: "ย้อนกลับ" }).press("Enter");
   await expect(page).toHaveURL(

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { createQuery, useQueryClient } from "@tanstack/svelte-query";
+	import { browser } from "$app/env";
 	import { page } from "$app/state";
 	import { SvelteSet } from "svelte/reactivity";
 	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
@@ -19,12 +21,25 @@
 	// The round's time slot id comes from the workshop's rounds in D1.
 	const workshopQuery = $derived(round ? getWorkshopBySlug(round.workshop.id) : null);
 	const slot = $derived(round && workshopQuery?.current ? slotIdIn(workshopQuery.current, round.session) : null);
-	// Remote queries: setWorkshopAttendance refreshes both.
-	const attendance = $derived(slot ? listWorkshopAttendance({ workshopTimeSlotId: slot }) : null);
-	const stats = $derived(slot ? getWorkshopAttendanceStats({ workshopTimeSlotId: slot }) : null);
+	// Polled, so check-ins scanned on other staff phones show up too.
+	const queryClient = useQueryClient();
+	const roundKey = $derived(["workshop-round", slot] as const);
+	const roundQuery = createQuery(() => ({
+		queryKey: roundKey,
+		enabled: browser && slot !== null,
+		queryFn: async ({ queryKey: [, workshopTimeSlotId] }) => {
+			const list = listWorkshopAttendance({ workshopTimeSlotId: workshopTimeSlotId! });
+			const stats = getWorkshopAttendanceStats({ workshopTimeSlotId: workshopTimeSlotId! });
+			// Fresh requests: awaiting a remote query alone can return its cached value.
+			await Promise.all([list.refresh(), stats.refresh()]);
+			const [{ roster }, counts] = await Promise.all([list, stats]);
+			return { roster, stats: counts };
+		},
+		refetchInterval: 10_000,
+	}));
 
 	type RosterRow = Awaited<ReturnType<typeof listWorkshopAttendance>>["roster"][number];
-	const roster = $derived(attendance?.current?.roster ?? []);
+	const roster = $derived(roundQuery.data?.roster ?? []);
 	const booked = $derived(roster.filter((row) => row.registrationType === "advance"));
 	const walkIns = $derived(roster.filter((row) => row.present && row.log?.attendanceType === "walk-in"));
 
@@ -44,6 +59,7 @@
 		try {
 			// The switch only lets in booked attendees ("advance"); removal ignores the mode.
 			await setWorkshopAttendance({ workshopTimeSlotId: slot, attendeeId: id, present, mode: "advance" });
+			await queryClient.invalidateQueries({ queryKey: roundKey });
 		} catch (caught) {
 			void showError(attendanceError(caught));
 		} finally {
@@ -78,15 +94,16 @@
 			</p>
 		{:else if !workshopQuery.current}
 			<p class="text-center text-base text-brand-mist">กำลังโหลด…</p>
-		{:else if !attendance || !stats}
+		{:else if !slot}
 			<p role="alert" class="text-center text-base text-brand-mist">{slotNotFound.description}</p>
-		{:else if attendance.error || stats.error}
+		{:else if roundQuery.error}
 			<p role="alert" class="text-center text-base text-brand-mist">
-				{attendanceError(attendance.error ?? stats.error).description}
+				{attendanceError(roundQuery.error).description}
 			</p>
-		{:else if !stats.current}
+		{:else if !roundQuery.data}
 			<p class="text-center text-base text-brand-mist">กำลังโหลด…</p>
 		{:else}
+			{@const stats = roundQuery.data.stats}
 			<section class="flex flex-col gap-2">
 				<h2 class="text-2xl text-brand-sky">รายชื่อผู้เข้าร่วม</h2>
 				<div class="flex flex-col gap-6">
@@ -104,9 +121,9 @@
 						</dl>
 						<dl class="flex flex-col rounded-lg border border-brand-yellow p-2 text-brand-mist" aria-label="สรุปจำนวน">
 							{#each [
-								["เช็คอินแล้ว", `${stats.current.advanceArrivals}/${stats.current.advanceBookings}`],
-								["เพิ่มคนแล้ว", `${stats.current.walkInArrivals}`],
-								["รวมทั้งหมด", `${stats.current.totalAttendance}`],
+								["เช็คอินแล้ว", `${stats.advanceArrivals}/${stats.advanceBookings}`],
+								["เพิ่มคนแล้ว", `${stats.walkInArrivals}`],
+								["รวมทั้งหมด", `${stats.totalAttendance}`],
 							] as [label, value] (label)}
 								<div class="flex justify-center gap-2.5">
 									<dt>{label}</dt>
