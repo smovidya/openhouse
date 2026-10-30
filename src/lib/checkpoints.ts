@@ -17,3 +17,19 @@ export async function findScannableCheckpoint(
     if (page.length < limit) return null;
   }
 }
+
+/** Every checkpoint of `types` this staff member may scan, across all pages, by name. */
+export async function listScannableCheckpointsOf(
+  types: readonly Checkpoint["type"][],
+): Promise<Checkpoint[]> {
+  const limit = 100;
+  const found: Checkpoint[] = [];
+  for (let offset = 0; ; offset += limit) {
+    const page = await listScannableCheckpoints({ offset, limit });
+    found.push(...page.filter((checkpoint) => types.includes(checkpoint.type)));
+    if (page.length < limit) break;
+  }
+  return found.sort((a, b) =>
+    (a.name ?? a.id).localeCompare(b.name ?? b.id, "th"),
+  );
+}
