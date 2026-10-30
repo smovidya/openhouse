@@ -62,3 +62,26 @@ export function tierConditions(
       : []),
   ];
 }
+
+export const tierTitle = (tier: RewardTier) => tierInfo[tier].title;
+
+/** The next tier up (3 → 2 → 1), or null past the top. */
+export const nextTier = (tier: RewardTier | null): RewardTier | null =>
+  tier === null ? 3 : tier === 1 ? null : ((tier - 1) as RewardTier);
+
+/** A tier's missing conditions (the backend's `requirements[].missing`) as short phrases. */
+export function missingItems(missing: {
+  tcas: boolean;
+  centralActivity: boolean;
+  departments: number;
+  workshops: number;
+  stage: boolean;
+}): string[] {
+  return [
+    missing.tcas && "บูธ TCAS",
+    missing.centralActivity && "กิจกรรมกลาง",
+    missing.departments > 0 && `บูธภาควิชาอีก ${missing.departments} บูธ`,
+    missing.workshops > 0 && `เวิร์คช็อปอีก ${missing.workshops} กิจกรรม`,
+    missing.stage && "กิจกรรมเวที",
+  ].filter((item): item is string => typeof item === "string");
+}
