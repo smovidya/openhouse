@@ -7,7 +7,6 @@
 <script lang="ts">
 	import DetailList from "#lib/components/detail-list.svelte";
 	import type { getAttendeeProfileByQrCodeId } from "#lib/features/attendees/attendees.remote.ts";
-	import { mockAttendeeEmail } from "#lib/mock/attendees.js";
 
 	type Attendee = Awaited<ReturnType<typeof getAttendeeProfileByQrCodeId>>;
 
@@ -20,6 +19,6 @@
 		["ชื่อ", `${attendee.firstname} ${attendee.lastname}`],
 		["อายุ", `${attendee.age} ปี`],
 		["สถานะ", statusLabels.get(attendee.type) ?? attendee.type],
-		["อีเมล", mockAttendeeEmail(attendee)],
+		["อีเมล", attendee.email ?? "-"],
 	]}
 />

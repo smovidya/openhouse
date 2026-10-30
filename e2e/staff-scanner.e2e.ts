@@ -129,6 +129,9 @@ test("entry check-in looks up a typed code and checks the attendee in once", asy
 
   await enterCode(page, entrant.qr);
   await expect(sheet(page).getByText("16 ปี")).toBeVisible();
+  await expect(
+    sheet(page).getByText(`${entrant.id}@example.com`),
+  ).toBeVisible();
   await confirmSheet(page, entrant, "เช็คอินผู้เข้าร่วมงาน");
   await expect(page.getByRole("status")).toContainText(
     `เช็คอิน ${name(entrant)} แล้ว`,
@@ -198,6 +201,7 @@ test("workshop check-in: entry first, booked-only check-in, walk-ins, and the pa
     return { arrived, booked, walkIns, total };
   };
   const before = await counts();
+  await expect(page.getByText(`${walker.id}@example.com`)).toBeVisible();
 
   // The switch checks the booked attendee in.
   const toggle = page.getByRole("switch", { name: `เช็คอิน ${name(booker)}` });

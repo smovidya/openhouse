@@ -39,7 +39,6 @@
 	import { Picker } from "#lib/components/ui/picker/index.js";
 	import { showError } from "#lib/error-dialog.svelte.js";
 	import { getAttendeeProfileByQrCodeId } from "#lib/features/attendees/attendees.remote.ts";
-	import { mockAttendeeEmail } from "#lib/mock/attendees.js";
 	import { checkInWorkshop } from "#lib/features/workshops/attendance.remote.ts";
 	import { httpStatus } from "#lib/utils.js";
 	import { attendanceError, findSlotId, slotNotFound } from "#lib/workshop-attendance.js";
@@ -227,7 +226,7 @@
 					<DetailList
 						rows={[
 							["ชื่อ", `${sheet.attendee.firstname} ${sheet.attendee.lastname}`],
-							["อีเมล", mockAttendeeEmail(sheet.attendee)],
+							["อีเมล", sheet.attendee.email ?? "-"],
 						]}
 					/>
 					<hr class="border-brand-sky" />

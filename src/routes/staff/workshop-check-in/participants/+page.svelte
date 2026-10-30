@@ -10,7 +10,6 @@
 		listWorkshopAttendance,
 		setWorkshopAttendance,
 	} from "#lib/features/workshops/attendance.remote.ts";
-	import { mockAttendeeEmail } from "#lib/mock/attendees.js";
 	import { attendanceError, slotIdIn, slotNotFound } from "#lib/workshop-attendance.js";
 	import { findSession, roundLabel } from "#lib/workshops.js";
 
@@ -63,7 +62,7 @@
 {#snippet person(row: RosterRow)}
 	<div class={["min-w-0 flex-1 text-base break-words", row.present ? "text-status-green" : "text-brand-mist"]}>
 		<p>{fullName(row)}</p>
-		<p>{mockAttendeeEmail(row.attendee)}</p>
+		<p>{row.attendee.email}</p>
 	</div>
 {/snippet}
 
