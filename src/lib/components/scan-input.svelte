@@ -8,6 +8,7 @@
 
 <script lang="ts">
 	import type { Snippet } from "svelte";
+	import { dev } from "$app/env";
 	import keyboardIcon from "#lib/assets/icons/keyboard-onscreen.svg";
 	import scannerIcon from "#lib/assets/icons/qr-code-scanner.svg";
 	import QrScanner from "#lib/components/qr-scanner.svelte";
@@ -83,9 +84,12 @@
 			<label for="scan-code" class="text-center text-base text-brand-yellow">{codeLabel}</label>
 			<Input
 				id="scan-code"
-				bind:value={code}
+				bind:value={
+					// Real codes are upper case. Not in development: fixtures use codes like dev-attendee-qr.
+					() => code, (value) => (code = dev ? value : value.toUpperCase())
+				}
 				autocomplete="off"
-				autocapitalize="off"
+				autocapitalize={dev ? "off" : "characters"}
 				spellcheck={false}
 				enterkeyhint="go"
 				class="border-brand-sky focus-visible:border-brand-yellow focus-visible:ring-brand-yellow/60"
