@@ -4,10 +4,16 @@ import { z } from "zod";
 import { getAuthDb } from "../auth/config.server";
 import { requirePermission } from "../auth/guards.server";
 import * as service from "./service.server";
+import { getSouvenirStats } from "./souvenirs.server";
 
 function requireAdmin() {
   requirePermission(getRequestEvent().locals.user, "admin");
 }
+
+export const getDashboardSouvenirs = query(async () => {
+  requireAdmin();
+  return getSouvenirStats(getAuthDb(env));
+});
 
 export const getDashboardStats = query(async () => {
   requireAdmin();

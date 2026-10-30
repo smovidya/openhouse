@@ -6,14 +6,27 @@
 	import LiveFeed from "#lib/components/dashboard/live-feed.svelte";
 	import WorkshopTable from "#lib/components/dashboard/workshop-table.svelte";
 	import VenueMap from "#lib/components/dashboard/venue-map.svelte";
+	import SouvenirTiers from "#lib/components/dashboard/souvenir-tiers.svelte";
 	import {
 		getDashboardFeed,
 		getDashboardStats,
+		getDashboardSouvenirs,
 	} from "#lib/features/dashboard/dashboard.remote.ts";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
+	let souvenirsOpen = $state(false);
+	const souvenirs = createQuery(() => ({
+		queryKey: ["dashboard-souvenirs"],
+		enabled: souvenirsOpen,
+		queryFn: async () => {
+			const query = getDashboardSouvenirs();
+			await query.refresh();
+			return await query;
+		},
+		refetchInterval: 10_000,
+	}));
 
 	// Poll the dashboard queries alone (not the page load). TanStack pauses them
 	// in background tabs, refetches on focus, and keeps the last data if a poll fails.
@@ -119,6 +132,8 @@
 		<p class="text-xs text-brand-mist">
 			อัตราผู้เข้างานจริง {attendanceRate.toFixed(1)}%
 		</p>
+		<div><SouvenirTiers bind:open={souvenirsOpen} stats={souvenirs.data} error={souvenirs.isError} /></div>
+
 		<VenueMap booths={dashboard.booths} workshops={dashboard.workshops} now={clock} />
 
 		<div class="grid gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
