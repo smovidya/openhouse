@@ -111,9 +111,7 @@ test("department staff check attendees in at their booth", async ({ page }) => {
   await dismissError(page, "แลกของรางวัลไปแล้ว");
 });
 
-test("staff with several booths pick one first; the history page isn't ready", async ({
-  page,
-}) => {
+test("staff with several booths pick one first", async ({ page }) => {
   staffId = await signInAsStaff(page, ["boothStaff:all"]);
   await open(page, "/staff/booth-check-in");
 
@@ -134,9 +132,8 @@ test("staff with several booths pick one first; the history page isn't ready", a
     `เช็คอิน ${fullName(visitor)} ที่ ${booth.name} แล้ว`,
   );
 
-  await page.getByRole("link", { name: "ดูประวัติการเช็คอิน" }).click();
-  await expect(page.getByText("ยังไม่พร้อมใช้งาน")).toBeVisible();
-  // By keyboard: the dev toolbar floats over the bottom of the page.
-  await page.getByRole("link", { name: "ย้อนกลับ" }).press("Enter");
-  await expect(page).toHaveURL(/\/staff\/booth-check-in$/);
+  // The history button is hidden until that page has data.
+  await expect(
+    page.getByRole("link", { name: "ดูประวัติการเช็คอิน" }),
+  ).toHaveCount(0);
 });

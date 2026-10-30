@@ -169,9 +169,11 @@
 	</div>
 
 	<div class="flex w-full flex-col gap-2">
+		<!-- Hidden until the history page has data (no query returns a booth's check-ins yet).
 		<Button variant="cta-light" size="cta-lg" class="w-full border" href="/staff/booth-check-in/history">
 			ดูประวัติการเช็คอิน
 		</Button>
+		-->
 		<Button variant="cta" size="cta-lg" class="w-full" href="/staff">ย้อนกลับ</Button>
 	</div>
 </main>
