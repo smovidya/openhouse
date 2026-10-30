@@ -56,8 +56,10 @@
 			message = `เช็คอิน ${name} แล้ว`;
 			code = "";
 		} catch (caught) {
-			// A repeat scan isn't a failure: say so the same way as a check-in.
-			if (httpErrorMessage(caught) === "ALREADY_CHECKED_IN") {
+			// A repeat scan isn't a failure: say so the same way as a check-in. An attendee who has
+			// redeemed their reward (JOURNEY_REDEEMED, checked first) has been through entry too.
+			const reason = httpErrorMessage(caught);
+			if (reason === "ALREADY_CHECKED_IN" || reason === "JOURNEY_REDEEMED") {
 				message = `${name} เช็คอินไปแล้วก่อนหน้านี้`;
 				code = "";
 				return;

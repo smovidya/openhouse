@@ -31,7 +31,17 @@ const deputy = attendee("deputy", "รองหัวหน้า");
 const chooser = attendee("chooser", "เลือกของ");
 const climber = attendee("climber", "เลื่อนขั้น");
 const dropout = attendee("dropout", "หลุดเกณฑ์");
-const attendees = [crew, outsider, beginner, deputy, chooser, climber, dropout];
+const legacy = attendee("legacy", "แลกก่อนหน้า");
+const attendees = [
+  crew,
+  outsider,
+  beginner,
+  deputy,
+  chooser,
+  climber,
+  dropout,
+  legacy,
+];
 
 /** Tier 3 (ลูกเรือโจรสลัด): entered, TCAS, the central activity and 6 department booths. */
 const crewStamps = { entry: "entry", tcas: true, central: true, booths: 6 };
@@ -64,6 +74,12 @@ test.beforeAll(() => {
   stamp(chooser.id, crewStamps);
   stamp(climber.id, crewStamps);
   stamp(dropout.id, crewStamps);
+  // Redeemed before gifts were recorded: the redemption has no gift name.
+  stamp(legacy.id, crewStamps);
+  localD1(`
+    INSERT INTO reward_redemptions (id, attendee_id, checkpoint_id, tier)
+    VALUES ('${legacy.id}-redemption', '${legacy.id}', 'reward', 3);
+  `);
 });
 
 test.afterEach(() => {
@@ -139,6 +155,16 @@ test("redeems the highest tier reached once, then locks; workshops stay open", a
   await expect(confirmButton(sheet)).toBeDisabled();
   await sheet.getByRole("button", { name: "ยกเลิก" }).click();
 
+  // Re-scanned at the entry point after redeeming: already checked in, not an error.
+  await open(page, "/staff/check-in");
+  await page.getByRole("button", { name: "กรอกรหัส" }).click();
+  await page.getByLabel("กรอกรหัสของผู้ร่วมงาน").fill(crew.qr);
+  await page.getByRole("button", { name: "ลงทะเบียน", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "ตกลง" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    `${fullName(crew)} เช็คอินไปแล้วก่อนหน้านี้`,
+  );
+
   // Workshops stay open after redemption (the backend locks only the other checkpoints).
   await open(page, "/staff/workshop-check-in?session=geo-map%3A3");
   await page.getByRole("button", { name: "เพิ่มคน" }).click();
@@ -170,6 +196,12 @@ test("explains why an attendee can't redeem yet", async ({ page }) => {
     "ขั้นถัดไป (ลูกเรือโจรสลัด) ขาด: บูธ TCAS, กิจกรรมกลาง, บูธภาควิชาอีก 6 บูธ",
   );
   await expect(sheet.getByText(/^บูธที่ยังไม่ได้เก็บ \(\d+\)$/)).toBeVisible();
+  await expect(confirmButton(sheet)).toBeDisabled();
+  await sheet.getByRole("button", { name: "ยกเลิก" }).click();
+
+  // Redeemed before gifts were recorded.
+  sheet = await lookUp(page, legacy);
+  await expect(sheet.getByRole("alert")).toHaveText("แลกของรางวัลไปแล้ว");
   await expect(confirmButton(sheet)).toBeDisabled();
   await sheet.getByRole("button", { name: "ยกเลิก" }).click();
 

@@ -91,7 +91,8 @@
 	/** Why the open sheet can't redeem, or null when it can. */
 	function blocker({ preview }: Sheet): string | null {
 		const { progress } = preview;
-		if (progress.redemption) return `แลก${progress.redemption.giftName}ไปแล้ว`;
+		// Redemptions from before gifts were recorded have no gift name.
+		if (progress.redemption) return `แลก${progress.redemption.giftName ?? "ของรางวัล"}ไปแล้ว`;
 		if (!progress.entered) return "ยังไม่ได้ผ่านจุดลงทะเบียน";
 		if (progress.highestEligibleTier === null) return "ยังไม่ผ่านเกณฑ์ขั้นใด";
 		if (preview.gifts.length === 0) return "ยังไม่ได้ตั้งค่าของรางวัลของขั้นนี้ กรุณาติดต่อผู้ดูแลระบบ";
