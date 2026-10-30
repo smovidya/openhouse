@@ -53,6 +53,7 @@ const readWorkshops = (slug?: string) => {
 type WorkshopRow = Awaited<ReturnType<typeof readWorkshops>>[number];
 function groupWorkshops(rows: WorkshopRow[]) {
   type Round = {
+    slotId: string;
     roundNumber: number;
     startsAt: Date;
     endsAt: Date;
@@ -79,7 +80,13 @@ function groupWorkshops(rows: WorkshopRow[]) {
       grouped.set(workshop.slug, entry);
     }
     if (slotId && roundNumber !== null && startsAt && endsAt) {
-      entry.timeSlots.push({ roundNumber, startsAt, endsAt, registeredCount });
+      entry.timeSlots.push({
+        slotId,
+        roundNumber,
+        startsAt,
+        endsAt,
+        registeredCount,
+      });
     }
   }
   return [...grouped.values()];
