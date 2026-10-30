@@ -56,6 +56,10 @@
 
 		<nav class="flex w-full flex-col gap-3">
 			{#if staff.permission.includes("admin")}
+				<Button variant="cta" size="cta-lg" href="/staff/dashboard" class="w-full">
+					แดชบอร์ดแอดมิน
+					<img src={arrowRightIcon} alt="" />
+				</Button>
 				<Button variant="cta" size="cta-lg" href="/staff/invites" class="w-full">
 					จัดการรหัสเชิญ
 					<img src={arrowRightIcon} alt="" />

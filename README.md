@@ -20,6 +20,40 @@ The seed keeps existing workshop/session IDs and registrations on repeat runs.
 It updates matching slugs and rounds without deleting unrelated records.
 Append `--remote --env production` to target production explicitly.
 
+## Event checkpoints
+
+After applying migrations, populate the dashboard and staff scanner checkpoints:
+
+```sh
+bun run checkpoints:seed
+```
+
+This defaults to local D1. Use `bun run checkpoints:seed --remote --env production`
+to explicitly seed production. It creates 34 checkpoint definitions: 17 department
+booths, TCAS, central activity, entry, stage, nine workshops, and four reward tiers.
+Each workshop has one checkpoint shared across its rounds, so returning to the
+same workshop does not count as another activity toward a reward.
+
+Repeat runs fill missing checkpoints without replacing IDs, scan history, or
+redemption records. Existing matching names and notes are kept. Recognized department
+booths with a missing department receive their canonical permission scope.
+Soft-deleted checkpoints stay deleted; the seed does not revive them.
+
+Checkpoint access uses the existing server permission checks:
+
+| Checkpoints                | Required staff permission                                                 |
+| -------------------------- | ------------------------------------------------------------------------- |
+| Department booth           | `boothStaff:<department>` (e.g. `boothStaff:physics`) or `boothStaff:all` |
+| TCAS                       | `boothStaff:tcas`                                                         |
+| Central activity           | `boothStaff:central-activity`                                             |
+| Workshops                  | `workshopStaff`                                                           |
+| Entry, stage, reward tiers | `activityStaff`                                                           |
+
+Admins can access every checkpoint. Seeding does not change anyone's permissions;
+assign these through the existing staff/invite flow. Reward checkpoint names match
+the dashboard tier statistics. Seeding creates the reward locations, but does not
+implement redemption or enforce reward eligibility in the scanner.
+
 ## Backend organization
 
 Backend code is grouped by feature. Authentication, staff enrollment/permissions,
