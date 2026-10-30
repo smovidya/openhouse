@@ -1,28 +1,30 @@
 <script lang="ts">
 	import { page } from "$app/state";
+	import { SvelteSet } from "svelte/reactivity";
 	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { showError } from "#lib/error-dialog.svelte.js";
-	import { mockAttendeeEmail } from "#lib/mock/attendees.js";
 	import {
 		getWorkshopAttendanceStats,
 		listWorkshopAttendance,
 		setWorkshopAttendance,
-		type RosterRow,
-	} from "#lib/mock/workshop-attendance.svelte.js";
-	import { SvelteSet } from "svelte/reactivity";
-	import { httpErrorMessage } from "#lib/utils.js";
-	import { isRejection, rejectionMessages } from "#lib/workshop-attendance.js";
-	import { findSession, roundLabel } from "#lib/workshops.js";
+	} from "#lib/features/workshops/attendance.remote.ts";
+	import { mockAttendeeEmail } from "#lib/mock/attendees.js";
+	import { attendanceError } from "#lib/workshop-attendance.js";
+	import { findSession, roundLabel, timeSlotId } from "#lib/workshops.js";
 
 	// A round's roster (Figma "บูธเวิร์คช็อป"): booked attendees with a check-in switch, then walk-ins.
-	// MOCK data until the attendance API exists (see #lib/mock/workshop-attendance.svelte.ts).
 	const sessionId = $derived(page.url.searchParams.get("session") ?? "");
 	const round = $derived(findSession(sessionId));
-	const roster = $derived(round ? listWorkshopAttendance({ workshopTimeSlotId: sessionId }).roster : []);
-	const stats = $derived(round && getWorkshopAttendanceStats({ workshopTimeSlotId: sessionId }));
+	const slot = $derived(round && timeSlotId(round.session));
+	// Remote queries: setWorkshopAttendance refreshes both.
+	const attendance = $derived(slot ? listWorkshopAttendance({ workshopTimeSlotId: slot }) : null);
+	const stats = $derived(slot ? getWorkshopAttendanceStats({ workshopTimeSlotId: slot }) : null);
+
+	type RosterRow = Awaited<ReturnType<typeof listWorkshopAttendance>>["roster"][number];
+	const roster = $derived(attendance?.current?.roster ?? []);
 	const booked = $derived(roster.filter((row) => row.registrationType === "advance"));
-	const walkIns = $derived(roster.filter((row) => row.attendance === "walk-in"));
+	const walkIns = $derived(roster.filter((row) => row.present && row.log?.attendanceType === "walk-in"));
 
 	/** Rows with a request in flight, by attendee id. */
 	const saving = new SvelteSet<string>();
@@ -35,17 +37,13 @@
 
 	async function setPresent(row: RosterRow, present: boolean) {
 		const { id } = row.attendee;
-		if (saving.has(id)) return;
+		if (!slot || saving.has(id)) return;
 		saving.add(id);
 		try {
-			await setWorkshopAttendance({ workshopTimeSlotId: sessionId, attendeeId: id, present, mode: "advance" });
+			// The switch only lets in booked attendees ("advance"); removal ignores the mode.
+			await setWorkshopAttendance({ workshopTimeSlotId: slot, attendeeId: id, present, mode: "advance" });
 		} catch (caught) {
-			const reason = httpErrorMessage(caught);
-			void showError(
-				isRejection(reason)
-					? rejectionMessages[reason]
-					: { title: "บันทึกไม่สำเร็จ", description: "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง" }
-			);
+			void showError(attendanceError(caught));
 		} finally {
 			saving.delete(id);
 		}
@@ -60,7 +58,7 @@
 </svelte:head>
 
 {#snippet person(row: RosterRow)}
-	<div class={["min-w-0 flex-1 text-base break-words", row.attendance ? "text-status-green" : "text-brand-mist"]}>
+	<div class={["min-w-0 flex-1 text-base break-words", row.present ? "text-status-green" : "text-brand-mist"]}>
 		<p>{fullName(row)}</p>
 		<p>{mockAttendeeEmail(row.attendee)}</p>
 	</div>
@@ -70,8 +68,14 @@
 	<div class="flex w-full flex-col gap-6">
 		<h1 class="text-center text-[32px] font-medium text-brand-yellow">บูธเวิร์คช็อป</h1>
 
-		{#if !round || !stats}
+		{#if !round || !attendance || !stats}
 			<p class="text-center text-base text-brand-mist">ไม่พบรอบเวลานี้ กรุณาเลือกบูธเวิร์คช็อปและรอบเวลาใหม่</p>
+		{:else if attendance.error || stats.error}
+			<p role="alert" class="text-center text-base text-brand-mist">
+				{attendanceError(attendance.error ?? stats.error).description}
+			</p>
+		{:else if !stats.current}
+			<p class="text-center text-base text-brand-mist">กำลังโหลด…</p>
 		{:else}
 			<section class="flex flex-col gap-2">
 				<h2 class="text-2xl text-brand-sky">รายชื่อผู้เข้าร่วม</h2>
@@ -90,9 +94,9 @@
 						</dl>
 						<dl class="flex flex-col rounded-lg border border-brand-yellow p-2 text-brand-mist" aria-label="สรุปจำนวน">
 							{#each [
-								["เช็คอินแล้ว", `${stats.advanceArrivals}/${stats.advanceBookings}`],
-								["เพิ่มคนแล้ว", `${stats.walkInArrivals}`],
-								["รวมทั้งหมด", `${stats.totalAttendance}`],
+								["เช็คอินแล้ว", `${stats.current.advanceArrivals}/${stats.current.advanceBookings}`],
+								["เพิ่มคนแล้ว", `${stats.current.walkInArrivals}`],
+								["รวมทั้งหมด", `${stats.current.totalAttendance}`],
 							] as [label, value] (label)}
 								<div class="flex justify-center gap-2.5">
 									<dt>{label}</dt>
@@ -111,19 +115,19 @@
 								<button
 									type="button"
 									role="switch"
-									aria-checked={row.attendance !== null}
+									aria-checked={row.present}
 									aria-label="เช็คอิน {fullName(row)}"
 									disabled={saving.has(row.attendee.id)}
 									class={[
 										"relative h-[25px] w-[43px] shrink-0 cursor-pointer rounded-full transition-colors disabled:opacity-50",
-										row.attendance ? "bg-status-green" : "bg-brand-mist",
+										row.present ? "bg-status-green" : "bg-brand-mist",
 									]}
-									onclick={() => setPresent(row, row.attendance === null)}
+									onclick={() => setPresent(row, !row.present)}
 								>
 									<span
 										class={[
 											"absolute top-[5px] size-4 rounded-full transition-[left]",
-											row.attendance ? "left-[22px] bg-[#257a00]" : "left-1 bg-brand-navy",
+											row.present ? "left-[22px] bg-[#257a00]" : "left-1 bg-brand-navy",
 										]}
 									></span>
 								</button>

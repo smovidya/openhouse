@@ -42,9 +42,20 @@ export const rejectionMessages = {
 export const isRejection = (code: string | null): code is RejectionCode =>
   code !== null && Object.hasOwn(rejectionMessages, code);
 
-/** The dialog for a failed attendance call. */
+/** A failed query's `error` (App.Error) carries the code as its message. */
+function errorCode(error: unknown) {
+  if (httpErrorMessage(error) !== null) return httpErrorMessage(error);
+  return typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+    ? error.message
+    : null;
+}
+
+/** The dialog for a failed attendance call: a thrown command error or a query's `error`. */
 export function attendanceError(error: unknown): ErrorMessage {
-  const reason = httpErrorMessage(error);
+  const reason = errorCode(error);
   if (isRejection(reason)) return rejectionMessages[reason];
   if (reason === "WORKSHOP_TIME_SLOT_NOT_FOUND")
     return {
