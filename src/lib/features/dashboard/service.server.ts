@@ -198,7 +198,9 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
 export async function getDashboardFeed(
   db: Db,
   limit = 20,
+  checkpointIds?: string[],
 ): Promise<DashboardFeedItem[]> {
+  if (checkpointIds?.length === 0) return [];
   const rows = await db
     .select({
       id: checkpointLogs.id,
@@ -211,8 +213,17 @@ export async function getDashboardFeed(
     .from(checkpointLogs)
     .innerJoin(attendees, eq(attendees.id, checkpointLogs.attendeeId))
     .innerJoin(checkpoints, eq(checkpoints.id, checkpointLogs.checkpointId))
-    .where(isNull(checkpointLogs.deletedAt))
-    .orderBy(desc(checkpointLogs.createdAt))
+    .where(
+      and(
+        isNull(checkpointLogs.deletedAt),
+        isNull(checkpoints.deletedAt),
+        isNull(attendees.deletedAt),
+        checkpointIds
+          ? inArray(checkpointLogs.checkpointId, checkpointIds)
+          : undefined,
+      ),
+    )
+    .orderBy(desc(checkpointLogs.createdAt), desc(checkpointLogs.id))
     .limit(limit);
 
   return rows.map(({ createdAt, lastname, ...row }) => ({

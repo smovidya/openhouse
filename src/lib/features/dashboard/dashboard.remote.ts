@@ -19,6 +19,14 @@ export const getDashboardFeed = query(async () => {
   return service.getDashboardFeed(getAuthDb(env));
 });
 
+export const getDashboardBoothFeed = query(
+  z.array(z.string().min(1)).min(1).max(100),
+  async (checkpointIds) => {
+    requireAdmin();
+    return service.getDashboardFeed(getAuthDb(env), 8, checkpointIds);
+  },
+);
+
 export const getWorkshopRoundAttendees = query(
   z.string().min(1),
   async (slotId: string) => {

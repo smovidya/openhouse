@@ -5,6 +5,7 @@
 	import KpiCard from "#lib/components/dashboard/kpi-card.svelte";
 	import LiveFeed from "#lib/components/dashboard/live-feed.svelte";
 	import WorkshopTable from "#lib/components/dashboard/workshop-table.svelte";
+	import VenueMap from "#lib/components/dashboard/venue-map.svelte";
 	import {
 		getDashboardFeed,
 		getDashboardStats,
@@ -118,6 +119,7 @@
 		<p class="text-xs text-brand-mist">
 			อัตราผู้เข้างานจริง {attendanceRate.toFixed(1)}%
 		</p>
+		<VenueMap booths={dashboard.booths} workshops={dashboard.workshops} now={clock} />
 
 		<div class="grid gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
 			<section class="rounded-xl border border-white/10 bg-white/5 p-4" aria-label="สถิติบูธ">
