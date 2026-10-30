@@ -104,6 +104,14 @@
 			variant="outline"
 			size="sm"
 			class="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white dark:bg-transparent"
+			onclick={() => goto("/staff/dashboard/bento")}
+		>
+			มุมมอง Bento
+		</Button>
+		<Button
+			variant="outline"
+			size="sm"
+			class="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white dark:bg-transparent"
 			onclick={toggleTv}
 		>
 			{data.tv ? "ออกจากโหมดจอใหญ่" : "โหมดจอใหญ่ (โปรเจกเตอร์)"}
