@@ -6,7 +6,7 @@ import {
   hasPermission,
   type StaffPermission,
 } from "#lib/features/staff/permissions.ts";
-import { httpStatus } from "#lib/utils.js";
+import { httpStatus } from "#lib/utils.ts";
 
 export type StaffRole = "central" | "booth";
 
