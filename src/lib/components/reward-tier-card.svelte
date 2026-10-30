@@ -1,8 +1,9 @@
 <script lang="ts" module>
 	export type RewardTier = {
 		title: string;
-		conditions: { label: string; done: number; total: number }[];
-		rewards: string[];
+		/** `done` is null when the attendee's progress isn't known. */
+		conditions: { label: string; done: number | null; total: number }[];
+		rewards: readonly string[];
 	};
 </script>
 
@@ -22,7 +23,7 @@
 		</span>
 		<ul class="grid flex-1 grid-cols-2 gap-x-2">
 			{#each tier.conditions as condition (condition.label)}
-				<li>{condition.label} {condition.done}/{condition.total}</li>
+				<li>{condition.label} {condition.done ?? "–"}/{condition.total}</li>
 			{/each}
 		</ul>
 	</div>

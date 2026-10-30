@@ -3,10 +3,12 @@
 	import checkCircleIcon from "#lib/assets/icons/check-circle.svg";
 	import Glass from "#lib/render/glass.svelte";
 	import QrCode from "#lib/components/qr-code.svelte";
+	import RewardTierCard from "#lib/components/reward-tier-card.svelte";
 	import SignBoard from "#lib/components/sign-board.svelte";
 	import WorkshopCard from "#lib/components/workshop-card.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { BANGKOK_TIME_ZONE, EVENT_SCHEDULE } from "#lib/constants/time.ts";
+	import { entryReward, rewardHashtags, rewardTiers, tierConditions } from "#lib/rewards.js";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -82,13 +84,25 @@
 	<section class="flex w-full flex-col gap-2">
 		<div class="text-brand-navy">
 			<h2 class="text-2xl font-medium">ภารกิจล่าของรางวัล</h2>
-			<p class="text-xs">*เมื่อเลื่อนขั้นแล้วจะไม่สามารถแลกของรางวัลขั้นที่ต่ำกว่าได้</p>
-		</div>
-		<!-- Placeholder until the reward hunt opens (RewardTierCard shows the tiers then). -->
-		<Glass class="rounded-lg p-3">
-			<p class="text-center font-heading text-base font-medium text-brand-yellow">
-				เตรียมพบกับกิจกรรมแลกของรางวัลสุดพิเศษ<br />Coming Soon!!
+			<p class="text-xs">
+				*แลกของรางวัลได้ครั้งเดียว เมื่อแลกแล้วจะสะสมกิจกรรมเพื่อเลื่อนขั้นต่อไม่ได้
 			</p>
-		</Glass>
+			<p class="text-xs">ลงทะเบียนเข้างานรับ{entryReward}ทันที</p>
+		</div>
+		{#if data.progress?.redemption}
+			<p class="text-sm text-brand-navy">แลก{data.progress.redemption.giftName}แล้ว</p>
+		{/if}
+		{#each rewardTiers as tier (tier.tier)}
+			<RewardTierCard
+				tier={{
+					title: tier.title,
+					conditions: tierConditions(tier, data.progress?.counts ?? null),
+					rewards: tier.rewards,
+				}}
+			/>
+		{/each}
+		<p class="text-xs text-brand-navy">
+			*ก่อนรับของรางวัล ลงสตอรี่พร้อมแฮชแท็ก {rewardHashtags.join(" และ ")}
+		</p>
 	</section>
 </main>
