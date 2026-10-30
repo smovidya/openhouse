@@ -15,7 +15,7 @@ export type StaffAction = {
   permission: StaffPermission;
 };
 
-/** Staff menu actions. "ดูข้อมูลผู้เข้าร่วมงาน" is shared and rendered by the page. */
+/** Staff menu actions, shown by permission (getStaffActions). */
 export const staffActions: readonly StaffAction[] = [
   {
     href: "/staff/check-in",

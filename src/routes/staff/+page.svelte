@@ -53,10 +53,12 @@
 					<img src={arrowRightIcon} alt="" />
 				</Button>
 			{/if}
+			<!-- Hidden until /staff/attendees exists.
 			<Button variant="cta" size="cta-lg" href="/staff/attendees" class="w-full">
 				ดูข้อมูลผู้เข้าร่วมงาน
 				<img src={arrowRightIcon} alt="" />
 			</Button>
+			-->
 			{#each actions as action (action.href)}
 				<Button variant="cta" size="cta-lg" href={action.href} class="w-full">
 					<img src={action.icon} alt="" />
