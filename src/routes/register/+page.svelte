@@ -143,6 +143,9 @@
 		<div class="flex justify-center">
 			<SignBoard title="ลงทะเบียน" />
 		</div>
+		<p class="text-center text-xs text-brand-mist">
+			หลังลงทะเบียนแล้ว เช็คอินที่จุดลงทะเบียนในวันงาน เพื่อรับเกียรติบัตรการเข้าร่วมงาน
+		</p>
 
 		<section class="flex flex-col gap-2">
 			<h2 class="text-xl font-medium text-brand-navy">ข้อมูลส่วนตัว</h2>
