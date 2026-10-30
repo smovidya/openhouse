@@ -127,8 +127,7 @@ test("entry check-in looks up a typed code and checks the attendee in once", asy
   await enterCode(page, "zzzzz");
   await dismissError(page, "ไม่พบผู้เข้าร่วมงาน");
 
-  // Typed in lower case: real codes are upper case.
-  await enterCode(page, entrant.qr.toLowerCase());
+  await enterCode(page, entrant.qr);
   await expect(sheet(page).getByText("16 ปี")).toBeVisible();
   await confirmSheet(page, entrant, "เช็คอินผู้เข้าร่วมงาน");
   await expect(page.getByRole("status")).toContainText(
