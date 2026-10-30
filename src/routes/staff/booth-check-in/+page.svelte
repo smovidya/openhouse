@@ -31,7 +31,7 @@
 	import { Picker } from "#lib/components/ui/picker/index.js";
 	import { showError } from "#lib/error-dialog.svelte.js";
 	import { getAttendeeProfileByQrCodeId } from "#lib/features/attendees/attendees.remote.ts";
-	import { checkInAttendee } from "#lib/features/checkpoints/checkpoints.remote.ts";
+	import { checkInAttendee, getStaffAttendeeProgress } from "#lib/features/checkpoints/checkpoints.remote.ts";
 	import { httpErrorMessage, httpStatus } from "#lib/utils.js";
 	import type { PageProps } from "./$types";
 
@@ -71,6 +71,8 @@
 	type Sheet = {
 		attendee: Attendee;
 		booth: { id: string; name: string };
+		/** Whether the attendee has been scanned at the registration point (entry log). */
+		entered: boolean;
 		state: "confirming" | "checkingIn" | "closed";
 	};
 	let sheet = $state<Sheet | null>(null);
@@ -91,8 +93,11 @@
 			return;
 		}
 		try {
-			const attendee = await getAttendeeProfileByQrCodeId(qrCodeId);
-			sheet = { attendee, booth: { id: booth.id, name: boothName(booth) }, state: "confirming" };
+			const [attendee, { progress }] = await Promise.all([
+				getAttendeeProfileByQrCodeId(qrCodeId),
+				getStaffAttendeeProgress({ qrCodeId }),
+			]);
+			sheet = { attendee, booth: { id: booth.id, name: boothName(booth) }, entered: progress.entered, state: "confirming" };
 		} catch (caught) {
 			// Awaited: the scanner stays frozen until it's dismissed.
 			await showError(
@@ -105,7 +110,7 @@
 
 	async function confirm() {
 		const current = sheet;
-		if (current?.state !== "confirming") return;
+		if (current?.state !== "confirming" || !current.entered) return;
 		const { attendee } = current;
 		current.state = "checkingIn";
 		const name = `${attendee.firstname} ${attendee.lastname}`;
@@ -188,10 +193,15 @@
 				<AttendeeDetails attendee={sheet.attendee} />
 				<hr class="border-brand-sky" />
 				<DetailList rows={[["บูธนิทรรศการ", sheet.booth.name]]} />
+				{#if !sheet.entered}
+					<p role="alert" class="text-center font-heading text-xl text-brand-navy">
+						ยังไม่ได้ผ่านจุดลงทะเบียน ให้ไปรับของที่ระลึกที่จุดลงทะเบียนก่อน แล้วกลับมาใหม่
+					</p>
+				{/if}
 			</div>
 			<div class="flex w-full flex-col gap-2">
 				<Button variant="cta-light" size="cta-lg" class="w-full" onclick={closeSheet}>ยกเลิก</Button>
-				<Button variant="cta" size="cta-lg" class="w-full" disabled={sheet.state !== "confirming"} onclick={confirm}>
+				<Button variant="cta" size="cta-lg" class="w-full" disabled={!sheet.entered || sheet.state !== "confirming"} onclick={confirm}>
 					{sheet.state === "checkingIn" ? "กำลังเช็คอิน…" : "ตกลง"}
 				</Button>
 			</div>

@@ -10,7 +10,11 @@ import {
   getWorkshopUnregistrationGateError,
 } from "#lib/constants/time.ts";
 import { getActiveAttendeeByUserId } from "../attendees/service.server";
-import { requireSameOrigin, requireUser } from "../auth/guards.server";
+import {
+  requireSameOrigin,
+  requireStaff,
+  requireUser,
+} from "../auth/guards.server";
 import {
   registerForWorkshopInput,
   unregisterFromWorkshopInput,
@@ -30,6 +34,14 @@ export const getMyWorkshopRegistrations = query(async () => {
     workshopService.getWorkshopRegistrationsByAttendeeId(attendee.id),
   );
 });
+
+export const getAttendeeWorkshopRegistrations = query(
+  z.strictObject({ attendeeId: z.string().min(1).max(128) }),
+  async ({ attendeeId }) => {
+    requireStaff(getRequestEvent().locals.user);
+    return workshopService.getWorkshopRegistrationsByAttendeeId(attendeeId);
+  },
+);
 
 async function refreshWorkshopQueries(workshopSlug: string) {
   await Promise.all([
