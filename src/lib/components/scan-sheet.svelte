@@ -13,17 +13,24 @@
 	}: { open: boolean; onclose: () => void; children: Snippet; class?: string } = $props();
 </script>
 
+<!--
+	Controlled through a function binding: the drawer closes itself (swipe, ✕, backdrop, Esc) by
+	writing false, which goes to `onclose`; it never keeps a value of its own. A plain `open={...}`
+	let a swipe-closed drawer drift from the page's state, so it stayed hidden when reopened.
+-->
 <Drawer.Root
-	{open}
+	bind:open={
+		() => open,
+		(value) => {
+			if (!value) onclose();
+		}
+	}
 	shouldScaleBackground={false}
-	onOpenChange={(open) => {
-		if (!open) onclose();
-	}}
 >
 	<Drawer.Content
 		overlayClass="bg-black/40 supports-backdrop-filter:backdrop-blur-none"
 		class={cn(
-			"mx-auto h-[500px] max-w-[402px] bg-brand-mist px-2 pt-2 pb-6 data-[vaul-drawer-direction=bottom]:rounded-t-3xl data-[vaul-drawer-direction=bottom]:border-t-0",
+			"mx-auto h-[500px] max-w-[402px] bg-brand-mist data-[vaul-drawer-direction=bottom]:rounded-t-3xl data-[vaul-drawer-direction=bottom]:border-t-0",
 			className
 		)}
 	>
@@ -33,8 +40,11 @@
 		>
 			<img src={closeIcon} alt="" class="size-6" />
 		</Drawer.Close>
-		<!-- Clear of the close button, which sits in the corner over the drag handle's row. -->
-		<div class="flex min-h-0 flex-1 flex-col overflow-y-auto pt-9">
+		<!--
+			The scroll container reaches the sheet's edges; its padding is inside, so content scrolls
+			all the way to them. pt-9 clears the close button, which sits over the drag handle's row.
+		-->
+		<div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-9 pb-6">
 			{@render children()}
 		</div>
 	</Drawer.Content>
