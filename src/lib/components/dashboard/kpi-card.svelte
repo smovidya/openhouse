@@ -25,19 +25,19 @@
 	});
 </script>
 
-<div class="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/5 p-4">
-	<p class="text-xs tracking-wide text-white/60 uppercase">{label}</p>
-	<p class="font-heading text-4xl font-medium text-brand-yellow tabular-nums">
+<div class="flex flex-col gap-0.5 rounded-xl border border-white/10 bg-white/5 p-3">
+	<p class="text-[11px] tracking-wide text-white/60 uppercase">{label}</p>
+	<p class="font-heading text-3xl font-medium text-brand-yellow tabular-nums">
 		{Math.round(animated.current).toLocaleString("th-TH")}{suffix}
 	</p>
 	{#if percent !== null}
-		<div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+		<div class="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-white/10">
 			<div
 				class="h-full rounded-full bg-brand-yellow transition-all duration-600"
 				style="width: {Math.min(percent, 100)}%"
 			></div>
 		</div>
-		<p class="text-xs text-white/60 tabular-nums">
+		<p class="text-[11px] text-white/60 tabular-nums">
 			{percent.toFixed(1)}% ของผู้ลงทะเบียน
 		</p>
 	{/if}
