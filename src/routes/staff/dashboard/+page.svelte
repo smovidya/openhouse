@@ -17,17 +17,6 @@
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
-	let souvenirsOpen = $state(false);
-	const souvenirs = createQuery(() => ({
-		queryKey: ["dashboard-souvenirs"],
-		enabled: souvenirsOpen,
-		queryFn: async () => {
-			const query = getDashboardSouvenirs();
-			await query.refresh();
-			return await query;
-		},
-		refetchInterval: 10_000,
-	}));
 
 	// Poll the dashboard queries alone (not the page load). TanStack pauses them
 	// in background tabs, refetches on focus, and keeps the last data if a poll fails.
@@ -85,13 +74,20 @@
 
 	// Tabs keep each board within a single viewport (no page scrolling); the
 	// play button cycles through them automatically for the projector screen.
-	type TabId = "overview" | "map" | "booths" | "workshops" | "hourly";
+	type TabId =
+		| "overview"
+		| "map"
+		| "booths"
+		| "workshops"
+		| "hourly"
+		| "souvenirs";
 	const tabs: { id: TabId; label: string }[] = [
 		{ id: "overview", label: "ภาพรวม" },
 		{ id: "map", label: "แผนผัง" },
 		{ id: "booths", label: "สถิติบูธ" },
 		{ id: "workshops", label: "เวิร์กชอป" },
 		{ id: "hourly", label: "รายชั่วโมง" },
+		{ id: "souvenirs", label: "ของที่ระลึก" },
 	];
 	let activeTab = $state<TabId>("overview");
 	let playing = $state(false);
@@ -107,6 +103,19 @@
 		}, 12_000);
 		return () => clearInterval(timer);
 	});
+
+	// Souvenirs load only while their tab is active; the eligibility CTE scans
+	// every attendee row on D1, so pause the 10s poll in other tabs.
+	const souvenirs = createQuery(() => ({
+		queryKey: ["dashboard-souvenirs"],
+		enabled: activeTab === "souvenirs",
+		queryFn: async () => {
+			const query = getDashboardSouvenirs();
+			await query.refresh();
+			return await query;
+		},
+		refetchInterval: 10_000,
+	}));
 </script>
 
 <svelte:head>
@@ -207,7 +216,6 @@
 				<p class="text-xs text-brand-mist">
 					อัตราผู้เข้างานจริง {attendanceRate.toFixed(1)}%
 				</p>
-				<div><SouvenirTiers bind:open={souvenirsOpen} stats={souvenirs.data} error={souvenirs.isError} /></div>
 			{:else if activeTab === "map"}
 				<VenueMap booths={dashboard.booths} workshops={dashboard.workshops} now={clock} />
 			{:else if activeTab === "booths"}
@@ -225,7 +233,7 @@
 				</div>
 			{:else if activeTab === "workshops"}
 				<WorkshopTable workshops={dashboard.workshops} now={clock} />
-			{:else}
+			{:else if activeTab === "hourly"}
 				<section class="rounded-xl border border-white/10 bg-white/5 p-4" aria-label="เช็คอินต่อชั่วโมง">
 					<h2 class="mb-3 text-lg font-medium text-brand-yellow">การเช็คอินต่อชั่วโมง</h2>
 					<div class="flex items-end justify-between gap-1 overflow-x-auto" style="height: 120px;">
@@ -251,6 +259,8 @@
 						{/each}
 					</div>
 				</section>
+			{:else}
+				<SouvenirTiers inline stats={souvenirs.data} error={souvenirs.isError} />
 			{/if}
 		</div>
 	{/if}
