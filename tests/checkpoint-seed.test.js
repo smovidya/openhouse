@@ -7,6 +7,7 @@ import {
 } from "../scripts/seed-checkpoints";
 import { canScanCheckpoint } from "../src/lib/features/staff/permissions";
 import { souvenirTierForCheckpoint } from "../src/lib/features/dashboard/souvenirs";
+import { buildBoothSeedStatements } from "../scripts/seed-booths";
 
 function database() {
   const db = new Database(":memory:");
@@ -22,6 +23,58 @@ const seed = (db) => {
 };
 
 describe("checkpoint seed", () => {
+  it("lets the legacy booth seed reuse event checkpoint IDs, names and history", () => {
+    const db = database();
+    try {
+      seed(db);
+      db.exec(`
+        INSERT INTO users (id,google_id,email,name,role) VALUES ('u','g','test@example.com','Test','attendee');
+        INSERT INTO attendees (id,qrCodeId,user_id,title,firstname,lastname,age,resident_province,type) VALUES ('a','qr','u','Mx','Test','User',18,'Bangkok','student');
+        INSERT INTO checkpoint_logs (id,attendee_id,checkpoint_id) VALUES ('log','a','checkpoint-tcas');
+      `);
+      const before = db.query("SELECT * FROM checkpoints ORDER BY id").all();
+      for (let run = 0; run < 2; run++) {
+        for (const statement of buildBoothSeedStatements()) db.exec(statement);
+        seed(db);
+      }
+      expect(db.query("SELECT * FROM checkpoints ORDER BY id").all()).toEqual(
+        before,
+      );
+      expect(
+        db
+          .query("SELECT checkpoint_id FROM checkpoint_logs WHERE id='log'")
+          .get(),
+      ).toEqual({ checkpoint_id: "checkpoint-tcas" });
+      expect(db.query("PRAGMA foreign_key_check").all()).toEqual([]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("keeps legacy IDs when the booth seed runs first and does not revive deleted checkpoints", () => {
+    const db = database();
+    try {
+      for (const statement of buildBoothSeedStatements()) db.exec(statement);
+      db.exec("UPDATE checkpoints SET deleted_at=1 WHERE id='tcas'");
+      seed(db);
+      for (const statement of buildBoothSeedStatements()) db.exec(statement);
+      expect(
+        db
+          .query("SELECT id,deleted_at FROM checkpoints WHERE type='tcas'")
+          .all(),
+      ).toEqual([{ id: "tcas", deleted_at: 1 }]);
+      expect(
+        db
+          .query(
+            "SELECT id FROM checkpoints WHERE type='booth' AND department='physics'",
+          )
+          .all(),
+      ).toEqual([{ id: "booth-physics" }]);
+    } finally {
+      db.close();
+    }
+  });
+
   it("creates 34 checkpoints linked to the existing permission rules", () => {
     const db = database();
     try {

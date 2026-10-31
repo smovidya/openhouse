@@ -7,7 +7,7 @@ import { majorOptions } from "../src/lib/registration/options";
 
 const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
-/** Stable IDs let repeat seeds update checkpoints without replacing check-in references. */
+/** Reuse existing event checkpoints, including IDs created by checkpoints:seed. */
 export function buildBoothSeedStatements() {
   const now = Math.floor(Date.now() / 1000);
   const checkpoints = [
@@ -31,10 +31,11 @@ export function buildBoothSeedStatements() {
   return checkpoints.map(
     (checkpoint) =>
       `INSERT INTO checkpoints (id, name, department, type, created_at, updated_at)
-       VALUES (${literal(checkpoint.id)}, ${literal(checkpoint.name)}, ${checkpoint.department === null ? "NULL" : literal(checkpoint.department)}, ${literal(checkpoint.type)}, ${now}, ${now})
-       ON CONFLICT (id) DO UPDATE SET name = excluded.name,
-         department = excluded.department, type = excluded.type,
-         updated_at = excluded.updated_at`,
+       SELECT ${literal(checkpoint.id)}, ${literal(checkpoint.name)}, ${checkpoint.department === null ? "NULL" : literal(checkpoint.department)}, ${literal(checkpoint.type)}, ${now}, ${now}
+       WHERE NOT EXISTS (
+         SELECT 1 FROM checkpoints WHERE id = ${literal(checkpoint.id)}
+           OR (type = ${literal(checkpoint.type)}${checkpoint.type === "booth" ? ` AND department = ${literal(checkpoint.department!)}` : ""})
+       )`,
   );
 }
 
