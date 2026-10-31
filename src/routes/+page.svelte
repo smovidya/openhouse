@@ -118,7 +118,7 @@
 <main class="flex w-full flex-col items-center gap-6 pt-6 pb-4">
 	<img src={logo} alt="Sci CU Open House 2027" class="size-62.75 object-cover" />
 
-	<Countdown target={EVENT_SCHEDULE.eventStartsAt} />
+	<Countdown target={EVENT_SCHEDULE.eventStartsAt} end={EVENT_SCHEDULE.eventEndsAt} />
 
 	<div id="register" class="w-full max-w-100.5 scroll-mt-24 px-3">
 		{#if dev}
