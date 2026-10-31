@@ -8,6 +8,7 @@ import type { RegisteredWorkshop } from "#lib/components/workshop-card.svelte";
 import { MAX_ADVANCE_WORKSHOP_REGISTRATIONS } from "#lib/constants/workshops.ts";
 import { workshopCatalog } from "#lib/data/workshops.ts";
 import { getWorkshopRegistrationsByAttendeeId } from "#lib/features/workshops/service.server.ts";
+import { getEvaluationResponse } from "#lib/features/surveys/service.server.ts";
 import { getRequestTimeGates } from "#lib/features/time/time.server.ts";
 import { toBangkokIso } from "#lib/workshops.ts";
 import type { PageServerLoad } from "./$types";
@@ -39,6 +40,13 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (registrations.isErr()) {
     error(503, "ไม่สามารถโหลดเวิร์กช็อปที่ลงทะเบียนได้ กรุณาลองอีกครั้ง");
   }
+
+  // Whether the attendee already sent the evaluation; the certificate card uses
+  // it to swap the "ทำแบบประเมิน" CTA for the "ส่งแล้ว ✓" state.
+  const evaluation = await getEvaluationResponse(active.value.id);
+  if (evaluation.isErr()) {
+    error(503, "ไม่สามารถโหลดแบบประเมินได้ กรุณาลองอีกครั้ง");
+  }
   // Department and description are catalog content, not stored per registration.
   const workshops = registrations.value.map(
     (registration): RegisteredWorkshop => {
@@ -63,6 +71,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       name: `${result.value.firstname} ${result.value.lastname}`,
       code: result.value.qrCodeId,
     },
+    evaluationSubmitted: evaluation.value !== null,
     workshops,
     // The limit is on advance registrations; walk-ins (on the day) don't count toward it.
     advanceCount: registrations.value.filter(

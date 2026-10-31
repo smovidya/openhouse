@@ -61,18 +61,37 @@
 		</div>
 	</Glass>
 
-	<Glass as="section" variant="light" class="w-full rounded-xl flex flex-col gap-1 p-4 text-center">
+	<Glass as="section" variant="light" class="w-full rounded-xl flex flex-col gap-2 p-4 text-center">
 		<h2 class="text-xl font-medium text-brand-navy">เกียรติบัตรการเข้าร่วมงาน</h2>
 		{#if progress?.entered}
-			<p class="text-xs text-brand-navy">
-				เช็คอินจุดลงทะเบียนเข้างานแล้ว <span class="font-bold text-status-green">✓</span> มีสิทธิ์ได้รับเกียรติบัตรนี้
-			</p>
+			{#if data.evaluationSubmitted}
+				<p class="text-xs text-brand-navy">
+					ส่งแบบประเมินแล้ว <span class="font-bold text-status-green">✓</span>
+				</p>
+				<p class="text-xs text-brand-navy">
+					เกียรติบัตรจะพร้อมให้ดาวน์โหลดภายหลัง ติดตามประกาศได้ที่ Instagram:
+					<a
+						href="https://www.instagram.com/scichulaopenhouse"
+						target="_blank"
+						rel="noreferrer"
+						class="font-bold text-brand-blue underline"
+					>
+						@scichulaopenhouse
+					</a>
+				</p>
+			{:else}
+				<p class="text-xs text-brand-navy">
+					เช็คอินจุดลงทะเบียนเข้างานแล้ว <span class="font-bold text-status-green">✓</span> มีสิทธิ์ได้รับเกียรติบัตรนี้
+				</p>
+				<Button variant="cta" size="cta-sm" href="/evaluation">
+					ทำแบบประเมินเพื่อรับเกียรติบัตร
+				</Button>
+			{/if}
 		{:else}
 			<p class="text-xs text-brand-mist">
 				เช็คอินที่จุดลงทะเบียนในวันงานเท่านั้น จึงจะได้รับเกียรติบัตรนี้
 			</p>
 		{/if}
-		<p class="text-xs text-brand-navy">กรุณารอติดตามประกาศภายหลัง</p>
 	</Glass>
 
 	<section class="flex w-full flex-col gap-2">
