@@ -45,7 +45,9 @@ test("an attendee books workshops within the rules", async ({ page }) => {
     firstName: "ทดสอบ",
     lastName: "เวิร์กช็อป",
   });
-  await expect(page.getByText("ลงทะเบียนแล้ว 0/2 เวิร์กช็อป")).toBeVisible();
+  await expect(
+    page.getByText("คุณยังไม่ได้ลงทะเบียนเวิร์กช็อปใดเลย"),
+  ).toBeVisible();
 
   // Before the window opens (20 Oct 18:00), booking is refused.
   await freezeClockAt(page, "2026-10-20T17:00");

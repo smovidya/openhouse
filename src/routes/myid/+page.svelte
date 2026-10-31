@@ -138,7 +138,9 @@
       <div>
         <h2 class="text-2xl font-medium">My Workshops</h2>
         <p class="text-sm font-medium">
-          ลงทะเบียนแล้ว {data.advanceCount}/{data.workshopLimit} เวิร์กช็อป
+          {data.advanceCount > 0
+            ? `ลงทะเบียนแล้ว ${data.advanceCount}/${data.workshopLimit} เวิร์กช็อป`
+            : "คุณยังไม่ได้ลงทะเบียนเวิร์กช็อปใดเลย"}
         </p>
       </div>
       <Button variant="cta" size="cta-sm" href="/workshop">
@@ -159,6 +161,23 @@
           </p>
           <Button variant="cta" size="cta-sm" href="/workshop"
             >ลงทะเบียนเพิ่ม</Button
+          >
+        </Glass>
+      {:else if data.workshopRegistrationClosed && data.workshops.length === 0}
+        <!-- Nothing booked and booking has closed: walk-ins at the booth are still possible. -->
+        <Glass class="rounded-lg flex flex-col gap-1 p-3 text-center">
+          <p class="text-base font-medium text-brand-yellow">
+            ปิดลงทะเบียนเวิร์กช็อปล่วงหน้าแล้ว
+          </p>
+          <p class="text-sm text-brand-mist">
+            ยังเข้าร่วมแบบ walk-in ได้ที่หน้าบูธเวิร์กช็อป ก่อนเริ่มแต่ละรอบ
+            หากรอบนั้นยังมีที่ว่าง
+          </p>
+          <Button
+            variant="cta"
+            size="cta-sm"
+            href="/workshop"
+            class="mt-1 self-center">ดูเวิร์กช็อปทั้งหมด</Button
           >
         </Glass>
       {/if}
