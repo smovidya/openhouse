@@ -23,18 +23,19 @@
 		let capacity = 0;
 		let advance = 0;
 		let walkIn = 0;
+		let attended = 0;
 		for (const round of rounds) {
 			capacity += round.capacity;
-			advance += round.advance;
-			walkIn += round.walkIn;
+			advance += round.advanceArrived;
+			walkIn += round.walkInArrived;
+			attended += round.attended;
 		}
-		const registered = advance + walkIn;
 		return {
 			capacity,
 			advance,
 			walkIn,
-			registered,
-			fill: capacity > 0 ? Math.min((registered / capacity) * 100, 100) : 0,
+			attended,
+			fill: capacity > 0 ? Math.min((attended / capacity) * 100, 100) : 0,
 		};
 	});
 
@@ -48,7 +49,7 @@
 
 	const fullCount = $derived(
 		rounds.filter(
-			(round) => round.capacity > 0 && round.advance + round.walkIn >= round.capacity,
+			(round) => round.capacity > 0 && round.attended >= round.capacity,
 		).length,
 	);
 
@@ -101,12 +102,12 @@
 			<div
 				class="h-full bg-sky-400 transition-all duration-600"
 				style="width: {advanceWidth}%"
-				title="จองล่วงหน้า {totals.advance} ที่นั่ง"
+				title="จองล่วงหน้ามาแล้ว {totals.advance} คน"
 			></div>
 			<div
 				class="h-full bg-amber-400 transition-all duration-600"
 				style="width: {walkInWidth}%"
-				title="Walk-in {totals.walkIn} ที่นั่ง"
+				title="Walk-in ที่มาแล้ว {totals.walkIn} คน"
 			></div>
 		</div>
 		<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
@@ -115,7 +116,7 @@
 				<span class="text-amber-300">{number.format(totals.walkIn)}</span> Walk-in
 			</span>
 			<span class="text-brand-mist tabular-nums">
-				{number.format(totals.registered)}
+				{number.format(totals.attended)}
 				{#if totals.capacity > 0}/{number.format(totals.capacity)} ที่นั่ง{/if}
 				({totals.fill.toFixed(0)}%)
 			</span>

@@ -32,9 +32,6 @@
 		month: "short",
 		timeZone: "Asia/Bangkok",
 	});
-
-	// Registrants who checked in for this round, from the always-available stats.
-	const registeredCount = $derived(round.advance + round.walkIn);
 </script>
 
 {#snippet row(attendee: NonNullable<typeof attendees.data>[number])}
@@ -82,7 +79,7 @@
 {/snippet}
 
 <tr class="border-t border-white/10 bg-white/[0.02]">
-	<td colspan="9" class="p-0">
+	<td colspan="8" class="p-0">
 		<button
 			type="button"
 			class="flex w-full items-center gap-1 px-4 py-1.5 text-left text-xs text-brand-mist transition-colors hover:bg-white/5 focus-visible:ring-3 focus-visible:ring-brand-yellow/60 outline-none"
@@ -104,9 +101,9 @@
 			</span>
 			<span
 				class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300 tabular-nums"
-				title="ผู้ที่เช็คอินเข้ารอบนี้แล้วจากผู้ลงทะเบียนทั้งหมด"
+				title="ผู้ที่เช็คอินเข้ารอบนี้แล้ว (รวม walk-in ที่เพิ่มหน้างาน)"
 			>
-				มาแล้ว {round.attended}/{registeredCount}
+				มาแล้ว {round.attended}
 			</span>
 		</button>
 		{#if expanded.size > 0}

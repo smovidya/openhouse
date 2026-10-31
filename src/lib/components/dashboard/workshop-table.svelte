@@ -141,6 +141,10 @@
 		</Button>
 	</div>
 
+	<p class="text-xs text-white/45">
+		จองล่วงหน้า / Walk-in / รวม นับจำนวนที่เช็คอินเข้ารอบจริง (มาแล้ว) ไม่ใช่ยอดจอง
+	</p>
+
 	{#each filtered as workshop (workshop.slug)}
 		{@const isOpen = !collapsed.has(workshop.slug)}
 		{@const totalRegistered = workshop.rounds.reduce(
@@ -197,19 +201,18 @@
 								<th class="px-4 py-2 text-right font-medium">จองล่วงหน้า</th>
 								<th class="px-4 py-2 text-right font-medium">Walk-in</th>
 								<th class="px-4 py-2 text-right font-medium">รวม</th>
-								<th class="px-4 py-2 text-right font-medium">มาแล้ว</th>
 								<th class="w-40 px-4 py-2 font-medium">ความจุที่ใช้</th>
 								<th class="px-4 py-2 font-medium">สถานะ</th>
 							</tr>
 						</thead>
 						<tbody>
 						{#each workshop.rounds as round (round.roundNumber)}
-							{@const registered = round.advance + round.walkIn}
+							{@const arrived = round.attended}
 							{@const status = roundStatus(round)}
 							{@const fill = round.capacity > 0
-								? Math.min((registered / round.capacity) * 100, 100)
+								? Math.min((arrived / round.capacity) * 100, 100)
 								: 0}
-							{@const full = registered >= round.capacity && round.capacity > 0}
+							{@const full = arrived >= round.capacity && round.capacity > 0}
 							{@const current = status === "กำลังจัด"}
 							<tr
 								class="border-t border-white/10 transition-colors hover:bg-white/5
@@ -223,13 +226,10 @@
 									)} น.
 								</td>
 								<td class="px-4 py-2 text-right text-white/70 tabular-nums">{round.capacity}</td>
-								<td class="px-4 py-2 text-right text-sky-300 tabular-nums">{round.advance}</td>
-								<td class="px-4 py-2 text-right text-amber-300 tabular-nums">{round.walkIn}</td>
+								<td class="px-4 py-2 text-right text-sky-300 tabular-nums">{round.advanceArrived}</td>
+								<td class="px-4 py-2 text-right text-amber-300 tabular-nums">{round.walkInArrived}</td>
 								<td class="px-4 py-2 text-right font-medium text-white tabular-nums">
-									{registered}{#if full} <span class="text-brand-yellow">(เต็ม)</span>{/if}
-								</td>
-								<td class="px-4 py-2 text-right text-emerald-300 tabular-nums">
-									{round.attended}
+									{arrived}{#if full} <span class="text-brand-yellow">(เต็ม)</span>{/if}
 								</td>
 								<td class="px-4 py-2">
 									<div class="h-2 w-full overflow-hidden rounded-full bg-white/10">
@@ -255,7 +255,7 @@
 							<RoundAttendees {round} workshopTitle={workshop.title} />
 						{:else}
 							<tr class="border-t border-white/10 bg-white/[0.02]">
-								<td class="px-4 py-3 text-xs text-white/60" colspan="9">
+								<td class="px-4 py-3 text-xs text-white/60" colspan="8">
 									ไม่มีรอบที่ตรงกับตัวกรอง
 								</td>
 							</tr>
@@ -263,27 +263,26 @@
 						{#if true}
 							<!-- Summary of all rounds for this workshop. -->
 							{@const sumAdvance = workshop.rounds.reduce(
-								(sum, round) => sum + round.advance,
+								(sum, round) => sum + round.advanceArrived,
 								0,
 							)}
 							{@const sumWalkIn = workshop.rounds.reduce(
-								(sum, round) => sum + round.walkIn,
+								(sum, round) => sum + round.walkInArrived,
 								0,
 							)}
 							{@const sumCapacity = workshop.rounds.reduce(
 								(sum, round) => sum + round.capacity,
 								0,
 							)}
-							{@const sumRegistered = sumAdvance + sumWalkIn}
 							{@const sumAttended = workshop.rounds.reduce(
 								(sum, round) => sum + round.attended,
 								0,
 							)}
 							{@const sumFill = sumCapacity > 0
-								? Math.min((sumRegistered / sumCapacity) * 100, 100)
+								? Math.min((sumAttended / sumCapacity) * 100, 100)
 								: 0}
 							{@const avgPerRound = workshop.rounds.length > 0
-								? (sumRegistered / workshop.rounds.length).toFixed(1)
+								? (sumAttended / workshop.rounds.length).toFixed(1)
 								: "0"}
 							<tr class="border-t-2 border-white/20 bg-white/10 text-xs">
 								<td class="px-4 py-2 font-medium text-white">รวมทุกรอบ</td>
@@ -294,9 +293,6 @@
 								<td class="px-4 py-2 text-right text-sky-300 tabular-nums">{sumAdvance}</td>
 								<td class="px-4 py-2 text-right text-amber-300 tabular-nums">{sumWalkIn}</td>
 								<td class="px-4 py-2 text-right font-medium text-white tabular-nums">
-									{sumRegistered}
-								</td>
-								<td class="px-4 py-2 text-right text-emerald-300 tabular-nums">
 									{sumAttended}
 								</td>
 								<td class="px-4 py-2">

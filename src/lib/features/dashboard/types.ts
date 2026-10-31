@@ -16,6 +16,10 @@ export interface WorkshopRoundStats {
   walkIn: number;
   /** Attendees who actually checked in (showed up) for this round. */
   attended: number;
+  /** Advance-booked attendees who checked in for this round. */
+  advanceArrived: number;
+  /** Walk-in attendees who checked in for this round. */
+  walkInArrived: number;
 }
 
 export interface WorkshopStats {

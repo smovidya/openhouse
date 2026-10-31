@@ -142,6 +142,32 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
           )
           and ${checkpointLogs.deletedAt} is null
         )`.mapWith(Number),
+        // Actual arrivals split by how the attendee got in: the checkpoint log's
+        // attendance_type is set at check-in (advance if they held a booking,
+        // otherwise walk-in) — unlike the registration counts above, walk-ins
+        // scanned on the spot (เพิ่มคน) show up here.
+        advanceArrived: sql<number>`(
+          select count(*) from ${checkpointLogs}
+          where ${checkpointLogs.checkpointId} in (
+            select ${checkpoints.id} from ${checkpoints}
+            where ${checkpoints.workshopTimeSlotId} = ${workshopTimeSlots.id}
+              and ${checkpoints.type} = 'workshop'
+              and ${checkpoints.deletedAt} is null
+          )
+          and ${checkpointLogs.attendanceType} = 'advance'
+          and ${checkpointLogs.deletedAt} is null
+        )`.mapWith(Number),
+        walkInArrived: sql<number>`(
+          select count(*) from ${checkpointLogs}
+          where ${checkpointLogs.checkpointId} in (
+            select ${checkpoints.id} from ${checkpoints}
+            where ${checkpoints.workshopTimeSlotId} = ${workshopTimeSlots.id}
+              and ${checkpoints.type} = 'workshop'
+              and ${checkpoints.deletedAt} is null
+          )
+          and ${checkpointLogs.attendanceType} = 'walk-in'
+          and ${checkpointLogs.deletedAt} is null
+        )`.mapWith(Number),
       })
       .from(workshops)
       .leftJoin(
@@ -169,6 +195,8 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
     advance,
     walkIn,
     attended,
+    advanceArrived,
+    walkInArrived,
   } of workshopRows) {
     let workshop = workshopStats.get(slug);
     if (!workshop) {
@@ -191,6 +219,8 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
         advance,
         walkIn,
         attended,
+        advanceArrived,
+        walkInArrived,
       });
     }
   }
