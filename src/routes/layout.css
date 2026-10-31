@@ -158,10 +158,6 @@
   body {
     @apply bg-background text-foreground;
   }
-  html,
-  body {
-    overscroll-behavior: none;
-  }
 
   html {
     @apply font-sans;

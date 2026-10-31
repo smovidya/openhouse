@@ -133,10 +133,12 @@
 	const ROTATIONS = ["-rotate-1", "rotate-1", "rotate-0", "rotate-[-1.5deg]"] as const;
 	const rotation = (i: number) => ROTATIONS[i % ROTATIONS.length];
 
+	// The inks are pastel (made for the dark venue map), so on this light card a collected stamp is
+	// filled with its ink and an empty one is a faint navy outline; the text stays navy.
 	function stampStyle(ink: string, done: boolean) {
 		return done
-			? `border-color:${ink};background:${ink}2e`
-			: `border-color:${ink}73;background:transparent`;
+			? `border-color:${ink};background:${ink}`
+			: "border-color:rgb(33 58 98 / 0.18);background:transparent";
 	}
 </script>
 
@@ -191,7 +193,7 @@
 							style={stampStyle(stamp.ink, stamp.done)}
 						>
 							{#if stamp.done}
-								<span class="text-xs leading-none font-bold" style:color={stamp.ink}>✓</span>
+								<span class="text-xs leading-none font-bold text-brand-navy">✓</span>
 							{/if}
 							<span class={cn("text-brand-navy", !stamp.done && "opacity-60")}>
 								{stamp.label}
@@ -228,7 +230,7 @@
 							style={stampStyle(stamp.ink, stamp.done)}
 						>
 							{#if stamp.done}
-								<span class="text-xs leading-none font-bold" style:color={stamp.ink}>✓</span>
+								<span class="text-xs leading-none font-bold text-brand-navy">✓</span>
 							{/if}
 							<span class={cn("text-brand-navy", !stamp.done && "opacity-60")}>
 								{stamp.label}
@@ -252,7 +254,7 @@
 								style={stampStyle(stamp.ink, stamp.done)}
 							>
 								{#if stamp.done}
-									<span class="text-xs leading-none font-bold" style:color={stamp.ink}>✓</span>
+									<span class="text-xs leading-none font-bold text-brand-navy">✓</span>
 									<span class="text-brand-navy">{stamp.label}</span>
 								{/if}
 							</li>
@@ -263,13 +265,13 @@
 				<div class="flex flex-wrap gap-x-3 gap-y-1 pt-1 text-[10px] text-brand-navy">
 					{#each BOOLEAN_ORDER as type (type)}
 						<span class="flex items-center gap-1">
-							<i class="size-2 rounded-full" style:background={INK[type]}></i>
+							<i class="size-2 rounded-full ring-1 ring-brand-navy/20" style:background={INK[type]}></i>
 							{BOOLEAN_LABELS[type]}
 						</span>
 					{/each}
 					{#if workshopStamps.length > 0}
 						<span class="flex items-center gap-1">
-							<i class="size-2 rounded-full" style:background={INK.workshop}></i>
+							<i class="size-2 rounded-full ring-1 ring-brand-navy/20" style:background={INK.workshop}></i>
 							เวิร์กช็อป
 						</span>
 					{/if}

@@ -24,9 +24,6 @@ export const rewardTiers = [...tierRequirements]
   .sort((a, b) => b.tier - a.tier)
   .map((requirement) => ({ ...requirement, ...tierInfo[requirement.tier] }));
 
-/** Handed out at the registration point on entry, before any tier. */
-export const entryReward = "สมุดและกระเป๋า";
-
 /** Hashtags the attendee's story must carry before staff hand over a tier reward. */
 export const rewardHashtags = [
   "#SCICUOPENHOUSE2027",
