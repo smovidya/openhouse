@@ -40,23 +40,30 @@
 	href="/workshop/{workshop.slug}"
 	class="block rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-brand-navy"
 >
-	<Glass as="article" class="rounded-lg flex flex-col gap-1 p-3">
-		<div class="flex flex-col">
-			<h3 class="text-sm font-medium text-brand-yellow">{workshop.title}</h3>
-			<div class="flex items-center gap-2 text-xs text-brand-yellow">
+	<Glass as="article" class="rounded-lg flex flex-col gap-2 p-3">
+		<div class="flex flex-col gap-1">
+			<p class="self-start rounded-full bg-brand-mist px-2 py-0.5 text-xs font-medium text-brand-navy">
+				{workshop.department}
+			</p>
+			<h3 class="text-base font-medium text-brand-yellow">{workshop.title}</h3>
+			<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-brand-mist">
 				<span class="flex items-center gap-1">
 					<img src={calendarIcon} alt="" />
 					<time datetime={workshop.start}>{dateFormat.format(start)}</time>
 				</span>
 				<span class="flex items-center gap-1">
 					<img src={clockIcon} alt="" />
-					<span>{timeFormat.format(start)} - {timeFormat.format(end)}</span>
+					<span>{timeFormat.format(start)} - {timeFormat.format(end)} น.</span>
 				</span>
 			</div>
 		</div>
-		<p class="text-xs text-brand-mist">เช็กอิน{workshop.type === "advance" ? "ล่วงหน้า" : " onsite"} {timeFormat.format(new Date(checkIn.opensAt))}–{timeFormat.format(new Date(checkIn.closesAt))} น.</p>
-		<p class="text-xs text-brand-mist">สแกน Check-In ส่วนกลางก่อน แล้วจึงเช็กอินที่จุด Workshop</p>
-		<p class="text-[10px] text-brand-sky">{workshop.department}</p>
-		<p class="line-clamp-4 text-xs text-brand-mist">{workshop.description}</p>
+		<div class="rounded-lg bg-black/20 px-3 py-2 text-xs text-brand-mist">
+			<p class="font-medium">
+				เช็กอิน{workshop.type === "advance" ? "ล่วงหน้า" : " onsite"}
+				{timeFormat.format(new Date(checkIn.opensAt))}–{timeFormat.format(new Date(checkIn.closesAt))} น.
+			</p>
+			<p>สแกน Check-In ส่วนกลางก่อน แล้วจึงเช็กอินที่จุด Workshop</p>
+		</div>
+		<p class="line-clamp-3 text-xs text-brand-mist/80">{workshop.description}</p>
 	</Glass>
 </a>

@@ -45,9 +45,7 @@ test("an attendee books workshops within the rules", async ({ page }) => {
     firstName: "ทดสอบ",
     lastName: "เวิร์กช็อป",
   });
-  await expect(
-    page.getByText("เวิร์กช็อปที่ลงทะเบียนแล้ว (0/2)"),
-  ).toBeVisible();
+  await expect(page.getByText("ลงทะเบียนแล้ว 0/2 เวิร์กช็อป")).toBeVisible();
 
   // Before the window opens (20 Oct 18:00), booking is refused.
   await freezeClockAt(page, "2026-10-20T17:00");
@@ -122,9 +120,7 @@ test("an attendee books workshops within the rules", async ({ page }) => {
 
   // Both bookings on /myid, each linking to its workshop.
   await open(page, "/myid");
-  await expect(
-    page.getByText("เวิร์กช็อปที่ลงทะเบียนแล้ว (2/2)"),
-  ).toBeVisible();
+  await expect(page.getByText("ลงทะเบียนแล้ว 2/2 เวิร์กช็อป")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Perfume" })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Little Beads, Big Ideas" }),
@@ -174,8 +170,6 @@ test("an attendee books workshops within the rules", async ({ page }) => {
   );
 
   await open(page, "/myid");
-  await expect(
-    page.getByText("เวิร์กช็อปที่ลงทะเบียนแล้ว (1/2)"),
-  ).toBeVisible();
+  await expect(page.getByText("ลงทะเบียนแล้ว 1/2 เวิร์กช็อป")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Perfume" })).toBeHidden();
 });

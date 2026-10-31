@@ -1,7 +1,16 @@
 <script lang="ts">
   import arrowRightIcon from "#lib/assets/icons/arrow-right.svg";
-  import checkCircleIcon from "#lib/assets/icons/check-circle.svg";
   import refreshIcon from "#lib/assets/icons/refresh.svg";
+  import bagFull from "#lib/assets/rewards/bag-full.webp";
+  import bagThumb from "#lib/assets/rewards/bag.webp";
+  import capFull from "#lib/assets/rewards/cap-full.webp";
+  import capThumb from "#lib/assets/rewards/cap.webp";
+  import notebookFull from "#lib/assets/rewards/notebook-full.webp";
+  import notebookThumb from "#lib/assets/rewards/notebook.webp";
+  import pillowFull from "#lib/assets/rewards/pillow-full.webp";
+  import pillowThumb from "#lib/assets/rewards/pillow.webp";
+  import tumblerFull from "#lib/assets/rewards/tumbler-full.webp";
+  import tumblerThumb from "#lib/assets/rewards/tumbler.webp";
   import Glass from "#lib/render/glass.svelte";
   import QrCode from "#lib/components/qr-code.svelte";
   import RewardTierCard from "#lib/components/reward-tier-card.svelte";
@@ -11,13 +20,15 @@
   import { Button } from "#lib/components/ui/button/index.js";
   import { BANGKOK_TIME_ZONE, EVENT_SCHEDULE } from "#lib/constants/time.ts";
   import { getMyProgress } from "#lib/features/checkpoints/checkpoints.remote.ts";
-  import {
-    entryReward,
-    rewardHashtags,
-    rewardTiers,
-    tierConditions,
-  } from "#lib/rewards.js";
+  import { rewardHashtags, rewardTiers, tierConditions } from "#lib/rewards.js";
   import type { PageProps } from "./$types";
+
+  // Photos from the souvenir team's handbook ("ของที่ระลึก"), in each tier's reward order.
+  const tierImages = {
+    3: [{ thumb: pillowThumb, full: pillowFull }],
+    2: [{ thumb: capThumb, full: capFull }],
+    1: [{ thumb: tumblerThumb, full: tumblerFull }],
+  } as const;
 
   let { data }: PageProps = $props();
 
@@ -45,6 +56,23 @@
   const remaining = $derived(
     Math.max(0, data.workshopLimit - data.advanceCount),
   );
+
+  /** Handed out at the registration point on entry: a card like the tiers', above them. */
+  const entryTier = $derived({
+    title: "ระดับพื้นฐาน",
+    conditions: [
+      {
+        label: "ลงทะเบียนเข้างาน",
+        done: progress ? Number(progress.entered) : null,
+        total: 1,
+      },
+    ],
+    rewards: ["สมุด", "กระเป๋า"],
+    images: [
+      { thumb: notebookThumb, full: notebookFull },
+      { thumb: bagThumb, full: bagFull },
+    ],
+  });
 </script>
 
 <svelte:head>
@@ -62,7 +90,7 @@
     options={{ vibrancy: 1.2 }}
     class="rounded-xl flex flex-col gap-2 p-4 text-center text-black"
   >
-    <QrCode value={data.profile.code} class="size-[227px]" />
+    <QrCode value={data.profile.code} class="size-[227px] rounded-md overflow-clip" />
     <div>
       <p class="text-xl">{data.profile.name}</p>
       <p class="text-sm">{data.profile.code}</p>
@@ -105,13 +133,12 @@
     <p class="text-xs text-brand-navy">กรุณารอติดตามประกาศภายหลัง</p>
   </Glass>
 
-  <section class="flex w-full flex-col gap-2">
-    <div class="flex items-center justify-between gap-2">
-      <div class="flex flex-col text-brand-navy">
+  <section class="flex w-full flex-col gap-3">
+    <div class="flex items-end justify-between gap-2 text-brand-navy">
+      <div>
         <h2 class="text-2xl font-medium">My Workshops</h2>
-        <p class="flex items-center gap-1 text-xs">
-          เวิร์กช็อปที่ลงทะเบียนแล้ว ({data.advanceCount}/{data.workshopLimit})
-          <img src={checkCircleIcon} alt="" />
+        <p class="text-sm font-medium">
+          ลงทะเบียนแล้ว {data.advanceCount}/{data.workshopLimit} เวิร์กช็อป
         </p>
       </div>
       <Button variant="cta" size="cta-sm" href="/workshop">
@@ -126,9 +153,9 @@
       {/each}
 
       {#if remaining > 0 && !data.workshopRegistrationClosed}
-        <Glass class="rounded-lg flex flex-col items-center gap-2 p-3">
-          <p class="text-center text-xs text-brand-mist">
-            คุณลงทะเบียนได้อีก {remaining} เวิร์กช็อป
+        <Glass class="rounded-lg flex items-center justify-between gap-3 p-3">
+          <p class="text-sm text-brand-mist">
+            ลงทะเบียนได้อีก {remaining} เวิร์กช็อป
           </p>
           <Button variant="cta" size="cta-sm" href="/workshop"
             >ลงทะเบียนเพิ่ม</Button
@@ -136,14 +163,12 @@
         </Glass>
       {/if}
     {:else}
-      <!-- Placeholder until workshop registration opens (like the reward hunt's). -->
-      <Glass class="rounded-lg p-3">
-        <p
-          class="text-center font-heading text-base font-medium text-brand-yellow"
-        >
+      <!-- Placeholder until workshop registration opens. -->
+      <Glass class="rounded-lg flex flex-col gap-2 p-3 text-center">
+        <p class="text-base font-medium text-brand-yellow">
           เตรียมพบกับการลงทะเบียนเวิร์กช็อป<br />Coming Soon!!
         </p>
-        <p class="mt-2 text-center text-sm text-brand-mist">
+        <p class="text-sm text-brand-mist">
           เปิดลงทะเบียน <time
             datetime={EVENT_SCHEDULE.workshopRegistrationOpensAt}
             >{registrationOpensLabel} น.</time
@@ -153,15 +178,13 @@
     {/if}
   </section>
 
-  <section class="flex w-full flex-col gap-2">
-    <div class="flex items-start justify-between gap-2">
-      <div class="text-brand-navy">
+  <section class="flex w-full flex-col gap-3">
+    <div class="flex items-end justify-between gap-2 text-brand-navy">
+      <div>
         <h2 class="text-2xl font-medium">ภารกิจล่าของรางวัล</h2>
-        <p class="text-xs">
-          *แลกของรางวัลได้ครั้งเดียว
-          เมื่อแลกแล้วจะสะสมกิจกรรมเพื่อเลื่อนขั้นต่อไม่ได้
+        <p class="text-sm font-medium">
+          สะสมตราจากบูธและกิจกรรม แล้วแลกของรางวัล
         </p>
-        <p class="text-xs">ลงทะเบียนเข้างานรับ{entryReward}ทันที</p>
       </div>
       <button
         type="button"
@@ -177,7 +200,19 @@
         />
       </button>
     </div>
+
+    <!-- Whether the attendee redeemed, never which tier or gift. -->
     {#if progress}
+      <p
+        class={[
+          "self-start rounded-full px-3 py-1 text-sm font-medium text-brand-navy",
+          progress.redemption ? "bg-status-green" : "bg-brand-mist",
+        ]}
+      >
+        {progress.redemption
+          ? "✓ แลกรับของรางวัลแล้ว"
+          : "ยังไม่ได้แลกรับของรางวัล"}
+      </p>
       <StampLog
         checkpoints={progress.checkpoints}
         registered={data.workshops.map((workshop) => ({
@@ -187,25 +222,32 @@
         }))}
       />
     {/if}
-    <!-- Redemptions from before gift names were recorded have none: show the generic status then. -->
-    {#if progress?.redemption}
-      <p class="text-sm text-brand-navy">
-        {progress.redemption.giftName
-          ? `แลก${progress.redemption.giftName}แล้ว`
-          : "แลกรับของรางวัลแล้ว"}
-      </p>
-    {/if}
+
+    <RewardTierCard tier={entryTier} />
     {#each rewardTiers as tier (tier.tier)}
       <RewardTierCard
         tier={{
           title: tier.title,
           conditions: tierConditions(tier, progress?.counts ?? null),
           rewards: tier.rewards,
+          images: tierImages[tier.tier],
         }}
       />
     {/each}
-    <p class="text-xs text-brand-navy">
-      *ก่อนรับของรางวัล ลงสตอรี่พร้อมแฮชแท็ก {rewardHashtags.join(" และ ")}
-    </p>
+
+    <Glass class="rounded-lg flex flex-col gap-1 p-3 text-sm text-brand-mist">
+      <p class="font-medium text-brand-yellow">ก่อนแลกของรางวัล</p>
+      <ul class="list-disc ps-5">
+        <li>
+          แลกได้ครั้งเดียว ตามขั้นสูงสุดที่ผ่าน
+          เมื่อแลกแล้วจะสะสมเพื่อเลื่อนขั้นต่อไม่ได้
+        </li>
+        <li>
+          ลงสตอรี่ IG พร้อมแฮชแท็ก <span class="font-medium text-brand-yellow"
+            >{rewardHashtags.join(" ")}</span
+          >
+        </li>
+      </ul>
+    </Glass>
   </section>
 </main>
