@@ -96,7 +96,9 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
       .orderBy(asc(checkpoints.id)),
     db
       .select({
-        hour: sql<string>`strftime('%Y-%m-%dT%H:00', ${checkpointLogs.createdAt}, 'unixepoch')`,
+        // UTC ISO hour (trailing Z) so client code can parse it as UTC and
+        // render it in the attendee's local zone (Asia/Bangkok).
+        hour: sql<string>`strftime('%Y-%m-%dT%H:00Z', ${checkpointLogs.createdAt}, 'unixepoch')`,
         count: sql<number>`count(*)`.mapWith(Number),
       })
       .from(checkpointLogs)
