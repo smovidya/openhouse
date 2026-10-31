@@ -5,7 +5,7 @@ export type GlassVariant = "dark" | "light";
 /** Surface fill drawn over the refracted backdrop, [r, g, b, alpha]. */
 const SURFACE: Record<GlassVariant, [number, number, number, number]> = {
   dark: [0, 0, 0, 0.3], // Figma card-black
-  light: [1, 1, 1, 0.15],
+  light: [1, 1, 1, 0.25],
 };
 
 export type Rgba = [number, number, number, number];

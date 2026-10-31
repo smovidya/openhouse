@@ -63,7 +63,7 @@
 	this={as}
 	class={cn(
 		!(mode === "full" && phase === "settled") && [
-			variant === "light" ? "bg-white/15" : "bg-black/30",
+			variant === "light" ? "bg-white/30" : "bg-black/30",
 			"backdrop-blur-md backdrop-saturate-(--glass-vibrancy)",
 		],
 		"relative isolate",
