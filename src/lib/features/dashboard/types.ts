@@ -14,6 +14,8 @@ export interface WorkshopRoundStats {
   capacity: number;
   advance: number;
   walkIn: number;
+  /** Attendees who actually checked in (showed up) for this round. */
+  attended: number;
 }
 
 export interface WorkshopStats {
@@ -31,6 +33,8 @@ export interface WorkshopRoundAttendee {
   school: string | null;
   registeredAt: string;
   type: "advance" | "walk-in";
+  /** Whether this attendee has checked in for the round. */
+  checkedIn: boolean;
 }
 
 export interface DashboardStats {

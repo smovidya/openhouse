@@ -151,6 +151,10 @@
 			(sum, round) => sum + round.capacity,
 			0,
 		)}
+		{@const totalAttended = workshop.rounds.reduce(
+			(sum, round) => sum + round.attended,
+			0,
+		)}
 		<Collapsible.Root
 			class="overflow-hidden rounded-xl border border-white/10"
 			open={isOpen}
@@ -177,6 +181,7 @@
 				<span class="shrink-0 text-xs text-brand-mist tabular-nums">
 					{workshop.rounds.length} รอบ · {totalRegistered}
 					{totalCapacity > 0 ? `/${totalCapacity}` : ""} ที่นั่ง
+					· <span class="text-emerald-300">มาแล้ว {totalAttended}</span>
 				</span>
 			</Collapsible.Trigger>
 			<Collapsible.Content>
@@ -192,6 +197,7 @@
 								<th class="px-4 py-2 text-right font-medium">จองล่วงหน้า</th>
 								<th class="px-4 py-2 text-right font-medium">Walk-in</th>
 								<th class="px-4 py-2 text-right font-medium">รวม</th>
+								<th class="px-4 py-2 text-right font-medium">มาแล้ว</th>
 								<th class="w-40 px-4 py-2 font-medium">ความจุที่ใช้</th>
 								<th class="px-4 py-2 font-medium">สถานะ</th>
 							</tr>
@@ -222,6 +228,9 @@
 								<td class="px-4 py-2 text-right font-medium text-white tabular-nums">
 									{registered}{#if full} <span class="text-brand-yellow">(เต็ม)</span>{/if}
 								</td>
+								<td class="px-4 py-2 text-right text-emerald-300 tabular-nums">
+									{round.attended}
+								</td>
 								<td class="px-4 py-2">
 									<div class="h-2 w-full overflow-hidden rounded-full bg-white/10">
 										<div
@@ -246,7 +255,7 @@
 							<RoundAttendees {round} workshopTitle={workshop.title} />
 						{:else}
 							<tr class="border-t border-white/10 bg-white/[0.02]">
-								<td class="px-4 py-3 text-xs text-white/60" colspan="8">
+								<td class="px-4 py-3 text-xs text-white/60" colspan="9">
 									ไม่มีรอบที่ตรงกับตัวกรอง
 								</td>
 							</tr>
@@ -266,6 +275,10 @@
 								0,
 							)}
 							{@const sumRegistered = sumAdvance + sumWalkIn}
+							{@const sumAttended = workshop.rounds.reduce(
+								(sum, round) => sum + round.attended,
+								0,
+							)}
 							{@const sumFill = sumCapacity > 0
 								? Math.min((sumRegistered / sumCapacity) * 100, 100)
 								: 0}
@@ -282,6 +295,9 @@
 								<td class="px-4 py-2 text-right text-amber-300 tabular-nums">{sumWalkIn}</td>
 								<td class="px-4 py-2 text-right font-medium text-white tabular-nums">
 									{sumRegistered}
+								</td>
+								<td class="px-4 py-2 text-right text-emerald-300 tabular-nums">
+									{sumAttended}
 								</td>
 								<td class="px-4 py-2">
 									<div class="h-2 w-full overflow-hidden rounded-full bg-white/10">

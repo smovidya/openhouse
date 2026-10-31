@@ -132,6 +132,16 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
             and ${workshopRegistrations.type} = 'walk-in'
             and ${workshopRegistrations.deletedAt} is null
         )`.mapWith(Number),
+        attended: sql<number>`(
+          select count(*) from ${checkpointLogs}
+          where ${checkpointLogs.checkpointId} in (
+            select ${checkpoints.id} from ${checkpoints}
+            where ${checkpoints.workshopTimeSlotId} = ${workshopTimeSlots.id}
+              and ${checkpoints.type} = 'workshop'
+              and ${checkpoints.deletedAt} is null
+          )
+          and ${checkpointLogs.deletedAt} is null
+        )`.mapWith(Number),
       })
       .from(workshops)
       .leftJoin(
@@ -158,6 +168,7 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
     endsAt,
     advance,
     walkIn,
+    attended,
   } of workshopRows) {
     let workshop = workshopStats.get(slug);
     if (!workshop) {
@@ -179,6 +190,7 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
         capacity,
         advance,
         walkIn,
+        attended,
       });
     }
   }
@@ -248,6 +260,15 @@ export async function getWorkshopRoundAttendees(
       type: sql<
         WorkshopRoundAttendee["type"]
       >`cast(${workshopRegistrations.type} as text)`,
+      checkedIn: sql<boolean>`exists (
+        select 1 from ${checkpointLogs} cl
+        inner join ${checkpoints} cp on cp.id = cl.checkpoint_id
+        where cl.attendee_id = ${attendees.id}
+          and cl.deleted_at is null
+          and cp.deleted_at is null
+          and cp.type = 'workshop'
+          and cp.workshop_time_slot_id = ${slotId}
+      )`.mapWith(Boolean),
     })
     .from(workshopRegistrations)
     .innerJoin(attendees, eq(attendees.id, workshopRegistrations.attendeeId))

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createQuery } from "@tanstack/svelte-query";
-	import { ChevronRight } from "@lucide/svelte";
+	import { ChevronRight, CircleCheck } from "@lucide/svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import { getWorkshopRoundAttendees } from "#lib/features/dashboard/dashboard.remote.ts";
 	import type { WorkshopRoundStats } from "#lib/features/dashboard/types.ts";
@@ -32,6 +32,9 @@
 		month: "short",
 		timeZone: "Asia/Bangkok",
 	});
+
+	// Registrants who checked in for this round, from the always-available stats.
+	const registeredCount = $derived(round.advance + round.walkIn);
 </script>
 
 {#snippet row(attendee: NonNullable<typeof attendees.data>[number])}
@@ -51,17 +54,35 @@
 				<span class="truncate text-xs text-white/50">{attendee.school}</span>
 			{/if}
 		</span>
-		<time
-			datetime={attendee.registeredAt}
-			class="shrink-0 text-xs text-white/50 tabular-nums"
-		>
-			{dateTimeFormat.format(new Date(attendee.registeredAt))} น.
-		</time>
+		<span class="flex shrink-0 items-center gap-2">
+			{#if attendee.checkedIn}
+				<span
+					class="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300"
+					title="เช็คอินเข้ารอบนี้แล้ว"
+				>
+					<CircleCheck class="size-3" />
+					มาแล้ว
+				</span>
+			{:else}
+				<span
+					class="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-white/40"
+					title="ยังไม่เช็คอินเข้ารอบนี้"
+				>
+					ยังไม่มา
+				</span>
+			{/if}
+			<time
+				datetime={attendee.registeredAt}
+				class="text-xs text-white/50 tabular-nums"
+			>
+				{dateTimeFormat.format(new Date(attendee.registeredAt))} น.
+			</time>
+		</span>
 	</div>
 {/snippet}
 
 <tr class="border-t border-white/10 bg-white/[0.02]">
-	<td colspan="8" class="p-0">
+	<td colspan="9" class="p-0">
 		<button
 			type="button"
 			class="flex w-full items-center gap-1 px-4 py-1.5 text-left text-xs text-brand-mist transition-colors hover:bg-white/5 focus-visible:ring-3 focus-visible:ring-brand-yellow/60 outline-none"
@@ -80,6 +101,12 @@
 					<ChevronRight class="size-3" />
 				</span>
 				รายชื่อผู้ลงทะเบียนรอบ {round.roundNumber} ของ {workshopTitle}
+			</span>
+			<span
+				class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300 tabular-nums"
+				title="ผู้ที่เช็คอินเข้ารอบนี้แล้วจากผู้ลงทะเบียนทั้งหมด"
+			>
+				มาแล้ว {round.attended}/{registeredCount}
 			</span>
 		</button>
 		{#if expanded.size > 0}
