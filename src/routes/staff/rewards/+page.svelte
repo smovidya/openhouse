@@ -201,17 +201,19 @@
 		{@const remaining = progress.checkpoints.filter(
 			(checkpoint) => collectable.has(checkpoint.type) && !checkpoint.completed
 		)}
-		<div class="flex flex-1 flex-col items-center justify-between gap-6">
-			<div class="flex w-full flex-col gap-4 px-4">
-				<Drawer.Title class="text-center font-heading text-[28px] font-medium text-black">รับของรางวัล</Drawer.Title>
+		<div class="flex flex-1 flex-col items-center justify-between gap-4">
+			<div class="flex w-full flex-col gap-3 px-2">
+				<Drawer.Title class="text-center font-heading text-2xl font-medium text-black">รับของรางวัล</Drawer.Title>
 				<AttendeeDetails attendee={sheet.attendee} />
-				<RewardTierTable counts={progress.counts} highlight={reason ? null : tier} />
+				<RewardTierTable counts={progress.counts} highlight={reason ? null : tier} compact />
 
 				{#if reason}
-					<p role="alert" class="text-center font-heading text-xl text-brand-navy">{reason}</p>
+					<p role="alert" class="text-center font-heading text-lg font-medium text-brand-navy">{reason}</p>
 				{:else if tier !== null}
 					<!-- The highest tier reached: redeeming hands over this tier's gift, never a lower one's. -->
-					<p class="text-center font-heading text-xl text-brand-navy">ขั้นสูงสุดที่แลกได้: {tierTitle(tier)}</p>
+					<p class="text-center font-heading text-lg font-medium text-brand-navy">
+						ขั้นสูงสุดที่แลกได้: {tierTitle(tier)}
+					</p>
 					{#if gifts.length > 1}
 						<Picker
 							class="border-brand-sky"

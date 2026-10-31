@@ -13,9 +13,13 @@
 	/**
 	 * The reward tiers' conditions (Figma "เงื่อนไขแลกของรางวัลในแต่ละขั้น"): one row per tier. With
 	 * `counts`, a highlighted ปัจจุบัน row shows the attendee's; `highlight` outlines a tier.
+	 * `compact` tightens it for a sheet.
 	 */
-	let { counts = null, highlight = null }: { counts?: ProgressCounts | null; highlight?: RewardTier | null } =
-		$props();
+	let {
+		counts = null,
+		highlight = null,
+		compact = false,
+	}: { counts?: ProgressCounts | null; highlight?: RewardTier | null; compact?: boolean } = $props();
 
 	const mark = (done: boolean) => (done ? "✓" : "✗");
 </script>
@@ -23,7 +27,10 @@
 <div
 	role="table"
 	aria-label="เงื่อนไขแลกของรางวัลในแต่ละขั้น"
-	class="flex w-full flex-col gap-2 rounded-lg border-2 border-brand-sky bg-brand-mist p-3 text-sm break-words text-brand-navy"
+	class={[
+		"flex w-full flex-col rounded-lg border-2 border-brand-sky bg-brand-mist break-words text-brand-navy",
+		compact ? "gap-1 p-2 text-sm" : "gap-2 p-3 text-sm",
+	]}
 >
 	<div role="row" class={rowClass}>
 		{#each columns as lines (lines.join(""))}
@@ -35,7 +42,7 @@
 		{/each}
 	</div>
 	{#if counts}
-		<div role="row" class={[rowClass, "bg-brand-yellow py-2"]}>
+		<div role="row" class={[rowClass, "bg-brand-yellow", compact ? "py-1" : "py-2"]}>
 			<span role="rowheader">ปัจจุบัน</span>
 			<span role="cell">{mark(counts.hasTcas)}</span>
 			<span role="cell">{mark(counts.hasCentralActivity)}</span>
@@ -45,12 +52,12 @@
 		</div>
 	{/if}
 	<hr class="border-brand-sky" />
-	<div class="flex flex-col gap-3">
+	<div class={["flex flex-col", compact ? "gap-1.5" : "gap-3"]}>
 		{#each rewardTiers as tier (tier.tier)}
 			<div
 				role="row"
 				aria-current={tier.tier === highlight || undefined}
-				class={[rowClass, tier.tier === highlight && "border border-brand-yellow py-2"]}
+				class={[rowClass, tier.tier === highlight && ["border border-brand-yellow", compact ? "py-1" : "py-2"]]}
 			>
 				<span role="rowheader">
 					{#if tier.title.endsWith(PIRATE)}
