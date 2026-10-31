@@ -201,18 +201,58 @@
       </button>
     </div>
 
-    <!-- Whether the attendee redeemed, never which tier or gift. -->
+    <!-- The rules up front: one pick from the unlocked tiers, prizes don't stack, then locked.
+         Collapsed by default, with the attendee's redemption status beside the title (whether
+         they redeemed, never which tier or gift). The <details> sits inside the glass, which
+         would otherwise hide its canvas. -->
+    <Glass class="rounded-lg p-3 text-sm text-brand-mist">
+      <details class="group">
+        <summary
+          class="flex cursor-pointer list-none items-center justify-between gap-2 text-base font-medium text-brand-yellow [&::-webkit-details-marker]:hidden"
+        >
+          วิธีแลกของรางวัล
+          <span class="flex items-center gap-2">
+            {#if progress}
+              <span
+                class={[
+                  "rounded-full px-2.5 py-0.5 text-xs font-medium text-brand-navy",
+                  progress.redemption ? "bg-status-green" : "bg-brand-mist",
+                ]}
+              >
+                {progress.redemption
+                  ? "✓ แลกรับของรางวัลแล้ว"
+                  : "ยังไม่ได้แลกรับของรางวัล"}
+              </span>
+            {/if}
+            <span
+              aria-hidden="true"
+              class="transition-transform group-open:rotate-180">▾</span
+            >
+          </span>
+        </summary>
+        <ol class="mt-2 flex list-decimal flex-col gap-1 ps-5">
+          <li>สะสมตราจากบูธ กิจกรรม และเวิร์กช็อป ตามเงื่อนไขของแต่ละขั้นด้านล่าง</li>
+          <li>
+            <span class="font-medium text-brand-yellow">เลือกแลกได้ 1 อย่าง</span>
+            จากขั้นที่ผ่านเงื่อนไขแล้ว ของรางวัลไม่สะสมรวมกัน
+            <span class="text-xs"
+              >(เช่น ผ่านขั้นกัปตันโจรสลัด จะได้กระบอกน้ำ 1 ใบ ไม่ได้หมอนและหมวกด้วย)</span
+            >
+          </li>
+          <li>
+            <span class="font-medium text-brand-yellow">แลกแล้วระบบจะล็อกทันที</span>
+            สะสมเพื่อเลื่อนขั้นต่อไม่ได้อีก ถ้าอยากได้ขั้นที่สูงกว่า ให้เก็บให้ครบก่อนแลก
+          </li>
+          <li>
+            ก่อนแลก ลงสตอรี่ IG พร้อมแฮชแท็ก <span
+              class="font-medium text-brand-yellow">{rewardHashtags.join(" ")}</span
+            > แล้วแสดงให้สตาฟดู
+          </li>
+        </ol>
+      </details>
+    </Glass>
+
     {#if progress}
-      <p
-        class={[
-          "self-start rounded-full px-3 py-1 text-sm font-medium text-brand-navy",
-          progress.redemption ? "bg-status-green" : "bg-brand-mist",
-        ]}
-      >
-        {progress.redemption
-          ? "✓ แลกรับของรางวัลแล้ว"
-          : "ยังไม่ได้แลกรับของรางวัล"}
-      </p>
       <StampLog
         checkpoints={progress.checkpoints}
         registered={data.workshops.map((workshop) => ({
@@ -234,20 +274,5 @@
         }}
       />
     {/each}
-
-    <Glass class="rounded-lg flex flex-col gap-1 p-3 text-sm text-brand-mist">
-      <p class="font-medium text-brand-yellow">ก่อนแลกของรางวัล</p>
-      <ul class="list-disc ps-5">
-        <li>
-          แลกได้ครั้งเดียว ตามขั้นสูงสุดที่ผ่าน
-          เมื่อแลกแล้วจะสะสมเพื่อเลื่อนขั้นต่อไม่ได้
-        </li>
-        <li>
-          ลงสตอรี่ IG พร้อมแฮชแท็ก <span class="font-medium text-brand-yellow"
-            >{rewardHashtags.join(" ")}</span
-          >
-        </li>
-      </ul>
-    </Glass>
   </section>
 </main>
