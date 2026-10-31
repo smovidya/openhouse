@@ -4,8 +4,8 @@ export const BANGKOK_TIME_ZONE = "Asia/Bangkok";
 // documentation, and frontend display data as well as comparison boundaries.
 export const EVENT_SCHEDULE = Object.freeze({
   workshopRegistrationOpensAt: "2026-10-20T18:00:00+07:00",
-  // Exclusive boundary: registration remains open through 31 Oct at 23:59.
-  workshopRegistrationClosesAt: "2026-11-01T00:00:00+07:00",
+  // Exclusive boundary. Closed early on event day (was 1 Nov 00:00); staff still add walk-ins.
+  workshopRegistrationClosesAt: "2026-10-31T09:00:00+07:00",
   eventStartsAt: "2026-10-31T13:00:00+07:00",
   eventEndsAt: "2026-11-01T17:00:00+07:00",
 });
