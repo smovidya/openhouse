@@ -118,14 +118,14 @@
 		/>
 		<Select.Root type="single" bind:value={statusFilter}>
 			<Select.Trigger
-				class="h-9 w-40 border-white/20 bg-transparent text-white data-placeholder:text-white/40 dark:bg-transparent dark:hover:bg-white/10"
+				class="h-9 w-40 border-white/20 bg-white/5 text-white data-placeholder:text-white/40 hover:bg-white/10"
 			/>
-			<Select.Content class="border-white/10 bg-brand-mist text-brand-navy">
-				<Select.Item value="all" class="cursor-pointer">ทุกสถานะ</Select.Item>
-				<Select.Item value="upcoming" class="cursor-pointer">จองได้</Select.Item>
-				<Select.Item value="running" class="cursor-pointer">กำลังจัด</Select.Item>
-				<Select.Item value="ended" class="cursor-pointer">จบแล้ว</Select.Item>
-				<Select.Item value="full" class="cursor-pointer">รอบที่เต็ม</Select.Item>
+			<Select.Content class="border-white/10 bg-brand-navy text-white">
+				<Select.Item value="all" class="cursor-pointer focus:bg-white/10 focus:text-white">ทุกสถานะ</Select.Item>
+				<Select.Item value="upcoming" class="cursor-pointer focus:bg-white/10 focus:text-white">จองได้</Select.Item>
+				<Select.Item value="running" class="cursor-pointer focus:bg-white/10 focus:text-white">กำลังจัด</Select.Item>
+				<Select.Item value="ended" class="cursor-pointer focus:bg-white/10 focus:text-white">จบแล้ว</Select.Item>
+				<Select.Item value="full" class="cursor-pointer focus:bg-white/10 focus:text-white">รอบที่เต็ม</Select.Item>
 			</Select.Content>
 		</Select.Root>
 		<span class="ml-auto text-xs text-brand-mist tabular-nums">
@@ -134,7 +134,7 @@
 		<Button
 			variant="outline"
 			size="sm"
-			class="h-9 border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white dark:bg-transparent"
+			class="h-9 border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
 			onclick={() => setAll(!allOpen)}
 		>
 			{allOpen ? "ย่อทั้งหมด" : "ขยายทั้งหมด"}
