@@ -149,6 +149,7 @@
 						label="ผู้เข้างานจริง"
 						value={dashboard.attended}
 						denominator={dashboard.registered}
+						split={dashboard.attendedByDay}
 					/>
 					<KpiCard label="อยู่ในงานตอนนี้ (30 นาที)" value={dashboard.activeNow} />
 				</div>
@@ -173,6 +174,21 @@
 						<span
 							class="rounded-full border border-white/20 px-2.5 py-1 text-white/60 tabular-nums"
 						>
+							วันแรก {dashboard.checkinsByDay.day1.toLocaleString("th-TH")}
+						</span>
+						<span
+							class="rounded-full border border-white/20 px-2.5 py-1 text-white/60 tabular-nums"
+						>
+							วันที่สอง {dashboard.checkinsByDay.day2.toLocaleString("th-TH")}
+						</span>
+						<span
+							class="rounded-full border border-brand-yellow/40 px-2.5 py-1 text-brand-yellow tabular-nums"
+						>
+							รวม {dashboard.checkinsByDay.total.toLocaleString("th-TH")}
+						</span>
+						<span
+							class="rounded-full border border-white/20 px-2.5 py-1 text-white/60 tabular-nums"
+						>
 							ชั่วโมงนี้ {currentHourCount.toLocaleString("th-TH")}
 						</span>
 						{#if peak && peak.count > 0}
@@ -192,7 +208,7 @@
 				eyebrow="CHECK-IN PULSE"
 				title="การเช็คอินต่อชั่วโมง"
 			>
-				<HourlyChart hourly={dashboard.hourly} now={clock} />
+				<HourlyChart hourly={dashboard.hourly} hourlyEntry={dashboard.hourlyEntry} now={clock} />
 			</BentoTile>
 
 			<div class="md:col-span-2 lg:col-span-8">

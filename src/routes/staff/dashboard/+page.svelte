@@ -3,6 +3,7 @@
 	import { goto } from "$app/navigation";
 	import { Pause, Play } from "@lucide/svelte";
 	import BoothRace from "#lib/components/dashboard/booth-race.svelte";
+	import HourlyChart from "#lib/components/dashboard/hourly-chart.svelte";
 	import KpiCard from "#lib/components/dashboard/kpi-card.svelte";
 	import LiveFeed from "#lib/components/dashboard/live-feed.svelte";
 	import WorkshopTable from "#lib/components/dashboard/workshop-table.svelte";
@@ -46,21 +47,12 @@
 		return () => clearInterval(timer);
 	});
 
-	const timeFormat = new Intl.DateTimeFormat("th-TH", {
-		hour: "2-digit",
-		minute: "2-digit",
-		timeZone: "Asia/Bangkok",
-	});
 	const updatedFormat = new Intl.DateTimeFormat("th-TH", {
 		hour: "2-digit",
 		minute: "2-digit",
 		second: "2-digit",
 		timeZone: "Asia/Bangkok",
 	});
-
-	const hourlyMax = $derived(
-		Math.max(1, ...(stats.data?.hourly ?? []).map((hour) => hour.count)),
-	);
 
 	const attendanceRate = $derived(
 		stats.data && stats.data.registered > 0
@@ -208,9 +200,14 @@
 						label="ผู้เข้างานจริง"
 						value={dashboard.attended}
 						denominator={dashboard.registered}
+						split={dashboard.attendedByDay}
 					/>
 					<KpiCard label="อยู่ในงานตอนนี้ (30 นาที)" value={dashboard.activeNow} />
-					<KpiCard label="การเช็คอินรวมทุกจุด" value={dashboard.totalCheckins} />
+					<KpiCard
+						label="การเช็คอินรวมทุกจุด"
+						value={dashboard.totalCheckins}
+						split={dashboard.checkinsByDay}
+					/>
 				</section>
 
 				<p class="text-xs text-brand-mist">
@@ -236,27 +233,12 @@
 			{:else if activeTab === "hourly"}
 				<section class="rounded-xl border border-white/10 bg-white/5 p-4" aria-label="เช็คอินต่อชั่วโมง">
 					<h2 class="mb-3 text-lg font-medium text-brand-yellow">การเช็คอินต่อชั่วโมง</h2>
-					<div class="flex items-end justify-between gap-1 overflow-x-auto" style="height: 120px;">
-						{#each dashboard.hourly as hour (hour.hour)}
-							{@const isCurrentHour = new Date(hour.hour).getTime() <= clock
-								&& clock < new Date(new Date(hour.hour).getTime() + 3_600_000).getTime()}
-							<div class="flex h-full min-w-8 flex-1 flex-col items-center justify-end gap-1">
-								<span class="text-[10px] text-brand-mist tabular-nums">{hour.count}</span>
-								<div
-									class="w-full rounded-t
-									{isCurrentHour ? 'animate-pulse bg-brand-yellow' : 'bg-brand-mist/60'} transition-all duration-600"
-									style="height: {Math.max(
-										(hour.count / hourlyMax) * 80,
-										hour.count > 0 ? 6 : 2,
-									)}px;"
-								></div>
-								<span class="text-[10px] text-brand-mist tabular-nums">
-									{timeFormat.format(new Date(hour.hour))} น.
-								</span>
-							</div>
-						{:else}
-							<p class="text-sm text-brand-mist">ยังไม่มีข้อมูล</p>
-						{/each}
+					<div class="h-40">
+						<HourlyChart
+							hourly={dashboard.hourly}
+							hourlyEntry={dashboard.hourlyEntry}
+							now={clock}
+						/>
 					</div>
 				</section>
 			{:else}

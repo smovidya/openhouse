@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Db } from "#db";
+import { BANGKOK_TIME_ZONE, EVENT_SCHEDULE } from "#lib/constants/time.ts";
 import {
   attendees,
   checkpointLogs,
@@ -28,16 +29,41 @@ export type {
 /** Checkpoint types that count as event booths for the race view. */
 const boothTypes = ["booth", "tcas", "central_activity"] as const;
 
+/**
+ * Event-day boundaries (Asia/Bangkok) for the two-day split.
+ * Day 1 starts at the Bangkok midnight of the schedule's opening day,
+ * day 2 at the next midnight. Returns unix-seconds bounds [day1Start, day2Start, day3Start].
+ */
+export function getEventDayBounds(): [number, number, number] {
+  const startDate = new Date(EVENT_SCHEDULE.eventStartsAt);
+  const startKey = new Intl.DateTimeFormat("en-CA", {
+    timeZone: BANGKOK_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(startDate); // YYYY-MM-DD in Bangkok
+  const day1Start = Math.floor(Date.parse(`${startKey}T00:00:00+07:00`) / 1000);
+  const day2Start = day1Start + 86_400;
+  const day3Start = day2Start + 86_400;
+  return [day1Start, day2Start, day3Start];
+}
+
 export async function getDashboardStats(db: Db): Promise<DashboardStats> {
   const activeSince = Math.floor((Date.now() - 30 * 60 * 1000) / 1000);
+  const [day1Start, day2Start, day3Start] = getEventDayBounds();
 
   const [
     [registeredRow],
     [attendedRow],
     [totalCheckinsRow],
     [activeNowRow],
+    [attendedDay1Row],
+    [attendedDay2Row],
+    [checkinsDay1Row],
+    [checkinsDay2Row],
     boothRows,
     hourlyRows,
+    hourlyEntryRows,
     workshopRows,
   ] = await Promise.all([
     db
@@ -74,6 +100,64 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
           sql`${checkpointLogs.createdAt} >= ${activeSince}`,
         ),
       ),
+    // Day 1 distinct entrants (entry check-in within day 1).
+    db
+      .select({
+        value:
+          sql<number>`count(distinct ${checkpointLogs.attendeeId})`.mapWith(
+            Number,
+          ),
+      })
+      .from(checkpointLogs)
+      .innerJoin(checkpoints, eq(checkpoints.id, checkpointLogs.checkpointId))
+      .where(
+        and(
+          isNull(checkpointLogs.deletedAt),
+          eq(checkpoints.type, "entry"),
+          sql`${checkpointLogs.createdAt} >= ${day1Start}`,
+          sql`${checkpointLogs.createdAt} < ${day2Start}`,
+        ),
+      ),
+    // Day 2 distinct entrants.
+    db
+      .select({
+        value:
+          sql<number>`count(distinct ${checkpointLogs.attendeeId})`.mapWith(
+            Number,
+          ),
+      })
+      .from(checkpointLogs)
+      .innerJoin(checkpoints, eq(checkpoints.id, checkpointLogs.checkpointId))
+      .where(
+        and(
+          isNull(checkpointLogs.deletedAt),
+          eq(checkpoints.type, "entry"),
+          sql`${checkpointLogs.createdAt} >= ${day2Start}`,
+          sql`${checkpointLogs.createdAt} < ${day3Start}`,
+        ),
+      ),
+    // Total check-in logs on day 1.
+    db
+      .select({ value: sql<number>`count(*)`.mapWith(Number) })
+      .from(checkpointLogs)
+      .where(
+        and(
+          isNull(checkpointLogs.deletedAt),
+          sql`${checkpointLogs.createdAt} >= ${day1Start}`,
+          sql`${checkpointLogs.createdAt} < ${day2Start}`,
+        ),
+      ),
+    // Total check-in logs on day 2.
+    db
+      .select({ value: sql<number>`count(*)`.mapWith(Number) })
+      .from(checkpointLogs)
+      .where(
+        and(
+          isNull(checkpointLogs.deletedAt),
+          sql`${checkpointLogs.createdAt} >= ${day2Start}`,
+          sql`${checkpointLogs.createdAt} < ${day3Start}`,
+        ),
+      ),
     db
       .select({
         id: checkpoints.id,
@@ -103,6 +187,25 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
       })
       .from(checkpointLogs)
       .where(isNull(checkpointLogs.deletedAt))
+      .groupBy(
+        sql`strftime('%Y-%m-%dT%H:00', ${checkpointLogs.createdAt}, 'unixepoch')`,
+      )
+      .orderBy(
+        asc(
+          sql`strftime('%Y-%m-%dT%H:00', ${checkpointLogs.createdAt}, 'unixepoch')`,
+        ),
+      ),
+    // Hourly check-ins at entry checkpoints only (event arrivals).
+    db
+      .select({
+        hour: sql<string>`strftime('%Y-%m-%dT%H:00Z', ${checkpointLogs.createdAt}, 'unixepoch')`,
+        count: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(checkpointLogs)
+      .innerJoin(checkpoints, eq(checkpoints.id, checkpointLogs.checkpointId))
+      .where(
+        and(isNull(checkpointLogs.deletedAt), eq(checkpoints.type, "entry")),
+      )
       .groupBy(
         sql`strftime('%Y-%m-%dT%H:00', ${checkpointLogs.createdAt}, 'unixepoch')`,
       )
@@ -232,8 +335,19 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
     attended: attendedRow?.value ?? 0,
     totalCheckins: totalCheckinsRow?.value ?? 0,
     activeNow: activeNowRow?.value ?? 0,
+    attendedByDay: {
+      day1: attendedDay1Row?.value ?? 0,
+      day2: attendedDay2Row?.value ?? 0,
+      total: attendedRow?.value ?? 0,
+    },
+    checkinsByDay: {
+      day1: checkinsDay1Row?.value ?? 0,
+      day2: checkinsDay2Row?.value ?? 0,
+      total: totalCheckinsRow?.value ?? 0,
+    },
     booths: boothRows,
     hourly: hourlyRows,
+    hourlyEntry: hourlyEntryRows,
     workshops: [...workshopStats.values()],
     updatedAt: new Date().toISOString(),
   };

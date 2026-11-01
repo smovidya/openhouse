@@ -41,13 +41,26 @@ export interface WorkshopRoundAttendee {
   checkedIn: boolean;
 }
 
+/** Event-day breakdown of a count: day 1 (31 Oct), day 2 (1 Nov), then total. */
+export interface DaySplit {
+  day1: number;
+  day2: number;
+  total: number;
+}
+
 export interface DashboardStats {
   registered: number;
   attended: number;
   totalCheckins: number;
   activeNow: number;
+  /** Distinct event attendees per event day (entry check-in). */
+  attendedByDay: DaySplit;
+  /** Check-in log count per event day. */
+  checkinsByDay: DaySplit;
   booths: BoothStats[];
   hourly: { hour: string; count: number }[];
+  /** Hourly check-ins at entry checkpoints only (distinct event arrival). */
+  hourlyEntry: { hour: string; count: number }[];
   workshops: WorkshopStats[];
   updatedAt: string;
 }
