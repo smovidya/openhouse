@@ -128,7 +128,7 @@ it("shows only staff actions allowed by the combined permissions", () => {
       ["/staff/booth-check-in", "/staff/workshop-check-in"],
     ],
     [["activityStaff"], all],
-    [["admin"], all],
+    [["admin"], [...all, "/staff/certificates"].sort()],
   ];
   for (const [permissions, expected] of cases) {
     assert.deepEqual(

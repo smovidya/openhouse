@@ -115,6 +115,12 @@ test("evaluates once the attendee checks in, and locks after submitting", async 
 
   await page.getByRole("button", { name: "ส่งแบบประเมิน" }).click();
   await expect(page.getByText("ส่งแบบประเมินเรียบร้อย")).toBeVisible();
+  await expect(
+    page.getByText("คุณสามารถรับเกียรติบัตรได้แล้ว", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "ไปยืนยันชื่อและดาวน์โหลดเกียรติบัตร" }),
+  ).toHaveAttribute("href", "/myid");
 
   // One row in D1 holding the submitted answers (Non-PII only).
   const rows = localD1Rows<{ answer: string }>(
@@ -128,14 +134,20 @@ test("evaluates once the attendee checks in, and locks after submitting", async 
   // Revisiting shows the done state, not the form again.
   await open(page, "/evaluation");
   await expect(page.getByText("ส่งแบบประเมินเรียบร้อย")).toBeVisible();
+  await expect(
+    page.getByText("คุณสามารถรับเกียรติบัตรได้แล้ว", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "ไปยืนยันชื่อและดาวน์โหลดเกียรติบัตร" }),
+  ).toHaveAttribute("href", "/myid");
   await expect(page.getByRole("button", { name: "ส่งแบบประเมิน" })).toHaveCount(
     0,
   );
 
-  // The certificate card on /myid follows up with the download-later note.
+  // The certificate card on /myid opens the available certificate flow.
   await open(page, "/myid");
   await expect(page.getByText("ส่งแบบประเมินแล้ว")).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "@scichulaopenhouse" }),
-  ).toHaveAttribute("href", "https://www.instagram.com/scichulaopenhouse");
+    page.getByRole("button", { name: "รับเกียรติบัตร", exact: true }),
+  ).toBeVisible();
 });

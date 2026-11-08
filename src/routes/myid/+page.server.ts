@@ -1,3 +1,5 @@
+import { env } from "cloudflare:workers";
+import { myCertificate } from "#lib/features/certificates/service.server.ts";
 import { dev } from "$app/env";
 import { error, redirect } from "@sveltejs/kit";
 import {
@@ -67,6 +69,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
   );
 
   return {
+    certificate: await myCertificate(env, locals.user.id),
     profile: {
       name: `${result.value.firstname} ${result.value.lastname}`,
       code: result.value.qrCodeId,

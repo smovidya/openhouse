@@ -28,3 +28,8 @@ vite.config.ts.timestamp-*
 # Playwright (bun run test:e2e)
 /test-results/
 /playwright-report/
+
+# Private certificate source assets and generated output
+/เกียรติบัตร.png
+/certificate-assets/
+/certificate-output/

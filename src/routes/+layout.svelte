@@ -28,11 +28,16 @@
 	<link rel="apple-touch-icon" href={appleTouchIcon} />
 </svelte:head>
 
+{#if !page.url.pathname.startsWith("/c/")}
 <WaterBackground overlay={page.data.waterOverlay} tint={page.data.waterTint} />
+
+{/if}
 
 <QueryClientProvider client={queryClient}>
 	<div class="flex min-h-dvh flex-col">
+		{#if !page.url.pathname.startsWith("/c/")}
 		<MenuBar loggedIn={Boolean(page.data.session)} staff={Boolean(page.data.session?.user.staff)} />
+		{/if}
 		{@render children()}
 	</div>
 </QueryClientProvider>
@@ -40,7 +45,7 @@
 <!-- showError() (#lib/error-dialog.svelte.ts). -->
 <ErrorDialogHost />
 
-{#if dev}
+{#if dev && !page.url.pathname.startsWith("/c/")}
 	<DevToolbar />
 	{#if showFps.current}
 		<FpsCounter />

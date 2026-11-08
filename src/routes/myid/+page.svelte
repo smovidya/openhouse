@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CertificateDialog from "#lib/features/certificates/certificate-dialog.svelte";
   import arrowRightIcon from "#lib/assets/icons/arrow-right.svg";
   import refreshIcon from "#lib/assets/icons/refresh.svg";
   import bagFull from "#lib/assets/rewards/bag-full.webp";
@@ -106,8 +107,8 @@
     <h2 class="text-xl font-medium text-brand-navy">
       เกียรติบัตรการเข้าร่วมงาน
     </h2>
-    {#if progress?.entered}
-      {#if data.evaluationSubmitted}
+    {#if progress?.entered || data.certificate.issuance}
+      {#if data.evaluationSubmitted || data.certificate.issuance}
         <p class="text-xs text-brand-navy">
           ส่งแบบประเมินแล้ว <svg
             viewBox="0 0 18 18"
@@ -126,17 +127,7 @@
             />
           </svg>
         </p>
-        <p class="text-xs text-brand-navy">
-          เกียรติบัตรจะพร้อมให้ดาวน์โหลดภายหลัง ติดตามประกาศได้ที่ Instagram:
-          <a
-            href="https://www.instagram.com/scichulaopenhouse"
-            target="_blank"
-            rel="noreferrer"
-            class="font-bold text-brand-blue underline"
-          >
-            @scichulaopenhouse
-          </a>
-        </p>
+        <CertificateDialog initial={data.certificate} />
       {:else}
         <p class="text-xs text-brand-navy">
           เช็คอินจุดลงทะเบียนเข้างานแล้ว <svg

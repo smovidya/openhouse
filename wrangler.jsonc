@@ -14,10 +14,15 @@
   },
   "observability": {
     "enabled": true,
+    "logs": { "enabled": true, "invocation_logs": false },
   },
   "upload_source_maps": true,
   "secrets": {
-    "required": ["AUTH_JWT_SECRET"],
+    "required": [
+      "AUTH_JWT_SECRET",
+      "CERTIFICATE_PRIVATE_JWK",
+      "CERTIFICATE_PUBLIC_KEYS",
+    ],
   },
   // Local development binding. Configure the real DB separately in env.production.
   "d1_databases": [
@@ -29,29 +34,57 @@
       "migrations_pattern": "drizzle/*/migration.sql",
     },
   ],
+  "browser": { "binding": "CERTIFICATE_BROWSER" },
+  "r2_buckets": [
+    {
+      "binding": "CERTIFICATE_ASSETS",
+      "bucket_name": "openhouse-certificates-local",
+    },
+  ],
   "vars": {
     "GOOGLE_CLIENT_ID": "492442244723-srs10ae9048lgbab1qfp0hldiel8lvuv.apps.googleusercontent.com",
+    "CERTIFICATE_EVENT_ORIGIN": "https://event.local.preview.invalid",
+    "CERTIFICATE_ISSUER": "https://verify.local.preview.invalid",
   },
   "env": {
     "production": {
+      "browser": { "binding": "CERTIFICATE_BROWSER" },
+      "r2_buckets": [
+        {
+          "binding": "CERTIFICATE_ASSETS",
+          "bucket_name": "openhouse-certificates-production",
+        },
+      ],
       "d1_databases": [
         {
           "binding": "DB",
           "remote": true,
-          "database_name": "openhouse27-local",
+          "database_name": "openhouse27",
           "database_id": "748a9871-c120-460e-a9fe-a436865867e1",
           "migrations_dir": "drizzle",
           "migrations_pattern": "drizzle/*/migration.sql",
         },
       ],
       "secrets": {
-        "required": ["AUTH_JWT_SECRET"],
+        "required": [
+          "AUTH_JWT_SECRET",
+          "CERTIFICATE_PRIVATE_JWK",
+          "CERTIFICATE_PUBLIC_KEYS",
+        ],
       },
       "vars": {
         "GOOGLE_CLIENT_ID": "492442244723-srs10ae9048lgbab1qfp0hldiel8lvuv.apps.googleusercontent.com",
+        "CERTIFICATE_EVENT_ORIGIN": "https://scichulaopenhouse.com",
+        "CERTIFICATE_ISSUER": "https://verify.vidyachula.org",
       },
       // Named previews share the cloud development database.
       "previews": {
+        "r2_buckets": [
+          {
+            "binding": "CERTIFICATE_ASSETS",
+            "bucket_name": "openhouse-certificates-preview",
+          },
+        ],
         "d1_databases": [
           {
             "binding": "DB",
@@ -60,10 +93,18 @@
           },
         ],
         "vars": {
+          "CERTIFICATE_EVENT_ORIGIN": "https://dev-scichulaopenhouse.com",
+          "CERTIFICATE_ISSUER": "https://verify-preview.vidyachula.org",
           "GOOGLE_CLIENT_ID": "492442244723-srs10ae9048lgbab1qfp0hldiel8lvuv.apps.googleusercontent.com",
         },
       },
       "routes": [
+        {
+          "custom_domain": true,
+          "pattern": "verify.vidyachula.org",
+          "enabled": true,
+          "previews_enabled": false,
+        },
         {
           "custom_domain": true,
           "pattern": "scichulaopenhouse.com",

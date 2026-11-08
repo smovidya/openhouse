@@ -18,6 +18,12 @@ export type StaffAction = {
 /** Staff menu actions, shown by permission (getStaffActions). */
 export const staffActions: readonly StaffAction[] = [
   {
+    href: "/staff/certificates",
+    label: "จัดการเกียรติบัตร",
+    icon: calendarCheckIcon,
+    permission: "admin",
+  },
+  {
     href: "/staff/check-in",
     label: "เช็คอินเข้างาน",
     icon: calendarCheckIcon,

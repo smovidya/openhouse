@@ -164,19 +164,12 @@
 			<p class="text-lg text-brand-navy">
 				ส่งแบบประเมินเรียบร้อย <span class="font-bold text-status-green">✓</span>
 			</p>
-			<p class="text-xs text-brand-mist">
-				เกียรติบัตรจะพร้อมให้ดาวน์โหลดภายหลัง ติดตามประกาศได้ที่ Instagram:
-				<a
-					href="https://www.instagram.com/scichulaopenhouse"
-					target="_blank"
-					rel="noreferrer"
-					class="font-bold text-brand-sky underline"
-				>
-					@scichulaopenhouse
-				</a>
+			<p class="text-sm text-brand-navy">
+				คุณสามารถรับเกียรติบัตรได้แล้ว ไปที่หน้า MY QR CODE แล้วกด “รับเกียรติบัตร”
+				เพื่อตรวจสอบคำนำหน้า ชื่อ นามสกุล และสถานศึกษาก่อนดาวน์โหลด
 			</p>
 		</Glass>
-		<Button variant="cta" size="cta-lg" href="/myid" class="w-full">กลับไปหน้า MY QR CODE</Button>
+		<Button variant="cta" size="cta-lg" href="/myid" class="w-full">ไปยืนยันชื่อและดาวน์โหลดเกียรติบัตร</Button>
 	{:else}
 		<div class="flex justify-center">
 			<SignBoard title="ประเมินผล" wide />

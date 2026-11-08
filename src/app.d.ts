@@ -16,10 +16,11 @@ declare global {
     }
 
     interface Locals {
+      certificateOperationsAllowed: boolean;
       user: AuthUser | null;
       session: AuthSession | null;
     }
   }
 }
 
-export { };
+export {};

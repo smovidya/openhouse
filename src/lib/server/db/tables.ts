@@ -291,7 +291,60 @@ export const surveyResponses = t.sqliteTable("survey_responses", {
   ...timestamps,
 });
 
+export const certificates = t.sqliteTable(
+  "certificates",
+  {
+    id: t.text("id").primaryKey().notNull(),
+    attendeeId: t
+      .text("attendee_id")
+      .notNull()
+      .references(() => attendees.id),
+    eventId: t.text("event_id").notNull(),
+    currentIssuanceId: t.text("current_issuance_id"),
+    createdAt: t.integer("created_at").notNull(),
+  },
+  (table) => [
+    t
+      .uniqueIndex("certificates_attendee_event_unique")
+      .on(table.attendeeId, table.eventId),
+  ],
+);
+
+export const certificateIssuances = t.sqliteTable("certificate_issuances", {
+  id: t.text("id").primaryKey().notNull(),
+  certificateId: t
+    .text("certificate_id")
+    .notNull()
+    .references(() => certificates.id),
+  title: t.text("title").notNull(),
+  firstName: t.text("first_name").notNull(),
+  lastName: t.text("last_name").notNull(),
+  displayName: t.text("display_name").notNull(),
+  school: t.text("school").notNull(),
+  eventSnapshot: t.text("event_snapshot").notNull(),
+  token: t.text("token").notNull().unique(),
+  templateVersion: t.text("template_version").notNull(),
+  createdAt: t.integer("created_at").notNull(),
+  createdBy: t.text("created_by").references(() => users.id),
+  reason: t.text("reason"),
+  supersedesId: t.text("supersedes_id").unique(),
+  pdfKey: t.text("pdf_key"),
+  renderState: t
+    .text("render_state", {
+      enum: ["pending", "generating", "ready", "failed"],
+    })
+    .notNull()
+    .default("pending"),
+  leaseOwner: t.text("lease_owner"),
+  leaseUntil: t.integer("lease_until"),
+  revokedAt: t.integer("revoked_at"),
+  revokedBy: t.text("revoked_by").references(() => users.id),
+  revocationReason: t.text("revocation_reason"),
+});
+
 export const tables = {
+  certificates,
+  certificateIssuances,
   users,
   attendees,
   staffs,
